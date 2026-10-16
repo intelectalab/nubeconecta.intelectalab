@@ -1,0 +1,6416 @@
+{
+  "generated_from": "api/openapi.yaml",
+  "count": 641,
+  "permissions": [
+    {
+      "code": "assistant.conversation.update",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "conversation",
+      "action": "update",
+      "description": "Enlazar una conversación del asistente a prospecto, cliente o ticket, y cerrarla.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "assistant.conversation.view",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "conversation",
+      "action": "view",
+      "description": "Ver las conversaciones del asistente con IA y sus mensajes registrados.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "assistant.profile.create",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "profile",
+      "action": "create",
+      "description": "Crear el perfil del asistente de una marca y canal (web o portal).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "assistant.profile.update",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "profile",
+      "action": "update",
+      "description": "Configurar el perfil del asistente (saludo, herramientas, fuentes, derivación) y probarlo en seco.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "assistant.profile.view",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "profile",
+      "action": "view",
+      "description": "Ver los perfiles del asistente por marca.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "assistant.usage.view",
+      "module_key": "assistant",
+      "module": "AIA",
+      "entity": "usage",
+      "action": "view",
+      "description": "Ver el consumo mensual del asistente por marca frente a su tope.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.automation_rule.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_rule",
+      "action": "create",
+      "description": "Crear reglas de automatización",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.automation_rule.delete",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_rule",
+      "action": "delete",
+      "description": "Eliminar reglas de automatización",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.automation_rule.update",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_rule",
+      "action": "update",
+      "description": "Editar reglas de automatización",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.automation_rule.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_rule",
+      "action": "view",
+      "description": "Ver reglas de automatización",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "automation.automation_run.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_run",
+      "action": "create",
+      "description": "Crear ejecuciones de automatización",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.automation_run.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "automation_run",
+      "action": "view",
+      "description": "Ver ejecuciones de automatización",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.export.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "export",
+      "action": "create",
+      "description": "Crear exportaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.export.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "export",
+      "action": "view",
+      "description": "Ver exportaciones",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.import.approve",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "import",
+      "action": "approve",
+      "description": "Confirmar la carga de una importación validada",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.import.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "import",
+      "action": "create",
+      "description": "Crear importaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.import.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "import",
+      "action": "view",
+      "description": "Ver importaciones",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "automation.notification_delivery.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_delivery",
+      "action": "create",
+      "description": "Crear entregas de avisos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.notification_delivery.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_delivery",
+      "action": "view",
+      "description": "Ver entregas de avisos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.notification_template.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_template",
+      "action": "create",
+      "description": "Crear plantillas de aviso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.notification_template.delete",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_template",
+      "action": "delete",
+      "description": "Eliminar plantillas de aviso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.notification_template.update",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_template",
+      "action": "update",
+      "description": "Editar plantillas de aviso",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.notification_template.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "notification_template",
+      "action": "view",
+      "description": "Ver plantillas de aviso",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "automation.outbound_webhook_delivery.update",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "outbound_webhook_delivery",
+      "action": "update",
+      "description": "Editar entregas de webhooks salientes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.outbound_webhook_delivery.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "outbound_webhook_delivery",
+      "action": "view",
+      "description": "Ver entregas de webhooks salientes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.rich_text.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "rich_text",
+      "action": "create",
+      "description": "Subir imágenes propias para insertarlas en el editor de texto enriquecido.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.rich_text.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "rich_text",
+      "action": "view",
+      "description": "Usar el editor de texto enriquecido: sanear, ver la vista previa con variables y listar las variables insertables por contexto.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "automation.rich_text_version.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "rich_text_version",
+      "action": "create",
+      "description": "Restaurar una versión anterior de un texto enriquecido (crea una versión nueva; exige además editar el registro dueño).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.rich_text_version.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "rich_text_version",
+      "action": "view",
+      "description": "Ver el historial de versiones de los textos enriquecidos (plantillas, cláusulas, artículos, formularios y descripciones).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.sync_run.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "sync_run",
+      "action": "create",
+      "description": "Crear sincronizaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.sync_run.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "sync_run",
+      "action": "view",
+      "description": "Ver sincronizaciones",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.webhook_endpoint.create",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "webhook_endpoint",
+      "action": "create",
+      "description": "Crear webhooks salientes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.webhook_endpoint.delete",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "webhook_endpoint",
+      "action": "delete",
+      "description": "Eliminar webhooks salientes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "automation.webhook_endpoint.update",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "webhook_endpoint",
+      "action": "update",
+      "description": "Editar webhooks salientes",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "automation.webhook_endpoint.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "webhook_endpoint",
+      "action": "view",
+      "description": "Ver webhooks salientes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "automation.webhook_event.view",
+      "module_key": "automation",
+      "module": "AUT",
+      "entity": "webhook_event",
+      "action": "view",
+      "description": "Ver eventos de webhooks entrantes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.coupon.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "coupon",
+      "action": "create",
+      "description": "Crear cupones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.coupon.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "coupon",
+      "action": "delete",
+      "description": "Eliminar cupones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.coupon.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "coupon",
+      "action": "update",
+      "description": "Editar cupones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.coupon.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "coupon",
+      "action": "view",
+      "description": "Ver cupones",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.credit_balance.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "credit_balance",
+      "action": "update",
+      "description": "Editar saldos a favor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.credit_balance.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "credit_balance",
+      "action": "view",
+      "description": "Ver saldos a favor",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.dunning_event.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "dunning_event",
+      "action": "create",
+      "description": "Crear dunning event",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.dunning_event.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "dunning_event",
+      "action": "view",
+      "description": "Ver dunning event",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.dunning_sequence.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "dunning_sequence",
+      "action": "view",
+      "description": "Ver secuencias de cobranza",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "billing.einvoice_submission.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "einvoice_submission",
+      "action": "view",
+      "description": "Ver envíos de emisión electrónica",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.exchange_rate.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "exchange_rate",
+      "action": "create",
+      "description": "Crear tipos de cambio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.exchange_rate.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "exchange_rate",
+      "action": "view",
+      "description": "Ver tipos de cambio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.invoice.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "create",
+      "description": "Crear comprobantes",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "billing.invoice.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "delete",
+      "description": "Eliminar comprobantes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.invoice.export",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "export",
+      "description": "Exportar comprobantes (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.invoice.issue",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "issue",
+      "description": "Emitir comprobantes (serie y número) y reenviar a emisión electrónica",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.invoice.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "update",
+      "description": "Editar comprobantes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.invoice.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "view",
+      "description": "Ver comprobantes",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "billing.invoice.void",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "invoice",
+      "action": "void",
+      "description": "Descartar borradores y anular comprobantes emitidos (comunicación de baja)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment",
+      "action": "create",
+      "description": "Crear pagos",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "billing.payment.export",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment",
+      "action": "export",
+      "description": "Exportar pagos (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment.validate",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment",
+      "action": "validate",
+      "description": "Validar o rechazar pagos reportados (vouchers), solicitar reembolsos y confirmar conciliaciones",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "billing.payment.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment",
+      "action": "view",
+      "description": "Ver pagos",
+      "scope": "staff",
+      "operations": 6
+    },
+    {
+      "code": "billing.payment_allocation.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_allocation",
+      "action": "create",
+      "description": "Crear aplicaciones de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_allocation.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_allocation",
+      "action": "delete",
+      "description": "Eliminar aplicaciones de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_allocation.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_allocation",
+      "action": "view",
+      "description": "Ver aplicaciones de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_dispute.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_dispute",
+      "action": "create",
+      "description": "Registrar contracargos a mano (pasarela sin webhook de disputa)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_dispute.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_dispute",
+      "action": "update",
+      "description": "Gestionar contracargos: notas, descargos y cierre ganado o perdido",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "billing.payment_dispute.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_dispute",
+      "action": "view",
+      "description": "Ver contracargos de pagos con tarjeta",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.payment_method.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_method",
+      "action": "create",
+      "description": "Crear medios de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_method.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_method",
+      "action": "delete",
+      "description": "Eliminar medios de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_method.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_method",
+      "action": "update",
+      "description": "Editar medios de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_method.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_method",
+      "action": "view",
+      "description": "Ver medios de pago",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.payment_promise.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_promise",
+      "action": "create",
+      "description": "Crear compromisos de pago",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.payment_promise.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_promise",
+      "action": "update",
+      "description": "Editar compromisos de pago",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.payment_promise.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "payment_promise",
+      "action": "view",
+      "description": "Ver compromisos de pago",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.provider_bill.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "provider_bill",
+      "action": "create",
+      "description": "Crear facturas de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.provider_bill.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "provider_bill",
+      "action": "delete",
+      "description": "Eliminar facturas de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.provider_bill.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "provider_bill",
+      "action": "update",
+      "description": "Editar facturas de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.provider_bill.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "provider_bill",
+      "action": "view",
+      "description": "Ver facturas de proveedor",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "billing.refund.authorize",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "refund",
+      "action": "authorize",
+      "description": "Autorizar reembolsos (exige MFA reciente)",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "billing.tax_rate.create",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "tax_rate",
+      "action": "create",
+      "description": "Crear tasas de impuesto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.tax_rate.delete",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "tax_rate",
+      "action": "delete",
+      "description": "Eliminar tasas de impuesto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.tax_rate.update",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "tax_rate",
+      "action": "update",
+      "description": "Editar tasas de impuesto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "billing.tax_rate.view",
+      "module_key": "billing",
+      "module": "BIL",
+      "entity": "tax_rate",
+      "action": "view",
+      "description": "Ver tasas de impuesto",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.bank_account.create",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "bank_account",
+      "action": "create",
+      "description": "Crear cuentas bancarias",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.bank_account.delete",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "bank_account",
+      "action": "delete",
+      "description": "Eliminar cuentas bancarias",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.bank_account.update",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "bank_account",
+      "action": "update",
+      "description": "Editar cuentas bancarias",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.bank_account.view",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "bank_account",
+      "action": "view",
+      "description": "Ver cuentas bancarias",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.brand.create",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "brand",
+      "action": "create",
+      "description": "Crear marcas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.brand.delete",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "brand",
+      "action": "delete",
+      "description": "Eliminar marcas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.brand.update",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "brand",
+      "action": "update",
+      "description": "Editar marcas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.brand.view",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "brand",
+      "action": "view",
+      "description": "Ver marcas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.document_series.create",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "document_series",
+      "action": "create",
+      "description": "Crear series de documentos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.document_series.delete",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "document_series",
+      "action": "delete",
+      "description": "Eliminar series de documentos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.document_series.update",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "document_series",
+      "action": "update",
+      "description": "Editar series de documentos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.document_series.view",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "document_series",
+      "action": "view",
+      "description": "Ver series de documentos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.legal_entity.create",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "legal_entity",
+      "action": "create",
+      "description": "Crear entidades emisoras",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.legal_entity.delete",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "legal_entity",
+      "action": "delete",
+      "description": "Eliminar entidades emisoras",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.legal_entity.update",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "legal_entity",
+      "action": "update",
+      "description": "Editar entidades emisoras",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.legal_entity.view",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "legal_entity",
+      "action": "view",
+      "description": "Ver entidades emisoras",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.theme.approve",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "theme",
+      "action": "approve",
+      "description": "Publicar una versión del tema de la marca o volver a una anterior (portal, panel y correos).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "brands.theme.create",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "theme",
+      "action": "create",
+      "description": "Crear el tema de una marca para el portal, el panel y los correos (uno por marca).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "brands.theme.update",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "theme",
+      "action": "update",
+      "description": "Crear, editar y descartar borradores de tema, verificar su contraste mínimo y abrir la vista previa.",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "brands.theme.view",
+      "module_key": "brands",
+      "module": "BRD",
+      "entity": "theme",
+      "action": "view",
+      "description": "Ver los temas de las marcas, su historial de versiones y el informe de contraste.",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "catalog.bundle_item.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "bundle_item",
+      "action": "update",
+      "description": "Editar componentes de paquete",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.bundle_item.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "bundle_item",
+      "action": "view",
+      "description": "Ver componentes de paquete",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_extension.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_extension",
+      "action": "create",
+      "description": "Agregar una extensión de dominio al catálogo.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_extension.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_extension",
+      "action": "delete",
+      "description": "Dar de baja una extensión de dominio sin dominios activos.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_extension.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_extension",
+      "action": "update",
+      "description": "Editar registrador por defecto, margen mínimo, venta en línea y orden de una extensión.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_extension.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_extension",
+      "action": "view",
+      "description": "Ver las extensiones de dominio del catálogo con su registrador por defecto, margen mínimo y precios vigentes.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.domain_tld_price.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_tld_price",
+      "action": "create",
+      "description": "Crear precios por extensión de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_tld_price.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_tld_price",
+      "action": "delete",
+      "description": "Eliminar precios por extensión de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.domain_tld_price.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_tld_price",
+      "action": "update",
+      "description": "Editar precios por extensión de dominio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.domain_tld_price.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "domain_tld_price",
+      "action": "view",
+      "description": "Ver precios por extensión de dominio",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "catalog.hosting_package_spec.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "hosting_package_spec",
+      "action": "update",
+      "description": "Crear o editar la ficha técnica de un paquete de hosting.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.hosting_package_spec.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "hosting_package_spec",
+      "action": "view",
+      "description": "Ver la ficha técnica de un paquete de hosting (recursos, paquete WHM y nodo preferido).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan",
+      "action": "create",
+      "description": "Crear planes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan",
+      "action": "delete",
+      "description": "Eliminar planes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan",
+      "action": "update",
+      "description": "Editar planes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan",
+      "action": "view",
+      "description": "Ver planes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.plan_price.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan_price",
+      "action": "create",
+      "description": "Crear plan price",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan_price.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan_price",
+      "action": "delete",
+      "description": "Eliminar plan price",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.plan_price.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan_price",
+      "action": "update",
+      "description": "Editar plan price",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.plan_price.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "plan_price",
+      "action": "view",
+      "description": "Ver plan price",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.product.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product",
+      "action": "create",
+      "description": "Crear productos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.product.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product",
+      "action": "delete",
+      "description": "Eliminar productos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product.export",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product",
+      "action": "export",
+      "description": "Exportar productos (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product",
+      "action": "update",
+      "description": "Editar productos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product",
+      "action": "view",
+      "description": "Ver productos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.product_addon.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_addon",
+      "action": "create",
+      "description": "Crear complementos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_addon.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_addon",
+      "action": "delete",
+      "description": "Eliminar complementos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_addon.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_addon",
+      "action": "update",
+      "description": "Editar complementos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_addon.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_addon",
+      "action": "view",
+      "description": "Ver complementos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.product_category.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_category",
+      "action": "create",
+      "description": "Crear categorías de producto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_category.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_category",
+      "action": "delete",
+      "description": "Eliminar categorías de producto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_category.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_category",
+      "action": "update",
+      "description": "Editar categorías de producto",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_category.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_category",
+      "action": "view",
+      "description": "Ver categorías de producto",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.product_listing.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_listing",
+      "action": "create",
+      "description": "Crear la ficha de un producto en una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_listing.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_listing",
+      "action": "delete",
+      "description": "Dar de baja la ficha de un producto en una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_listing.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_listing",
+      "action": "update",
+      "description": "Editar nombre por marca, venta en línea, orden, destacado y vigencia de una ficha.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.product_listing.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "product_listing",
+      "action": "view",
+      "description": "Ver las fichas por marca de los productos (nombre, venta en línea, orden, destacado y vigencia).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "catalog.service_type.create",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "service_type",
+      "action": "create",
+      "description": "Crear tipos de servicio personalizados sin programar.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.service_type.delete",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "service_type",
+      "action": "delete",
+      "description": "Dar de baja un tipo de servicio personalizado en borrador y sin productos.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.service_type.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "service_type",
+      "action": "update",
+      "description": "Editar un tipo de servicio personalizado, sus campos propios, activarlo o archivarlo.",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "catalog.service_type.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "service_type",
+      "action": "view",
+      "description": "Ver los tipos de servicio personalizados y sus campos propios.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "catalog.vps_plan_spec.update",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "vps_plan_spec",
+      "action": "update",
+      "description": "Crear o editar la ficha técnica de un plan VPS.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "catalog.vps_plan_spec.view",
+      "module_key": "catalog",
+      "module": "CAT",
+      "entity": "vps_plan_spec",
+      "action": "view",
+      "description": "Ver la ficha técnica de un plan VPS (recursos, sistema operativo, proveedor y plan de origen).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_account.create",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_account",
+      "action": "create",
+      "description": "Crear cuentas cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_account.delete",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_account",
+      "action": "delete",
+      "description": "Eliminar cuentas cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_account.update",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_account",
+      "action": "update",
+      "description": "Editar cuentas cloud",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "cloud.cloud_account.view",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_account",
+      "action": "view",
+      "description": "Ver cuentas cloud",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "cloud.cloud_budget.create",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_budget",
+      "action": "create",
+      "description": "Crear presupuestos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_budget.delete",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_budget",
+      "action": "delete",
+      "description": "Eliminar presupuestos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_budget.update",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_budget",
+      "action": "update",
+      "description": "Editar presupuestos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_budget.view",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_budget",
+      "action": "view",
+      "description": "Ver presupuestos cloud",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "cloud.cloud_project.create",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_project",
+      "action": "create",
+      "description": "Crear proyectos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_project.delete",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_project",
+      "action": "delete",
+      "description": "Eliminar proyectos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_project.update",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_project",
+      "action": "update",
+      "description": "Editar proyectos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_project.view",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_project",
+      "action": "view",
+      "description": "Ver proyectos cloud",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "cloud.cloud_resource.export",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_resource",
+      "action": "export",
+      "description": "Exportar recursos cloud (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_resource.update",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_resource",
+      "action": "update",
+      "description": "Editar recursos cloud",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "cloud.cloud_resource.view",
+      "module_key": "cloud",
+      "module": "CLD",
+      "entity": "cloud_resource",
+      "action": "view",
+      "description": "Ver recursos cloud",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "complaints.complaint.create",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint",
+      "action": "create",
+      "description": "Registrar una hoja del Libro de Reclamaciones en nombre del consumidor.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "complaints.complaint.delete",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint",
+      "action": "delete",
+      "description": "Marcar una hoja del Libro de Reclamaciones como prueba y eliminar solo las hojas de prueba (con MFA reciente y auditoría).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "complaints.complaint.export",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint",
+      "action": "export",
+      "description": "Exportar el Libro de Reclamaciones con sus respuestas para fiscalización.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "complaints.complaint.update",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint",
+      "action": "update",
+      "description": "Tomar y cerrar hojas del Libro de Reclamaciones.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "complaints.complaint.view",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint",
+      "action": "view",
+      "description": "Ver el Libro de Reclamaciones de todas las marcas, sus plazos y respuestas.",
+      "scope": "staff",
+      "operations": 6
+    },
+    {
+      "code": "complaints.complaint_response.create",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "complaint_response",
+      "action": "create",
+      "description": "Responder al consumidor una hoja del Libro de Reclamaciones (la respuesta no se edita).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "complaints.privacy_request.create",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "privacy_request",
+      "action": "create",
+      "description": "Registrar una solicitud de derechos sobre datos personales recibida por otro canal.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "complaints.privacy_request.update",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "privacy_request",
+      "action": "update",
+      "description": "Verificar la identidad del titular y responder o rechazar su solicitud de datos personales.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "complaints.privacy_request.view",
+      "module_key": "complaints",
+      "module": "LRC",
+      "entity": "privacy_request",
+      "action": "view",
+      "description": "Ver las solicitudes de acceso, rectificación, cancelación u oposición sobre datos personales.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.account_handover.approve",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "account_handover",
+      "action": "approve",
+      "description": "Cerrar una entrega de cuenta con acta firmada",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.account_handover.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "account_handover",
+      "action": "create",
+      "description": "Crear entregas de cuenta",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.account_handover.delete",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "account_handover",
+      "action": "delete",
+      "description": "Eliminar entregas de cuenta",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.account_handover.update",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "account_handover",
+      "action": "update",
+      "description": "Editar entregas de cuenta",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.account_handover.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "account_handover",
+      "action": "view",
+      "description": "Ver entregas de cuenta",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.contract.approve",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "approve",
+      "description": "Aprobar contratos antes del envío y terminarlos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.contract.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "create",
+      "description": "Crear contract",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.contract.delete",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "delete",
+      "description": "Eliminar contract",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract.export",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "export",
+      "description": "Exportar contract (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract.update",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "update",
+      "description": "Editar contract",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "contracts.contract.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract",
+      "action": "view",
+      "description": "Ver contract",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "contracts.contract_clause.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_clause",
+      "action": "create",
+      "description": "Crear cláusulas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_clause.delete",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_clause",
+      "action": "delete",
+      "description": "Eliminar cláusulas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_clause.update",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_clause",
+      "action": "update",
+      "description": "Editar cláusulas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_clause.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_clause",
+      "action": "view",
+      "description": "Ver cláusulas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.contract_comment.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_comment",
+      "action": "create",
+      "description": "Crear comentarios de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_comment.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_comment",
+      "action": "view",
+      "description": "Ver comentarios de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_signature.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_signature",
+      "action": "create",
+      "description": "Crear firmas de contrato",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "contracts.contract_signature.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_signature",
+      "action": "view",
+      "description": "Ver firmas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_template.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_template",
+      "action": "create",
+      "description": "Crear plantillas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_template.delete",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_template",
+      "action": "delete",
+      "description": "Eliminar plantillas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_template.update",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_template",
+      "action": "update",
+      "description": "Editar plantillas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_template.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_template",
+      "action": "view",
+      "description": "Ver plantillas de contrato",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "contracts.contract_version.create",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_version",
+      "action": "create",
+      "description": "Crear versiones y adendas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "contracts.contract_version.view",
+      "module_key": "contracts",
+      "module": "CTR",
+      "entity": "contract_version",
+      "action": "view",
+      "description": "Ver versiones y adendas de contrato",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.communication_consent.create",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "communication_consent",
+      "action": "create",
+      "description": "Crear consentimientos de comunicación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.communication_consent.update",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "communication_consent",
+      "action": "update",
+      "description": "Editar consentimientos de comunicación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.communication_consent.view",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "communication_consent",
+      "action": "view",
+      "description": "Ver consentimientos de comunicación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.contact.create",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "contact",
+      "action": "create",
+      "description": "Crear contactos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.contact.delete",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "contact",
+      "action": "delete",
+      "description": "Eliminar contactos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.contact.update",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "contact",
+      "action": "update",
+      "description": "Editar contactos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "customers.contact.view",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "contact",
+      "action": "view",
+      "description": "Ver contactos",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "customers.customer.create",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "create",
+      "description": "Crear clientes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.customer.delete",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "delete",
+      "description": "Eliminar clientes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "customers.customer.export",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "export",
+      "description": "Exportar clientes (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "customers.customer.update",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "update",
+      "description": "Editar clientes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "customers.customer.view",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "view",
+      "description": "Ver clientes",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "customers.customer_note.create",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer_note",
+      "action": "create",
+      "description": "Crear notas de cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.customer_note.delete",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer_note",
+      "action": "delete",
+      "description": "Eliminar notas de cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.customer_note.update",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer_note",
+      "action": "update",
+      "description": "Editar notas de cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "customers.customer_note.view",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer_note",
+      "action": "view",
+      "description": "Ver notas de cliente",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "dashboard.kpi.export",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi",
+      "action": "export",
+      "description": "Exportar en cola los valores de los indicadores de los grupos que el usuario puede ver.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi.update",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi",
+      "action": "update",
+      "description": "Activar, desactivar u ordenar indicadores del catálogo y pedir el recálculo de un periodo.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "dashboard.kpi.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi",
+      "action": "view",
+      "description": "Ver el catálogo de indicadores y el detalle (definición, fórmula, serie y meta) de los grupos que el usuario puede ver.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "dashboard.kpi_collections.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_collections",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de Cobranza.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_commercial.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_commercial",
+      "action": "view",
+      "description": "Ver los valores de los indicadores Comerciales.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_complaints.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_complaints",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de Reclamos (Libro de Reclamaciones).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_crm.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_crm",
+      "action": "view",
+      "description": "Ver los valores de los indicadores del CRM.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_finance.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_finance",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de Finanzas (facturado, cobrado, reconocido, deuda, márgenes y costos).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_operations.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_operations",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de Operación (vencimientos, nodos, migración, respaldos, disponibilidad e incidentes).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_support.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_support",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de Soporte (tickets, tiempos, SLA, satisfacción y carga).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_target.create",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_target",
+      "action": "create",
+      "description": "Crear la meta de un indicador por marca y periodo.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_target.delete",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_target",
+      "action": "delete",
+      "description": "Eliminar la meta de un indicador (vuelve a la meta por defecto o queda sin meta).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_target.update",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_target",
+      "action": "update",
+      "description": "Editar la meta de un indicador.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_target.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_target",
+      "action": "view",
+      "description": "Ver las metas de los indicadores.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.kpi_web.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "kpi_web",
+      "action": "view",
+      "description": "Ver los valores de los indicadores de la Web (compra en línea, carritos, búsquedas y registros de dominio, formularios).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.search.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "search",
+      "action": "view",
+      "description": "Ver búsqueda global",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "dashboard.summary.view",
+      "module_key": "dashboard",
+      "module": "DSH",
+      "entity": "summary",
+      "action": "view",
+      "description": "Ver resumen del dashboard",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "domains.domain.create",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain",
+      "action": "create",
+      "description": "Crear dominios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain.delete",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain",
+      "action": "delete",
+      "description": "Eliminar dominios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain.export",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain",
+      "action": "export",
+      "description": "Exportar dominios (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain.update",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain",
+      "action": "update",
+      "description": "Editar dominios",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "domains.domain.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain",
+      "action": "view",
+      "description": "Ver dominios",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "domains.domain_contact.update",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_contact",
+      "action": "update",
+      "description": "Editar contactos de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain_contact.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_contact",
+      "action": "view",
+      "description": "Ver contactos de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain_regularization.create",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_regularization",
+      "action": "create",
+      "description": "Crear regularizaciones de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain_regularization.delete",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_regularization",
+      "action": "delete",
+      "description": "Eliminar regularizaciones de dominio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.domain_regularization.update",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_regularization",
+      "action": "update",
+      "description": "Editar regularizaciones de dominio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "domains.domain_regularization.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "domain_regularization",
+      "action": "view",
+      "description": "Ver regularizaciones de dominio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "domains.operation.approve",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "operation",
+      "action": "approve",
+      "description": "Aprobar, rechazar y completar operaciones de dominio",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "domains.operation.create",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "operation",
+      "action": "create",
+      "description": "Crear operaciones de dominio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "domains.operation.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "operation",
+      "action": "view",
+      "description": "Ver operaciones de dominio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "domains.tld_rule.create",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "tld_rule",
+      "action": "create",
+      "description": "Crear reglas por extensión",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.tld_rule.delete",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "tld_rule",
+      "action": "delete",
+      "description": "Eliminar reglas por extensión",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.tld_rule.update",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "tld_rule",
+      "action": "update",
+      "description": "Editar reglas por extensión",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "domains.tld_rule.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "tld_rule",
+      "action": "view",
+      "description": "Ver reglas por extensión",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "domains.whois_lookup.view",
+      "module_key": "domains",
+      "module": "DOM",
+      "entity": "whois_lookup",
+      "action": "view",
+      "description": "Ver las consultas de disponibilidad y WHOIS hechas desde las webs (uso y abuso, sin IP ni datos de titulares).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost.create",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost",
+      "action": "create",
+      "description": "Crear costos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost.delete",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost",
+      "action": "delete",
+      "description": "Eliminar costos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost.export",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost",
+      "action": "export",
+      "description": "Exportar costos (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost.update",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost",
+      "action": "update",
+      "description": "Editar costos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost.view",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost",
+      "action": "view",
+      "description": "Ver costos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "finance.cost_allocation.create",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost_allocation",
+      "action": "create",
+      "description": "Crear distribuciones de costo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.cost_allocation.view",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "cost_allocation",
+      "action": "view",
+      "description": "Ver distribuciones de costo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "finance.profitability.view",
+      "module_key": "finance",
+      "module": "FIN",
+      "entity": "profitability",
+      "action": "view",
+      "description": "Ver rentabilidad",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "helpdesk.kb_article.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_article",
+      "action": "create",
+      "description": "Crear artículos de la base de conocimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.kb_article.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_article",
+      "action": "delete",
+      "description": "Eliminar artículos de la base de conocimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.kb_article.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_article",
+      "action": "update",
+      "description": "Editar artículos de la base de conocimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.kb_article.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_article",
+      "action": "view",
+      "description": "Ver artículos de la base de conocimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.kb_category.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_category",
+      "action": "create",
+      "description": "Crear categorías de la base de conocimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.kb_category.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_category",
+      "action": "delete",
+      "description": "Eliminar categorías de la base de conocimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.kb_category.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_category",
+      "action": "update",
+      "description": "Editar categorías de la base de conocimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.kb_category.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "kb_category",
+      "action": "view",
+      "description": "Ver categorías de la base de conocimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.satisfaction_survey.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "satisfaction_survey",
+      "action": "view",
+      "description": "Ver encuestas de satisfacción",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.sla_policy.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_policy",
+      "action": "create",
+      "description": "Crear políticas de SLA",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.sla_policy.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_policy",
+      "action": "delete",
+      "description": "Eliminar políticas de SLA",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.sla_policy.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_policy",
+      "action": "update",
+      "description": "Editar políticas de SLA",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.sla_policy.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_policy",
+      "action": "view",
+      "description": "Ver políticas de SLA",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.sla_target.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_target",
+      "action": "update",
+      "description": "Editar objetivos de SLA",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.sla_target.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "sla_target",
+      "action": "view",
+      "description": "Ver objetivos de SLA",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket",
+      "action": "create",
+      "description": "Crear ticket",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.ticket.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket",
+      "action": "delete",
+      "description": "Eliminar ticket",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket.export",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket",
+      "action": "export",
+      "description": "Exportar ticket (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket",
+      "action": "update",
+      "description": "Editar ticket",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "helpdesk.ticket.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket",
+      "action": "view",
+      "description": "Ver ticket",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "helpdesk.ticket_link.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket_link",
+      "action": "create",
+      "description": "Crear enlaces de ticket",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket_link.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket_link",
+      "action": "delete",
+      "description": "Eliminar enlaces de ticket",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket_link.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket_link",
+      "action": "view",
+      "description": "Ver los servicios y recursos vinculados a un ticket.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.ticket_message.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket_message",
+      "action": "create",
+      "description": "Crear mensajes de ticket",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "helpdesk.ticket_message.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "ticket_message",
+      "action": "view",
+      "description": "Ver mensajes de ticket",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.api_token.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "api_token",
+      "action": "create",
+      "description": "Crear tokens de API pública",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.api_token.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "api_token",
+      "action": "delete",
+      "description": "Eliminar tokens de API pública",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.api_token.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "api_token",
+      "action": "view",
+      "description": "Ver tokens de API pública",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.audit_event.export",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "audit_event",
+      "action": "export",
+      "description": "Exportar eventos de auditoría (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.audit_event.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "audit_event",
+      "action": "view",
+      "description": "Ver eventos de auditoría",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "identity.custom_field_definition.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "custom_field_definition",
+      "action": "create",
+      "description": "Crear definiciones de campos personalizados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.custom_field_definition.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "custom_field_definition",
+      "action": "delete",
+      "description": "Eliminar definiciones de campos personalizados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.custom_field_definition.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "custom_field_definition",
+      "action": "update",
+      "description": "Editar definiciones de campos personalizados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.custom_field_definition.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "custom_field_definition",
+      "action": "view",
+      "description": "Ver definiciones de campos personalizados",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.file.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "file",
+      "action": "create",
+      "description": "Crear archivos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.file.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "file",
+      "action": "view",
+      "description": "Ver archivos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.organization.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "organization",
+      "action": "update",
+      "description": "Editar organizaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.organization.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "organization",
+      "action": "view",
+      "description": "Ver organizaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.permission.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "permission",
+      "action": "view",
+      "description": "Ver permisos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.role.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "role",
+      "action": "create",
+      "description": "Crear roles",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.role.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "role",
+      "action": "delete",
+      "description": "Eliminar roles",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.role.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "role",
+      "action": "update",
+      "description": "Editar roles",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.role.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "role",
+      "action": "view",
+      "description": "Ver roles",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "identity.security_policy.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "security_policy",
+      "action": "update",
+      "description": "Cambiar la política de seguridad (contraseñas, segundo factor, bloqueo, sesión y dispositivos de confianza).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.security_policy.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "security_policy",
+      "action": "view",
+      "description": "Ver la política de seguridad vigente.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.session.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "session",
+      "action": "delete",
+      "description": "Eliminar sesiones de usuario",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.session.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "session",
+      "action": "view",
+      "description": "Ver sesiones de usuario",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.tag.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "tag",
+      "action": "create",
+      "description": "Crear etiquetas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.tag.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "tag",
+      "action": "delete",
+      "description": "Eliminar etiquetas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.tag.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "tag",
+      "action": "update",
+      "description": "Editar etiquetas",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "identity.tag.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "tag",
+      "action": "view",
+      "description": "Ver etiquetas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "identity.trusted_device.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "trusted_device",
+      "action": "delete",
+      "description": "Revocar un dispositivo de confianza de otro usuario.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.trusted_device.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "trusted_device",
+      "action": "view",
+      "description": "Ver los dispositivos de confianza de los usuarios.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.user.create",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "user",
+      "action": "create",
+      "description": "Crear usuarios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.user.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "user",
+      "action": "delete",
+      "description": "Eliminar usuarios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.user.export",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "user",
+      "action": "export",
+      "description": "Exportar usuarios (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "identity.user.update",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "user",
+      "action": "update",
+      "description": "Editar usuarios",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "identity.user.view",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "user",
+      "action": "view",
+      "description": "Ver usuarios",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.hosting_account.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_account",
+      "action": "create",
+      "description": "Crear cuentas de hosting",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.hosting_account.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_account",
+      "action": "delete",
+      "description": "Eliminar cuentas de hosting",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.hosting_account.login",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_account",
+      "action": "login",
+      "description": "Entrar al cPanel de una cuenta de hosting con sesión temporal (soporte)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.hosting_account.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_account",
+      "action": "update",
+      "description": "Editar cuentas de hosting",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.hosting_account.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_account",
+      "action": "view",
+      "description": "Ver cuentas de hosting",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.hosting_node.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_node",
+      "action": "create",
+      "description": "Crear nodos de hosting",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.hosting_node.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_node",
+      "action": "delete",
+      "description": "Eliminar nodos de hosting",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.hosting_node.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_node",
+      "action": "update",
+      "description": "Editar nodos de hosting",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.hosting_node.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "hosting_node",
+      "action": "view",
+      "description": "Ver nodos de hosting",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.maintenance.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "maintenance",
+      "action": "create",
+      "description": "Crear mantenimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.maintenance.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "maintenance",
+      "action": "delete",
+      "description": "Eliminar mantenimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.maintenance.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "maintenance",
+      "action": "update",
+      "description": "Editar mantenimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.maintenance.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "maintenance",
+      "action": "view",
+      "description": "Ver mantenimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.migration_batch.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_batch",
+      "action": "create",
+      "description": "Crear lotes de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.migration_batch.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_batch",
+      "action": "delete",
+      "description": "Eliminar lotes de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.migration_batch.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_batch",
+      "action": "update",
+      "description": "Editar lotes de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.migration_batch.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_batch",
+      "action": "view",
+      "description": "Ver lotes de migración",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "inventory.migration_item.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_item",
+      "action": "create",
+      "description": "Crear ítems de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.migration_item.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_item",
+      "action": "update",
+      "description": "Editar ítems de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.migration_item.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "migration_item",
+      "action": "view",
+      "description": "Ver ítems de migración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource",
+      "action": "create",
+      "description": "Crear recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource",
+      "action": "delete",
+      "description": "Eliminar recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource.export",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource",
+      "action": "export",
+      "description": "Exportar recursos (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource",
+      "action": "update",
+      "description": "Editar recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource",
+      "action": "view",
+      "description": "Ver recursos",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "inventory.resource_dependency.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource_dependency",
+      "action": "create",
+      "description": "Crear dependencias de recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource_dependency.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource_dependency",
+      "action": "delete",
+      "description": "Eliminar dependencias de recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.resource_dependency.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "resource_dependency",
+      "action": "view",
+      "description": "Ver dependencias de recursos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server",
+      "action": "create",
+      "description": "Crear servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server",
+      "action": "delete",
+      "description": "Eliminar servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server.execute",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server",
+      "action": "execute",
+      "description": "Ejecutar acciones sobre servidores por API (reinicio, snapshot, migración por lote, reversión); exige MFA reciente",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "inventory.server.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server",
+      "action": "update",
+      "description": "Editar servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server",
+      "action": "view",
+      "description": "Ver servidores",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "inventory.server_software.create",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server_software",
+      "action": "create",
+      "description": "Crear software de servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server_software.delete",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server_software",
+      "action": "delete",
+      "description": "Eliminar software de servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server_software.update",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server_software",
+      "action": "update",
+      "description": "Editar software de servidores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "inventory.server_software.view",
+      "module_key": "inventory",
+      "module": "INV",
+      "entity": "server_software",
+      "action": "view",
+      "description": "Ver software de servidores",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "mail.mail_dns_check.create",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_dns_check",
+      "action": "create",
+      "description": "Crear verificaciones DNS de correo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_dns_check.view",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_dns_check",
+      "action": "view",
+      "description": "Ver verificaciones DNS de correo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_service.create",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_service",
+      "action": "create",
+      "description": "Crear servicios de correo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_service.delete",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_service",
+      "action": "delete",
+      "description": "Eliminar servicios de correo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_service.export",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_service",
+      "action": "export",
+      "description": "Exportar servicios de correo (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_service.update",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_service",
+      "action": "update",
+      "description": "Editar servicios de correo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.mail_service.view",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "mail_service",
+      "action": "view",
+      "description": "Ver servicios de correo",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "mail.seat_license.create",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "seat_license",
+      "action": "create",
+      "description": "Crear licencias por usuario",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.seat_license.delete",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "seat_license",
+      "action": "delete",
+      "description": "Eliminar licencias por usuario",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.seat_license.update",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "seat_license",
+      "action": "update",
+      "description": "Editar licencias por usuario",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.seat_license.view",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "seat_license",
+      "action": "view",
+      "description": "Ver licencias por usuario",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "mail.ssl_certificate.create",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "ssl_certificate",
+      "action": "create",
+      "description": "Crear certificados SSL",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.ssl_certificate.delete",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "ssl_certificate",
+      "action": "delete",
+      "description": "Eliminar certificados SSL",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.ssl_certificate.export",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "ssl_certificate",
+      "action": "export",
+      "description": "Exportar certificados SSL (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "mail.ssl_certificate.update",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "ssl_certificate",
+      "action": "update",
+      "description": "Editar certificados SSL",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "mail.ssl_certificate.view",
+      "module_key": "mail",
+      "module": "MAI",
+      "entity": "ssl_certificate",
+      "action": "view",
+      "description": "Ver certificados SSL",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.alert.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "alert",
+      "action": "update",
+      "description": "Editar alertas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.alert.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "alert",
+      "action": "view",
+      "description": "Ver alertas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.backup_policy.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_policy",
+      "action": "create",
+      "description": "Crear políticas de respaldo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.backup_policy.delete",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_policy",
+      "action": "delete",
+      "description": "Eliminar políticas de respaldo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.backup_policy.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_policy",
+      "action": "update",
+      "description": "Editar políticas de respaldo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.backup_policy.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_policy",
+      "action": "view",
+      "description": "Ver políticas de respaldo",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.backup_run.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_run",
+      "action": "create",
+      "description": "Crear ejecuciones de respaldo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.backup_run.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_run",
+      "action": "view",
+      "description": "Ver ejecuciones de respaldo",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.backup_tool_account.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_tool_account",
+      "action": "create",
+      "description": "Registrar la herramienta de respaldos de un nodo cPanel.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.backup_tool_account.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_tool_account",
+      "action": "update",
+      "description": "Configurar la herramienta de respaldos de un nodo y leer sus respaldos reales.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.backup_tool_account.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "backup_tool_account",
+      "action": "view",
+      "description": "Ver las herramientas de respaldos por nodo y su capacidad de API.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.dr_test.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "dr_test",
+      "action": "create",
+      "description": "Registrar una prueba del plan de recuperación del sistema con su evidencia.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.dr_test.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "dr_test",
+      "action": "view",
+      "description": "Ver las pruebas del plan de recuperación y su cumplimiento de objetivos.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.incident.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident",
+      "action": "create",
+      "description": "Crear incidentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.incident.delete",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident",
+      "action": "delete",
+      "description": "Eliminar incidentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.incident.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident",
+      "action": "update",
+      "description": "Editar incidentes",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "monitoring.incident.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident",
+      "action": "view",
+      "description": "Ver incidentes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.incident_affected.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident_affected",
+      "action": "create",
+      "description": "Crear afectados por incidentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.incident_affected.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "incident_affected",
+      "action": "view",
+      "description": "Ver afectados por incidentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.maintenance_window.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "maintenance_window",
+      "action": "create",
+      "description": "Crear ventanas de mantenimiento",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.maintenance_window.delete",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "maintenance_window",
+      "action": "delete",
+      "description": "Eliminar ventanas de mantenimiento",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.maintenance_window.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "maintenance_window",
+      "action": "update",
+      "description": "Editar ventanas de mantenimiento",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.maintenance_window.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "maintenance_window",
+      "action": "view",
+      "description": "Ver ventanas de mantenimiento",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.monitor.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "monitor",
+      "action": "create",
+      "description": "Crear monitores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.monitor.delete",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "monitor",
+      "action": "delete",
+      "description": "Eliminar monitores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.monitor.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "monitor",
+      "action": "update",
+      "description": "Editar monitores",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "monitoring.monitor.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "monitor",
+      "action": "view",
+      "description": "Ver monitores",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.monitor_result.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "monitor_result",
+      "action": "view",
+      "description": "Ver resultados de monitoreo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.restore_request.approve",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_request",
+      "action": "approve",
+      "description": "Aprobar o rechazar solicitudes de restauración.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.restore_request.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_request",
+      "action": "create",
+      "description": "Registrar una solicitud de restauración en nombre del cliente.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.restore_request.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_request",
+      "action": "update",
+      "description": "Ejecutar una restauración aprobada y cerrarla con evidencia o como fallida.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "monitoring.restore_request.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_request",
+      "action": "view",
+      "description": "Ver solicitudes de restauración.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "monitoring.restore_test.create",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_test",
+      "action": "create",
+      "description": "Crear pruebas de restauración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.restore_test.delete",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_test",
+      "action": "delete",
+      "description": "Eliminar pruebas de restauración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.restore_test.update",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_test",
+      "action": "update",
+      "description": "Editar pruebas de restauración",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "monitoring.restore_test.view",
+      "module_key": "monitoring",
+      "module": "MON",
+      "entity": "restore_test",
+      "action": "view",
+      "description": "Ver pruebas de restauración",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.cart.view",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "cart",
+      "action": "view",
+      "description": "Ver carritos de la compra en línea (abiertos, abandonados, convertidos).",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.checkout_session.approve",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "checkout_session",
+      "action": "approve",
+      "description": "Aprobar o rechazar compras en línea atípicas en revisión manual.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.checkout_session.update",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "checkout_session",
+      "action": "update",
+      "description": "Reintentar la creación del pedido de una compra en línea ya pagada.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "orders.checkout_session.view",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "checkout_session",
+      "action": "view",
+      "description": "Ver compras en línea con sus controles, pago y pedido.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.order.approve",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "order",
+      "action": "approve",
+      "description": "Aprobar pedidos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "orders.order.create",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "order",
+      "action": "create",
+      "description": "Crear order",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.order.export",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "order",
+      "action": "export",
+      "description": "Exportar order (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "orders.order.update",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "order",
+      "action": "update",
+      "description": "Editar order",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "orders.order.view",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "order",
+      "action": "view",
+      "description": "Ver order",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "orders.provisioning_run.create",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "provisioning_run",
+      "action": "create",
+      "description": "Crear provisioning run",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "orders.provisioning_run.view",
+      "module_key": "orders",
+      "module": "ORD",
+      "entity": "provisioning_run",
+      "action": "view",
+      "description": "Ver provisioning run",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "portal.account.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "account",
+      "action": "update",
+      "description": "Actualizar datos de facturación del cliente desde el portal (cliente administrador)",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.account.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "account",
+      "action": "view",
+      "description": "Ver cuenta del cliente en el portal",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.assistant_conversation.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "assistant_conversation",
+      "action": "create",
+      "description": "Conversar con el asistente en el portal y pasar la conversación a soporte.",
+      "scope": "portal",
+      "operations": 3
+    },
+    {
+      "code": "portal.assistant_conversation.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "assistant_conversation",
+      "action": "view",
+      "description": "Ver sus conversaciones con el asistente.",
+      "scope": "portal",
+      "operations": 2
+    },
+    {
+      "code": "portal.backup_report.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "backup_report",
+      "action": "view",
+      "description": "Ver el informe de respaldos y restauraciones de sus servicios.",
+      "scope": "portal",
+      "operations": 1
+    },
+    {
+      "code": "portal.consent.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "consent",
+      "action": "update",
+      "description": "Editar preferencias de comunicación",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contact.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contact",
+      "action": "create",
+      "description": "Crear contactos del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contact.delete",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contact",
+      "action": "delete",
+      "description": "Eliminar contactos del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contact.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contact",
+      "action": "update",
+      "description": "Editar contactos del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contact.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contact",
+      "action": "view",
+      "description": "Ver contactos del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contract.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contract",
+      "action": "update",
+      "description": "Aceptar términos o subir el contrato firmado desde el portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.contract.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "contract",
+      "action": "view",
+      "description": "Ver contratos y documentos del cliente",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.cpanel_session.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "cpanel_session",
+      "action": "create",
+      "description": "Entrar a cPanel desde el portal con sesión temporal (si el interruptor está activo)",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.domain.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "domain",
+      "action": "view",
+      "description": "Ver dominios del cliente",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.domain_operation.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "domain_operation",
+      "action": "create",
+      "description": "Solicitar o cancelar operaciones de dominio desde el portal (cliente administrador)",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.domain_operation.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "domain_operation",
+      "action": "view",
+      "description": "Ver operaciones de dominio del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.invoice.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "invoice",
+      "action": "view",
+      "description": "Ver comprobantes del cliente",
+      "scope": "customer",
+      "operations": 5
+    },
+    {
+      "code": "portal.kb_article.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "kb_article",
+      "action": "view",
+      "description": "Ver base de conocimientos",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.legal_acceptance.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "legal_acceptance",
+      "action": "create",
+      "description": "Aceptar en el portal la versión vigente de los términos y condiciones.",
+      "scope": "portal",
+      "operations": 1
+    },
+    {
+      "code": "portal.legal_document.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "legal_document",
+      "action": "view",
+      "description": "Ver en el portal los textos legales vigentes pendientes de aceptar.",
+      "scope": "portal",
+      "operations": 1
+    },
+    {
+      "code": "portal.maintenance.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "maintenance",
+      "action": "view",
+      "description": "Ver mantenimientos programados",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.notification.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "notification",
+      "action": "update",
+      "description": "Editar notificaciones del portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.notification.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "notification",
+      "action": "view",
+      "description": "Ver notificaciones del portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.order.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "order",
+      "action": "create",
+      "description": "Confirmar una compra en línea y pagarla (tarjeta, PayPal o voucher).",
+      "scope": "portal",
+      "operations": 6
+    },
+    {
+      "code": "portal.order.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "order",
+      "action": "view",
+      "description": "Ver sus pedidos y compras en línea.",
+      "scope": "portal",
+      "operations": 3
+    },
+    {
+      "code": "portal.payment.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "payment",
+      "action": "create",
+      "description": "Pagar en línea (tarjeta o PayPal) y enviar vouchers desde el portal",
+      "scope": "customer",
+      "operations": 4
+    },
+    {
+      "code": "portal.payment.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "payment",
+      "action": "view",
+      "description": "Ver pagos del cliente",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.quote.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "quote",
+      "action": "update",
+      "description": "Editar cotizaciones del cliente",
+      "scope": "customer",
+      "operations": 2
+    },
+    {
+      "code": "portal.quote.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "quote",
+      "action": "view",
+      "description": "Ver cotizaciones del cliente",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.restore_request.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "restore_request",
+      "action": "create",
+      "description": "Solicitar la restauración de un sitio, base de datos o buzón propio.",
+      "scope": "portal",
+      "operations": 1
+    },
+    {
+      "code": "portal.restore_request.update",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "restore_request",
+      "action": "update",
+      "description": "Cancelar una solicitud de restauración propia antes de que empiece.",
+      "scope": "portal",
+      "operations": 1
+    },
+    {
+      "code": "portal.restore_request.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "restore_request",
+      "action": "view",
+      "description": "Ver sus solicitudes de restauración.",
+      "scope": "portal",
+      "operations": 2
+    },
+    {
+      "code": "portal.server_action.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "server_action",
+      "action": "create",
+      "description": "Solicitar reinicio de servidor desde el portal (si el interruptor está activo)",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.service.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "service",
+      "action": "view",
+      "description": "Ver servicios del cliente (consulta)",
+      "scope": "customer",
+      "operations": 4
+    },
+    {
+      "code": "portal.ticket.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "ticket",
+      "action": "create",
+      "description": "Abrir, responder, cerrar y reabrir tickets y subir adjuntos desde el portal",
+      "scope": "customer",
+      "operations": 6
+    },
+    {
+      "code": "portal.ticket.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "ticket",
+      "action": "view",
+      "description": "Ver tickets del cliente",
+      "scope": "customer",
+      "operations": 3
+    },
+    {
+      "code": "portal.user.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "user",
+      "action": "create",
+      "description": "Crear usuarios del portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.user.delete",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "user",
+      "action": "delete",
+      "description": "Eliminar usuarios del portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "portal.user.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "user",
+      "action": "view",
+      "description": "Ver usuarios del portal",
+      "scope": "customer",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider.create",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider",
+      "action": "create",
+      "description": "Crear proveedores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider.delete",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider",
+      "action": "delete",
+      "description": "Eliminar proveedores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider.export",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider",
+      "action": "export",
+      "description": "Exportar proveedores (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider.update",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider",
+      "action": "update",
+      "description": "Editar proveedores",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider.view",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider",
+      "action": "view",
+      "description": "Ver proveedores",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "providers.provider_account.approve",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_account",
+      "action": "approve",
+      "description": "Habilitar escrituras del conector en una cuenta de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_account.create",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_account",
+      "action": "create",
+      "description": "Crear cuentas de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_account.delete",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_account",
+      "action": "delete",
+      "description": "Eliminar cuentas de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_account.update",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_account",
+      "action": "update",
+      "description": "Editar cuentas de proveedor",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "providers.provider_account.view",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_account",
+      "action": "view",
+      "description": "Ver cuentas de proveedor",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "providers.provider_contact.create",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_contact",
+      "action": "create",
+      "description": "Crear contactos de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_contact.delete",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_contact",
+      "action": "delete",
+      "description": "Eliminar contactos de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_contact.update",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_contact",
+      "action": "update",
+      "description": "Editar contactos de proveedor",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "providers.provider_contact.view",
+      "module_key": "providers",
+      "module": "PRV",
+      "entity": "provider_contact",
+      "action": "view",
+      "description": "Ver contactos de proveedor",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "saas.saas_instance.create",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_instance",
+      "action": "create",
+      "description": "Crear instancias SaaS",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_instance.delete",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_instance",
+      "action": "delete",
+      "description": "Eliminar instancias SaaS",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_instance.export",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_instance",
+      "action": "export",
+      "description": "Exportar instancias SaaS (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_instance.update",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_instance",
+      "action": "update",
+      "description": "Editar instancias SaaS",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "saas.saas_instance.view",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_instance",
+      "action": "view",
+      "description": "Ver instancias SaaS",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "saas.saas_platform.create",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_platform",
+      "action": "create",
+      "description": "Crear plataformas SaaS",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_platform.delete",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_platform",
+      "action": "delete",
+      "description": "Eliminar plataformas SaaS",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_platform.update",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_platform",
+      "action": "update",
+      "description": "Editar plataformas SaaS",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "saas.saas_platform.view",
+      "module_key": "saas",
+      "module": "SAA",
+      "entity": "saas_platform",
+      "action": "view",
+      "description": "Ver plataformas SaaS",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.assignment_rule.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "assignment_rule",
+      "action": "create",
+      "description": "Crear reglas de asignación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.assignment_rule.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "assignment_rule",
+      "action": "delete",
+      "description": "Eliminar reglas de asignación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.assignment_rule.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "assignment_rule",
+      "action": "update",
+      "description": "Editar reglas de asignación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.assignment_rule.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "assignment_rule",
+      "action": "view",
+      "description": "Ver reglas de asignación",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead",
+      "action": "create",
+      "description": "Crear prospectos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead",
+      "action": "delete",
+      "description": "Eliminar prospectos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead.export",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead",
+      "action": "export",
+      "description": "Exportar prospectos (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead",
+      "action": "update",
+      "description": "Editar prospectos, moverlos de etapa, marcarlos perdidos y convertirlos",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "sales.lead.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead",
+      "action": "view",
+      "description": "Ver prospectos",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "sales.lead_activity.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_activity",
+      "action": "create",
+      "description": "Crear seguimientos de prospectos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_activity.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_activity",
+      "action": "delete",
+      "description": "Eliminar seguimientos de prospectos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_activity.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_activity",
+      "action": "update",
+      "description": "Editar seguimientos de prospectos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead_activity.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_activity",
+      "action": "view",
+      "description": "Ver seguimientos de prospectos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead_channel.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_channel",
+      "action": "create",
+      "description": "Crear canales de captación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_channel.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_channel",
+      "action": "delete",
+      "description": "Eliminar canales de captación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_channel.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_channel",
+      "action": "update",
+      "description": "Editar canales de captación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_channel.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_channel",
+      "action": "view",
+      "description": "Ver canales de captación",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead_form.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_form",
+      "action": "create",
+      "description": "Crear formularios de captación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_form.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_form",
+      "action": "delete",
+      "description": "Eliminar formularios de captación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.lead_form.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_form",
+      "action": "update",
+      "description": "Editar formularios de captación",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.lead_form.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "lead_form",
+      "action": "view",
+      "description": "Ver formularios de captación",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "sales.mailing_list.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list",
+      "action": "create",
+      "description": "Crear listas de mailing",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.mailing_list.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list",
+      "action": "delete",
+      "description": "Eliminar listas de mailing",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.mailing_list.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list",
+      "action": "update",
+      "description": "Editar listas de mailing",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.mailing_list.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list",
+      "action": "view",
+      "description": "Ver listas de mailing",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.mailing_list_member.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list_member",
+      "action": "create",
+      "description": "Crear mailing list member",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.mailing_list_member.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list_member",
+      "action": "delete",
+      "description": "Eliminar mailing list member",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.mailing_list_member.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "mailing_list_member",
+      "action": "view",
+      "description": "Ver mailing list member",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.pipeline_stage.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "pipeline_stage",
+      "action": "create",
+      "description": "Crear etapas del embudo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.pipeline_stage.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "pipeline_stage",
+      "action": "delete",
+      "description": "Eliminar etapas del embudo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.pipeline_stage.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "pipeline_stage",
+      "action": "update",
+      "description": "Editar etapas del embudo",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.pipeline_stage.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "pipeline_stage",
+      "action": "view",
+      "description": "Ver etapas del embudo",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.quote.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "quote",
+      "action": "create",
+      "description": "Crear cotizaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.quote.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "quote",
+      "action": "delete",
+      "description": "Eliminar cotizaciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.quote.export",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "quote",
+      "action": "export",
+      "description": "Exportar cotizaciones (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.quote.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "quote",
+      "action": "update",
+      "description": "Editar cotizaciones",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "sales.quote.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "quote",
+      "action": "view",
+      "description": "Ver cotizaciones",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "sales.referral_link.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "referral_link",
+      "action": "create",
+      "description": "Crear enlaces de referido",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.referral_link.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "referral_link",
+      "action": "delete",
+      "description": "Eliminar enlaces de referido",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.referral_link.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "referral_link",
+      "action": "update",
+      "description": "Editar enlaces de referido",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.referral_link.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "referral_link",
+      "action": "view",
+      "description": "Ver enlaces de referido",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.whatsapp_conversation.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_conversation",
+      "action": "update",
+      "description": "Editar conversaciones de WhatsApp",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "sales.whatsapp_conversation.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_conversation",
+      "action": "view",
+      "description": "Ver conversaciones de WhatsApp",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "sales.whatsapp_message.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_message",
+      "action": "create",
+      "description": "Crear mensajes de WhatsApp",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.whatsapp_number.create",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_number",
+      "action": "create",
+      "description": "Crear números de WhatsApp",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.whatsapp_number.delete",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_number",
+      "action": "delete",
+      "description": "Eliminar números de WhatsApp",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.whatsapp_number.update",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_number",
+      "action": "update",
+      "description": "Editar números de WhatsApp",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "sales.whatsapp_number.view",
+      "module_key": "sales",
+      "module": "SAL",
+      "entity": "whatsapp_number",
+      "action": "view",
+      "description": "Ver números de WhatsApp",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "service_map.client_project.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "client_project",
+      "action": "create",
+      "description": "Crear proyectos del cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.client_project.delete",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "client_project",
+      "action": "delete",
+      "description": "Eliminar proyectos del cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.client_project.export",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "client_project",
+      "action": "export",
+      "description": "Exportar proyectos del cliente (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.client_project.update",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "client_project",
+      "action": "update",
+      "description": "Editar proyectos del cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.client_project.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "client_project",
+      "action": "view",
+      "description": "Ver proyectos del cliente",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "service_map.component_dependency.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "component_dependency",
+      "action": "create",
+      "description": "Crear dependencias entre componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.component_dependency.delete",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "component_dependency",
+      "action": "delete",
+      "description": "Eliminar dependencias entre componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.component_dependency.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "component_dependency",
+      "action": "view",
+      "description": "Ver dependencias entre componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.component_metric.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "component_metric",
+      "action": "create",
+      "description": "Crear métricas de componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.component_metric.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "component_metric",
+      "action": "view",
+      "description": "Ver métricas de componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.handover_document.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "handover_document",
+      "action": "create",
+      "description": "Crear fichas de traspaso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.handover_document.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "handover_document",
+      "action": "view",
+      "description": "Ver fichas de traspaso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_component.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_component",
+      "action": "create",
+      "description": "Crear componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_component.delete",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_component",
+      "action": "delete",
+      "description": "Eliminar componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_component.update",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_component",
+      "action": "update",
+      "description": "Editar componentes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_component.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_component",
+      "action": "view",
+      "description": "Ver componentes",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "service_map.project_procedure.create",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_procedure",
+      "action": "create",
+      "description": "Crear procedimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_procedure.delete",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_procedure",
+      "action": "delete",
+      "description": "Eliminar procedimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_procedure.update",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_procedure",
+      "action": "update",
+      "description": "Editar procedimientos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "service_map.project_procedure.view",
+      "module_key": "service_map",
+      "module": "MAP",
+      "entity": "project_procedure",
+      "action": "view",
+      "description": "Ver procedimientos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "services.customer_action_flag.update",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "customer_action_flag",
+      "action": "update",
+      "description": "Editar interruptores de acciones del cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.customer_action_flag.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "customer_action_flag",
+      "action": "view",
+      "description": "Ver interruptores de acciones del cliente",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service.create",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "create",
+      "description": "Crear servicios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service.delete",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "delete",
+      "description": "Eliminar servicios",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service.export",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "export",
+      "description": "Exportar servicios (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service.suspend",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "suspend",
+      "description": "Suspender y reactivar servicios",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "services.service.terminate",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "terminate",
+      "description": "Terminar servicios (baja definitiva)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service.update",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "update",
+      "description": "Editar servicios",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "services.service.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service",
+      "action": "view",
+      "description": "Ver servicios",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "services.service_field_value.update",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_field_value",
+      "action": "update",
+      "description": "Completar o corregir los campos propios de un servicio de tipo personalizado.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_field_value.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_field_value",
+      "action": "view",
+      "description": "Ver los campos propios de un servicio de tipo personalizado.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_modality.create",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_modality",
+      "action": "create",
+      "description": "Crear modalidades de servicio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_modality.delete",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_modality",
+      "action": "delete",
+      "description": "Eliminar modalidades de servicio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_modality.update",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_modality",
+      "action": "update",
+      "description": "Editar modalidades de servicio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_modality.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_modality",
+      "action": "view",
+      "description": "Ver modalidades de servicio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "services.service_resource.create",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_resource",
+      "action": "create",
+      "description": "Crear enlaces servicio-recurso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_resource.delete",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_resource",
+      "action": "delete",
+      "description": "Eliminar enlaces servicio-recurso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.service_resource.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "service_resource",
+      "action": "view",
+      "description": "Ver enlaces servicio-recurso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.subscription.create",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "subscription",
+      "action": "create",
+      "description": "Crear suscripciones",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "services.subscription.update",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "subscription",
+      "action": "update",
+      "description": "Editar suscripciones",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "services.subscription.view",
+      "module_key": "services",
+      "module": "SRV",
+      "entity": "subscription",
+      "action": "view",
+      "description": "Ver suscripciones",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "settings.business_hours.update",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "business_hours",
+      "action": "update",
+      "description": "Editar horario de atención",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.business_hours.view",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "business_hours",
+      "action": "view",
+      "description": "Ver horario de atención",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.dunning.update",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "dunning",
+      "action": "update",
+      "description": "Administrar secuencias y etapas de cobranza",
+      "scope": "staff",
+      "operations": 6
+    },
+    {
+      "code": "settings.holiday.create",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "holiday",
+      "action": "create",
+      "description": "Crear feriados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.holiday.delete",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "holiday",
+      "action": "delete",
+      "description": "Eliminar feriados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.holiday.update",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "holiday",
+      "action": "update",
+      "description": "Editar feriados",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.holiday.view",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "holiday",
+      "action": "view",
+      "description": "Ver feriados",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "settings.setting.update",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "setting",
+      "action": "update",
+      "description": "Cambiar ajustes del centro de configuración y revertir cambios",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "settings.setting.view",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "setting",
+      "action": "view",
+      "description": "Ver ajustes",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "settings.setting_change.export",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "setting_change",
+      "action": "export",
+      "description": "Exportar cambios de ajustes (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "settings.setting_change.view",
+      "module_key": "settings",
+      "module": "CFG",
+      "entity": "setting_change",
+      "action": "view",
+      "description": "Ver cambios de ajustes",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.one_time_link.create",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "one_time_link",
+      "action": "create",
+      "description": "Crear enlaces de un solo uso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.one_time_link.delete",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "one_time_link",
+      "action": "delete",
+      "description": "Eliminar enlaces de un solo uso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.one_time_link.view",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "one_time_link",
+      "action": "view",
+      "description": "Ver enlaces de un solo uso",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret.create",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret",
+      "action": "create",
+      "description": "Crear secretos de la bóveda",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret.delete",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret",
+      "action": "delete",
+      "description": "Eliminar secretos de la bóveda",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret.reveal",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret",
+      "action": "reveal",
+      "description": "Revelar el valor de un secreto (exige concesión vigente y MFA reciente; queda en bitácora)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret.update",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret",
+      "action": "update",
+      "description": "Editar secretos de la bóveda",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret.view",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret",
+      "action": "view",
+      "description": "Ver secretos de la bóveda",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "vault.secret_access_log.view",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret_access_log",
+      "action": "view",
+      "description": "Ver bitácora de accesos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret_grant.create",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret_grant",
+      "action": "create",
+      "description": "Crear concesiones de secretos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret_grant.delete",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret_grant",
+      "action": "delete",
+      "description": "Eliminar concesiones de secretos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "vault.secret_grant.view",
+      "module_key": "vault",
+      "module": "VLT",
+      "entity": "secret_grant",
+      "action": "view",
+      "description": "Ver concesiones de secretos",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.cache_invalidation.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "cache_invalidation",
+      "action": "create",
+      "description": "Pedir que el plugin de un sitio renueve su caché y reintentar avisos fallidos.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.cache_invalidation.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "cache_invalidation",
+      "action": "view",
+      "description": "Ver los avisos de invalidación enviados a los sitios WordPress y su resultado.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.contact_point.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "contact_point",
+      "action": "create",
+      "description": "Agregar teléfonos, correos, WhatsApp, dirección u horario de una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.contact_point.delete",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "contact_point",
+      "action": "delete",
+      "description": "Dar de baja un dato de contacto de una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.contact_point.update",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "contact_point",
+      "action": "update",
+      "description": "Editar los datos de contacto de una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.contact_point.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "contact_point",
+      "action": "view",
+      "description": "Ver los datos de contacto de las marcas.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.form.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form",
+      "action": "create",
+      "description": "Crear formularios en el constructor.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.form.delete",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form",
+      "action": "delete",
+      "description": "Dar de baja un formulario.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.form.update",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form",
+      "action": "update",
+      "description": "Editar un formulario, sus campos, destino y responsable; activarlo o desactivarlo.",
+      "scope": "staff",
+      "operations": 4
+    },
+    {
+      "code": "web_connector.form.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form",
+      "action": "view",
+      "description": "Ver los formularios y sus campos.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "web_connector.form_submission.update",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form_submission",
+      "action": "update",
+      "description": "Reintentar la derivación de un envío o marcarlo como spam.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.form_submission.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "form_submission",
+      "action": "view",
+      "description": "Ver los envíos recibidos de los formularios de las webs.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.legal_acceptance.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_acceptance",
+      "action": "view",
+      "description": "Ver el registro de aceptaciones de términos y documentos legales (solo lectura).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.legal_document.approve",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_document",
+      "action": "approve",
+      "description": "Publicar una versión de un documento legal validada por la asesoría legal (reemplaza la vigente).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.legal_document.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_document",
+      "action": "create",
+      "description": "Crear un documento legal de la marca (términos, privacidad, reembolsos, SLA, uso aceptable, aviso legal).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.legal_document.delete",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_document",
+      "action": "delete",
+      "description": "Dar de baja un documento legal sin versión publicada.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.legal_document.update",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_document",
+      "action": "update",
+      "description": "Editar un documento legal y sus borradores de versión.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "web_connector.legal_document.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "legal_document",
+      "action": "view",
+      "description": "Ver los documentos legales de las marcas y su historial de versiones.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "web_connector.shortcode.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "shortcode",
+      "action": "view",
+      "description": "Usar el generador de shortcodes y ver los shortcodes disponibles.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.site.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site",
+      "action": "create",
+      "description": "Registrar un sitio WordPress conectado a una marca.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.site.delete",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site",
+      "action": "delete",
+      "description": "Dar de baja un sitio WordPress conectado (revoca sus tokens).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.site.update",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site",
+      "action": "update",
+      "description": "Editar un sitio conectado, activarlo o desactivarlo, rotar su secreto de firma y probar el webhook.",
+      "scope": "staff",
+      "operations": 5
+    },
+    {
+      "code": "web_connector.site.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site",
+      "action": "view",
+      "description": "Ver los sitios WordPress conectados y su última actividad.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "web_connector.site_token.create",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site_token",
+      "action": "create",
+      "description": "Crear el token de solo lectura del plugin de un sitio (se muestra una vez).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.site_token.delete",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site_token",
+      "action": "delete",
+      "description": "Revocar el token de un sitio.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "web_connector.site_token.view",
+      "module_key": "web_connector",
+      "module": "WCN",
+      "entity": "site_token",
+      "action": "view",
+      "description": "Ver los tokens de un sitio (sin su valor).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.change_request.approve",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "change_request",
+      "action": "approve",
+      "description": "Aprobar o rechazar solicitudes de cambio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.change_request.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "change_request",
+      "action": "create",
+      "description": "Crear solicitudes de cambio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.change_request.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "change_request",
+      "action": "delete",
+      "description": "Eliminar solicitudes de cambio",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.change_request.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "change_request",
+      "action": "update",
+      "description": "Editar solicitudes de cambio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.change_request.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "change_request",
+      "action": "view",
+      "description": "Ver solicitudes de cambio",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.problem.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "problem",
+      "action": "create",
+      "description": "Crear problemas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.problem.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "problem",
+      "action": "delete",
+      "description": "Eliminar problemas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.problem.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "problem",
+      "action": "update",
+      "description": "Editar problemas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.problem.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "problem",
+      "action": "view",
+      "description": "Ver problemas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.task.approve",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "approve",
+      "description": "Aprobar o devolver tareas en revisión (incluye tareas de aprobación de otras acciones)",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.task.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "create",
+      "description": "Crear task",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.task.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "delete",
+      "description": "Eliminar task",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task.export",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "export",
+      "description": "Exportar task (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "update",
+      "description": "Editar task",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.task.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task",
+      "action": "view",
+      "description": "Ver task",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "work.task_checklist_item.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_checklist_item",
+      "action": "create",
+      "description": "Crear ítems de lista de verificación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task_checklist_item.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_checklist_item",
+      "action": "delete",
+      "description": "Eliminar ítems de lista de verificación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task_checklist_item.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_checklist_item",
+      "action": "update",
+      "description": "Editar ítems de lista de verificación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task_checklist_item.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_checklist_item",
+      "action": "view",
+      "description": "Ver ítems de lista de verificación",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task_dependency.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_dependency",
+      "action": "create",
+      "description": "Crear dependencias de tareas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.task_dependency.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "task_dependency",
+      "action": "delete",
+      "description": "Eliminar dependencias de tareas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.time_entry.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "time_entry",
+      "action": "create",
+      "description": "Crear registros de horas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.time_entry.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "time_entry",
+      "action": "delete",
+      "description": "Eliminar registros de horas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.time_entry.export",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "time_entry",
+      "action": "export",
+      "description": "Exportar registros de horas (trabajo en cola con enlace firmado)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.time_entry.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "time_entry",
+      "action": "update",
+      "description": "Editar registros de horas",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.time_entry.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "time_entry",
+      "action": "view",
+      "description": "Ver registros de horas",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "work.work_project.create",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "work_project",
+      "action": "create",
+      "description": "Crear proyectos internos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.work_project.delete",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "work_project",
+      "action": "delete",
+      "description": "Eliminar proyectos internos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.work_project.update",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "work_project",
+      "action": "update",
+      "description": "Editar proyectos internos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "work.work_project.view",
+      "module_key": "work",
+      "module": "WRK",
+      "entity": "work_project",
+      "action": "view",
+      "description": "Ver proyectos internos",
+      "scope": "staff",
+      "operations": 2
+    }
+  ]
+}

@@ -1,0 +1,265 @@
+<title>404 AlojamientoPlus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: barra superior azul, encabezado blanco, escena "rack" a pantalla dividida, sugerencias en tarjetas, pie oscuro con Libro de Reclamaciones */
+:root{
+  --blue:#0a3fc4; --blue-600:#0835a6; --blue-50:#eaf0ff;
+  --navy:#08142e; --navy-2:#0d1d40; --navy-line:#1d2f5c;
+  --green:#5f9a32; --green-600:#4e8228; --yellow:#f2b71a;
+  --bg:#f4f7fc; --surface:#ffffff; --ink:#0f1a33; --muted:#52607a; --line:#dbe3f2;
+  --on-dark:#eef3ff; --on-dark-muted:#a9b8d8;
+  --display:"Poppins","Segoe UI",system-ui,sans-serif;
+  --body:"Roboto","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a1226; --surface:#111c38; --ink:#e8eefc; --muted:#a3b2d3; --line:#22335f; --blue-50:#14244d; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0a1226; --surface:#111c38; --ink:#e8eefc; --muted:#a3b2d3; --line:#22335f; --blue-50:#14244d; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1180px;margin-inline:auto;padding-inline:16px}
+/* barra superior */
+.topbar{background:var(--blue);color:#fff;font-size:.82rem}
+.topbar .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:40px;flex-wrap:wrap}
+.topbar span,.topbar a{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.topbar .left{display:flex;gap:18px;flex-wrap:wrap}
+.topbar svg{width:15px;height:15px}
+/* encabezado */
+header.main{background:var(--surface);border-bottom:1px solid var(--line)}
+header.main .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:76px;flex-wrap:wrap;padding-block:10px}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:var(--display);font-weight:700;font-size:1.45rem;letter-spacing:-.01em;color:var(--ink)}
+.logo svg{width:46px;height:40px;flex:none}
+nav.menu{display:flex;gap:22px;flex-wrap:wrap}
+nav.menu a{font-family:var(--body);font-weight:500;font-size:.88rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--ink)}
+nav.menu a:hover{color:var(--blue)}
+@media (max-width:820px){nav.menu{display:none}}
+.btn-account{display:inline-flex;align-items:center;gap:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600;padding:10px 16px;border-radius:999px;font-size:.9rem}
+.btn-account:hover{background:var(--blue-600)}
+.btn-account svg{width:16px;height:16px}
+/* escena */
+.scene{background:var(--navy);color:var(--on-dark);position:relative;overflow:hidden}
+.scene::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(circle at 1px 1px, rgba(120,150,220,.16) 1px, transparent 1.5px) 0 0/22px 22px;pointer-events:none}
+.scene .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding-block:64px}
+@media (max-width:900px){.scene .wrap{grid-template-columns:1fr;padding-block:40px;gap:28px}}
+.eyebrow{font-family:var(--body);font-weight:500;color:var(--yellow);text-transform:uppercase;letter-spacing:.08em;font-size:1rem;margin:0 0 10px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,4.6vw,3.4rem);line-height:1.08;margin:0 0 16px;text-wrap:balance;letter-spacing:-.01em}
+.lead{color:var(--on-dark-muted);font-size:1.08rem;max-width:56ch;margin:0 0 26px}
+.path{font-family:var(--mono);font-size:.85rem;background:var(--navy-2);border:1px solid var(--navy-line);border-radius:8px;padding:10px 12px;margin:0 0 26px;color:var(--on-dark);overflow-x:auto;white-space:nowrap}
+.path b{color:var(--yellow);font-weight:500}
+/* buscador de dominios */
+.domain{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px;box-shadow:0 18px 40px rgba(3,10,30,.35);max-width:560px}
+.domain label{display:block;font-weight:700;font-family:var(--display);font-size:1rem;margin-bottom:10px}
+.domain .row{display:flex;gap:8px;flex-wrap:wrap}
+.domain .field{flex:1 1 220px;display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);min-width:0}
+.domain .field:focus-within{border-color:var(--blue)}
+.domain input{flex:1;min-width:0;border:0;background:transparent;padding:12px;font:inherit;color:var(--ink);outline:none}
+.domain select{border:0;background:transparent;font:inherit;color:var(--ink);padding:12px 10px;border-left:1.5px solid var(--line)}
+.btn-green{background:var(--green);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:600 .95rem var(--body);letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.btn-green:hover{background:var(--green-600)}
+.domain .msg{margin:10px 0 0;font-size:.9rem;color:var(--muted);min-height:1.4em}
+.domain .msg.ok{color:var(--green)} .domain .msg.err{color:#c0392b}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.btn-ghost{display:inline-flex;align-items:center;gap:8px;color:var(--on-dark);border:1.5px solid var(--navy-line);background:transparent;border-radius:999px;padding:10px 18px;font:500 .95rem var(--body);cursor:pointer;text-decoration:none}
+.btn-ghost:hover{border-color:var(--on-dark-muted)}
+.btn-ghost svg{width:16px;height:16px}
+/* ilustración */
+.art{display:flex;justify-content:center}
+.art svg{width:100%;max-width:440px;height:auto}
+.led{animation:blink 1.6s infinite steps(2)}
+.led.d2{animation-delay:.4s}.led.d3{animation-delay:.8s}
+.spark{animation:spark 2.4s infinite ease-in-out;transform-origin:center}
+@keyframes blink{50%{opacity:.25}}
+@keyframes spark{0%,100%{opacity:.2}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.led,.spark{animation:none}}
+/* sugerencias */
+.suggest{padding-block:56px}
+.suggest h2{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0 0 6px;text-wrap:balance}
+.suggest p.sub{color:var(--muted);margin:0 0 26px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+@media (max-width:980px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.cards{grid-template-columns:1fr}}
+.card{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;text-decoration:none;color:var(--ink);transition:border-color .15s,transform .15s}
+.card:hover{border-color:var(--blue);transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+.card .ico{width:40px;height:40px;border-radius:10px;background:var(--blue-50);color:var(--blue);display:grid;place-items:center}
+:root[data-theme="dark"] .card .ico{color:#8fb0ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .card .ico{color:#8fb0ff}}
+.card .ico svg{width:22px;height:22px}
+.card strong{font-family:var(--display);font-weight:600;font-size:1.02rem}
+.card span{color:var(--muted);font-size:.9rem}
+.card em{font-style:normal;color:var(--blue);font-weight:500;font-size:.9rem;margin-top:auto}
+:root[data-theme="dark"] .card em{color:#8fb0ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .card em{color:#8fb0ff}}
+.help{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;color:var(--muted);font-size:.95rem}
+.help code{font-family:var(--mono);font-size:.85rem;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink)}
+.copy{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:4px 10px;font:500 .82rem var(--body);cursor:pointer}
+/* pie */
+footer{background:var(--navy);color:var(--on-dark-muted);font-size:.88rem}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:22px;align-items:center}
+footer a{color:var(--on-dark);text-decoration:none}
+footer a:hover{text-decoration:underline}
+.lrc{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--navy-line);border-radius:8px;padding:6px 10px}
+.lrc svg{width:20px;height:20px;color:var(--yellow)}
+.legal{display:flex;gap:16px;flex-wrap:wrap}
+</style>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="left">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>ventas@alojamientoplus.com</span>
+      <a href="#ayuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>Soporte y Ayuda</a>
+    </div>
+    <a href="#cuenta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 8 4 4-4 4M8 12h8"/></svg><b>Mi Cuenta</b></a>
+  </div>
+</div>
+
+<header class="main">
+  <div class="wrap">
+    <a class="logo" href="#inicio" aria-label="AlojamientoPlus, ir al inicio">
+      <svg viewBox="0 0 64 56" aria-hidden="true">
+        <path d="M18 44h30a11 11 0 0 0 1.5-21.9A15 15 0 0 0 21 18.5 12.8 12.8 0 0 0 18 44Z" fill="none" stroke="#5f9a32" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M35 22 26 36h7l-3 13 10-16h-7l2-11Z" fill="#f2b71a" stroke="#d89c00" stroke-width="1" stroke-linejoin="round"/>
+      </svg>
+      AlojamientoPlus
+    </a>
+    <nav class="menu" aria-label="Principal">
+      <a href="#hosting">Hosting</a><a href="#servidores">Servidores</a><a href="#dominios">Dominios/SSL</a><a href="#soluciones">Soluciones</a>
+    </nav>
+    <a class="btn-account" href="#cuenta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Mi cuenta</a>
+  </div>
+</header>
+
+<main>
+  <section class="scene" aria-labelledby="t404">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">Error 404 · Página no encontrada</p>
+        <h1 id="t404">Esta página no está en ninguno de nuestros servidores</h1>
+        <p class="lead">Puede que el enlace haya cambiado o que la dirección tenga un error. Tu sitio y tus servicios siguen funcionando con normalidad.</p>
+        <p class="path" aria-label="Dirección solicitada">GET <b id="reqpath">/planes-hosting-2024</b> → 404 Not Found</p>
+
+        <form class="domain" id="domainForm" novalidate>
+          <label for="dom">¿Buscabas un dominio? Revisa si está disponible</label>
+          <div class="row">
+            <div class="field">
+              <input id="dom" name="dom" type="text" inputmode="url" autocomplete="off" placeholder="tuempresa" aria-describedby="domMsg">
+              <select id="tld" name="tld" aria-label="Extensión">
+                <option>.pe</option><option>.com.pe</option><option selected>.com</option><option>.net</option><option>.org</option>
+              </select>
+            </div>
+            <button class="btn-green" type="submit">Buscar</button>
+          </div>
+          <p class="msg" id="domMsg" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="actions">
+          <a class="btn-ghost" href="#inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>Ir al inicio</a>
+          <button class="btn-ghost" type="button" id="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>Volver a la página anterior</button>
+        </div>
+      </div>
+
+      <div class="art" aria-hidden="true">
+        <svg viewBox="0 0 440 380">
+          <!-- rack -->
+          <rect x="70" y="30" width="230" height="320" rx="14" fill="#0d1d40" stroke="#1d2f5c" stroke-width="2"/>
+          <g>
+            <rect x="88" y="52" width="194" height="46" rx="8" fill="#12285a"/>
+            <circle class="led" cx="106" cy="75" r="5" fill="#5f9a32"/><circle class="led d2" cx="122" cy="75" r="5" fill="#5f9a32"/>
+            <rect x="200" y="68" width="66" height="6" rx="3" fill="#1d3a7a"/><rect x="200" y="80" width="46" height="6" rx="3" fill="#1d3a7a"/>
+            <rect x="88" y="110" width="194" height="46" rx="8" fill="#12285a"/>
+            <circle class="led d3" cx="106" cy="133" r="5" fill="#5f9a32"/><circle class="led" cx="122" cy="133" r="5" fill="#5f9a32"/>
+            <rect x="200" y="126" width="66" height="6" rx="3" fill="#1d3a7a"/><rect x="200" y="138" width="46" height="6" rx="3" fill="#1d3a7a"/>
+            <!-- bandeja vacía: la página que falta -->
+            <rect x="88" y="168" width="194" height="46" rx="8" fill="none" stroke="#f2b71a" stroke-width="2" stroke-dasharray="7 6"/>
+            <text x="185" y="198" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="18" fill="#f2b71a">/404</text>
+            <rect x="88" y="226" width="194" height="46" rx="8" fill="#12285a"/>
+            <circle class="led d2" cx="106" cy="249" r="5" fill="#5f9a32"/><circle class="led d3" cx="122" cy="249" r="5" fill="#5f9a32"/>
+            <rect x="200" y="242" width="66" height="6" rx="3" fill="#1d3a7a"/><rect x="200" y="254" width="46" height="6" rx="3" fill="#1d3a7a"/>
+            <rect x="88" y="284" width="194" height="46" rx="8" fill="#12285a"/>
+            <circle class="led" cx="106" cy="307" r="5" fill="#5f9a32"/><circle class="led d2" cx="122" cy="307" r="5" fill="#5f9a32"/>
+            <rect x="200" y="300" width="66" height="6" rx="3" fill="#1d3a7a"/><rect x="200" y="312" width="46" height="6" rx="3" fill="#1d3a7a"/>
+          </g>
+          <!-- cable desconectado -->
+          <path d="M282 191 C330 191 330 120 372 120 C405 120 410 160 392 182" fill="none" stroke="#0a3fc4" stroke-width="7" stroke-linecap="round"/>
+          <rect x="378" y="180" width="26" height="18" rx="4" fill="#0a3fc4" transform="rotate(35 391 189)"/>
+          <g class="spark" fill="#f2b71a">
+            <path d="M408 214l6-10 2 8 8-2-6 10z"/>
+            <circle cx="394" cy="222" r="3"/>
+          </g>
+          <!-- nube del logo -->
+          <path d="M318 330h70a20 20 0 0 0 2.6-39.8A27 27 0 0 0 340 284a23 23 0 0 0-22 46Z" fill="none" stroke="#5f9a32" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M360 292l-12 18h9l-4 16 13-20h-9l3-14z" fill="#f2b71a"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="suggest" aria-labelledby="tsug">
+    <div class="wrap">
+      <h2 id="tsug">Quizás buscabas</h2>
+      <p class="sub">Las secciones más visitadas de AlojamientoPlus.</p>
+      <div class="cards">
+        <a class="card" href="#hosting">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+          <strong>Planes de hosting</strong><span>Hosting web en Perú con cPanel, SSL y correos incluidos.</span><em>Ver planes →</em>
+        </a>
+        <a class="card" href="#dominios">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+          <strong>Dominios y SSL</strong><span>Registra tu .pe, .com.pe o .com y protégelo con SSL.</span><em>Buscar dominio →</em>
+        </a>
+        <a class="card" href="#servidores">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/></svg></span>
+          <strong>Servidores VPS</strong><span>Servidores administrados o no administrados, a tu medida.</span><em>Ver servidores →</em>
+        </a>
+        <a class="card" href="#ayuda" id="ayuda">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h6M8 11h6"/></svg></span>
+          <strong>Base de conocimientos</strong><span>Guías para configurar correo, DNS, WordPress y más.</span><em>Ir a la ayuda →</em>
+        </a>
+      </div>
+      <div class="help">
+        <span>¿Llegaste aquí desde un enlace nuestro? Avísanos y lo corregimos:</span>
+        <code id="mail">soporte@alojamientoplus.com</code>
+        <button class="copy" type="button" id="copyBtn">Copiar correo</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 AlojamientoPlus · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117</span>
+    <div class="legal">
+      <a href="#terminos">Términos y condiciones</a><a href="#privacidad">Privacidad</a><a href="#cookies">Cookies</a>
+      <a class="lrc" href="#reclamaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>Libro de Reclamaciones</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var form=document.getElementById('domainForm'),inp=document.getElementById('dom'),tld=document.getElementById('tld'),msg=document.getElementById('domMsg');
+  // muestra la ruta solicitada si existe; en el visor queda el ejemplo
+  // en producción el servidor imprime aquí la ruta solicitada; en este diseño se muestra un ejemplo
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    var v=(inp.value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\.(com\.pe|pe|com|net|org)$/,'');
+    msg.className='msg';
+    if(!v){msg.textContent='Escribe el nombre que quieres registrar, por ejemplo: tuempresa.';msg.classList.add('err');inp.focus();return;}
+    if(!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(v)){msg.textContent='Usa solo letras, números y guiones, sin espacios ni guion al inicio o al final.';msg.classList.add('err');return;}
+    msg.textContent='Te llevaremos al buscador para revisar '+v+tld.value+' (vista de ejemplo: la consulta real la hace el sistema al registrador).';
+    msg.classList.add('ok');
+  });
+  document.getElementById('back').addEventListener('click',function(){ if(history.length>1){history.back();} else {location.hash='inicio';} });
+  document.getElementById('copyBtn').addEventListener('click',function(){
+    var t=document.getElementById('mail').textContent,b=this;
+    function sel(){var r=document.createRange();r.selectNodeContents(document.getElementById('mail'));var s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selecciónalo y copia';}
+    try{navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado';setTimeout(function(){b.textContent='Copiar correo';},1800);},sel);}catch(e){sel();}
+  });
+})();
+</script>

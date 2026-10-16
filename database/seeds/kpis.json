@@ -1,0 +1,1883 @@
+{
+  "format_version": 1,
+  "source": "docs/00-requerimientos.md §27 (Panel de indicadores). Lo carga el seeder en kpi_definitions; docs/14-indicadores.md se genera desde este archivo (tools/verificar_kpis.py render).",
+  "placeholders": {
+    ":inicio": "inicio del periodo filtrado (00:00 en la zona de la organización)",
+    ":fin": "fin del periodo filtrado (23:59:59)",
+    ":hoy": "fecha del cálculo",
+    ":ahora": "momento del cálculo",
+    ":fin_anterior": "fin del periodo anterior de igual duración"
+  },
+  "kpis": [
+    {
+      "code": "KPI-COM-01",
+      "group": "commercial",
+      "name": "Ingreso recurrente mensual (MRR)",
+      "name_en": "Monthly recurring revenue (MRR)",
+      "definition": "Ingreso que generan cada mes las suscripciones vigentes al cierre del periodo, llevadas a su equivalente mensual.",
+      "formula": "SUM(mensualizar(subscriptions.price_minor * subscriptions.quantity, subscriptions.cycle)) FROM subscriptions JOIN services ON services.id = subscriptions.service_id WHERE subscriptions.status = 'active' AND subscriptions.starts_on <= :fin AND (subscriptions.ends_on IS NULL OR subscriptions.ends_on > :fin)",
+      "sources": [
+        "services.id",
+        "subscriptions.cycle",
+        "subscriptions.ends_on",
+        "subscriptions.price_minor",
+        "subscriptions.quantity",
+        "subscriptions.service_id",
+        "subscriptions.starts_on",
+        "subscriptions.status"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SRV-01",
+      "detail_filter": "Servicios activos con suscripción vigente"
+    },
+    {
+      "code": "KPI-COM-02",
+      "group": "commercial",
+      "name": "Ingreso recurrente anual (ARR)",
+      "name_en": "Annual recurring revenue (ARR)",
+      "definition": "Ingreso recurrente mensual llevado a un año.",
+      "formula": "KPI-COM-01 * 12",
+      "sources": [],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SRV-01",
+      "detail_filter": "Servicios activos con suscripción vigente"
+    },
+    {
+      "code": "KPI-COM-03",
+      "group": "commercial",
+      "name": "Crecimiento del ingreso recurrente",
+      "name_en": "Recurring revenue growth",
+      "definition": "Variación porcentual del ingreso recurrente mensual frente al cierre del periodo anterior.",
+      "formula": "(KPI-COM-01(:fin) - KPI-COM-01(:fin_anterior)) / KPI-COM-01(:fin_anterior) * 100",
+      "sources": [],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.mrr_growth_percent",
+      "detail_screen": "P-SRV-01",
+      "detail_filter": "Altas, bajas y cambios de precio del periodo"
+    },
+    {
+      "code": "KPI-COM-04",
+      "group": "commercial",
+      "name": "Clientes activos",
+      "name_en": "Active customers",
+      "definition": "Clientes con al menos un servicio activo al cierre del periodo.",
+      "formula": "COUNT(DISTINCT customers.id) FROM customers JOIN services ON services.customer_id = customers.id WHERE customers.status = 'active' AND customers.deleted_at IS NULL AND services.status = 'active' AND services.activated_at <= :fin",
+      "sources": [
+        "customers.deleted_at",
+        "customers.id",
+        "customers.status",
+        "services.activated_at",
+        "services.customer_id",
+        "services.status"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-CUS-01",
+      "detail_filter": "Clientes activos"
+    },
+    {
+      "code": "KPI-COM-05",
+      "group": "commercial",
+      "name": "Clientes nuevos",
+      "name_en": "New customers",
+      "definition": "Clientes cuyo primer servicio se activó dentro del periodo.",
+      "formula": "COUNT(customers.id) FROM customers WHERE (SELECT MIN(services.activated_at) FROM services WHERE services.customer_id = customers.id) BETWEEN :inicio AND :fin",
+      "sources": [
+        "customers.id",
+        "services.activated_at",
+        "services.customer_id"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-CUS-01",
+      "detail_filter": "Clientes con primer servicio activado en el periodo"
+    },
+    {
+      "code": "KPI-COM-06",
+      "group": "commercial",
+      "name": "Clientes perdidos",
+      "name_en": "Lost customers",
+      "definition": "Clientes que dieron de baja su último servicio activo dentro del periodo.",
+      "formula": "COUNT(DISTINCT services.customer_id) FROM service_status_history JOIN services ON services.id = service_status_history.service_id WHERE service_status_history.to_status IN ('terminated','cancelled') AND service_status_history.occurred_at BETWEEN :inicio AND :fin AND NOT EXISTS (servicio del mismo cliente con services.status = 'active' al :fin)",
+      "sources": [
+        "service_status_history.occurred_at",
+        "service_status_history.service_id",
+        "service_status_history.to_status",
+        "services.customer_id",
+        "services.id",
+        "services.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-CUS-01",
+      "detail_filter": "Clientes sin servicios activos al cierre"
+    },
+    {
+      "code": "KPI-COM-07",
+      "group": "commercial",
+      "name": "Tasa de abandono de clientes",
+      "name_en": "Customer churn rate",
+      "definition": "Porcentaje de los clientes activos al inicio del periodo que se perdieron durante el periodo.",
+      "formula": "KPI-COM-06 / KPI-COM-04(:inicio) * 100",
+      "sources": [],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.churn_rate_percent",
+      "detail_screen": "P-CUS-01",
+      "detail_filter": "Clientes perdidos del periodo"
+    },
+    {
+      "code": "KPI-COM-08",
+      "group": "commercial",
+      "name": "Ingreso promedio por cliente",
+      "name_en": "Average revenue per customer",
+      "definition": "Ingreso recurrente mensual dividido entre los clientes activos.",
+      "formula": "KPI-COM-01 / KPI-COM-04",
+      "sources": [],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-CUS-01",
+      "detail_filter": "Clientes activos ordenados por ingreso recurrente"
+    },
+    {
+      "code": "KPI-COM-09",
+      "group": "commercial",
+      "name": "Valor de vida del cliente",
+      "name_en": "Customer lifetime value",
+      "definition": "Margen que deja en promedio un cliente durante su permanencia: ingreso promedio por margen bruto entre la tasa de abandono. Sin abandono en el periodo no se calcula.",
+      "formula": "KPI-COM-08 * (KPI-FIN-07 / 100) / (KPI-COM-07 / 100)  -- NULL si KPI-COM-07 = 0",
+      "sources": [],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-03",
+      "detail_filter": "Rentabilidad por cliente"
+    },
+    {
+      "code": "KPI-COM-10",
+      "group": "commercial",
+      "name": "Ventas por canal",
+      "name_en": "Sales by channel",
+      "definition": "Importe de los pedidos activados en el periodo según el canal de captación del prospecto que los originó; sin prospecto, compra en línea o venta directa.",
+      "formula": "SUM(orders.total_minor) FROM orders LEFT JOIN leads ON leads.id = orders.lead_id WHERE orders.status = 'active' AND orders.activated_at BETWEEN :inicio AND :fin GROUP BY COALESCE(leads.lead_channel_id, orders.channel)",
+      "sources": [
+        "leads.id",
+        "leads.lead_channel_id",
+        "orders.activated_at",
+        "orders.channel",
+        "orders.lead_id",
+        "orders.status",
+        "orders.total_minor"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-11",
+      "detail_filter": "Pedidos activados por canal"
+    },
+    {
+      "code": "KPI-COM-11",
+      "group": "commercial",
+      "name": "Ventas por marca",
+      "name_en": "Sales by brand",
+      "definition": "Importe de los pedidos activados en el periodo por marca de origen.",
+      "formula": "SUM(orders.total_minor) FROM orders WHERE orders.status = 'active' AND orders.activated_at BETWEEN :inicio AND :fin GROUP BY orders.brand_id",
+      "sources": [
+        "orders.activated_at",
+        "orders.brand_id",
+        "orders.status",
+        "orders.total_minor"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-01",
+      "detail_filter": "Pedidos activados por marca"
+    },
+    {
+      "code": "KPI-COM-12",
+      "group": "commercial",
+      "name": "Ventas en línea frente a cotización",
+      "name_en": "Online versus quoted sales",
+      "definition": "Participación de la compra en línea en las ventas del periodo; el resto son ventas por cotización o registradas por ventas.",
+      "formula": "SUM(orders.total_minor WHERE orders.channel = 'online') / SUM(orders.total_minor) * 100 FROM orders WHERE orders.status = 'active' AND orders.activated_at BETWEEN :inicio AND :fin  -- desglose: online, con orders.quote_id, resto",
+      "sources": [
+        "orders.activated_at",
+        "orders.channel",
+        "orders.quote_id",
+        "orders.status",
+        "orders.total_minor"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "product_category"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-01",
+      "detail_filter": "Pedidos por canal (online o sales) y con cotización"
+    },
+    {
+      "code": "KPI-CRM-01",
+      "group": "crm",
+      "name": "Valor del embudo por etapa",
+      "name_en": "Pipeline value by stage",
+      "definition": "Importe estimado de los prospectos abiertos, por etapa del embudo.",
+      "formula": "SUM(leads.estimated_amount_minor) FROM leads JOIN pipeline_stages ON pipeline_stages.id = leads.pipeline_stage_id WHERE leads.status = 'open' AND leads.deleted_at IS NULL GROUP BY pipeline_stages.sort_order",
+      "sources": [
+        "leads.deleted_at",
+        "leads.estimated_amount_minor",
+        "leads.pipeline_stage_id",
+        "leads.status",
+        "pipeline_stages.id",
+        "pipeline_stages.sort_order"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-01",
+      "detail_filter": "Tablero Kanban con los mismos filtros"
+    },
+    {
+      "code": "KPI-CRM-02",
+      "group": "crm",
+      "name": "Valor ponderado del embudo",
+      "name_en": "Weighted pipeline value",
+      "definition": "Importe estimado de los prospectos abiertos multiplicado por la probabilidad de su etapa.",
+      "formula": "SUM(leads.estimated_amount_minor * pipeline_stages.probability / 100) FROM leads JOIN pipeline_stages ON pipeline_stages.id = leads.pipeline_stage_id WHERE leads.status = 'open' AND leads.deleted_at IS NULL",
+      "sources": [
+        "leads.deleted_at",
+        "leads.estimated_amount_minor",
+        "leads.pipeline_stage_id",
+        "leads.status",
+        "pipeline_stages.id",
+        "pipeline_stages.probability"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-01",
+      "detail_filter": "Tablero Kanban con los mismos filtros"
+    },
+    {
+      "code": "KPI-CRM-03",
+      "group": "crm",
+      "name": "Tasa de conversión de prospectos",
+      "name_en": "Lead conversion rate",
+      "definition": "Prospectos ganados entre prospectos cerrados (ganados más perdidos) en el periodo.",
+      "formula": "COUNT(DISTINCT lead_stage_changes.lead_id WHERE pipeline_stages.outcome = 'won') / COUNT(DISTINCT lead_stage_changes.lead_id WHERE pipeline_stages.outcome IN ('won','lost')) * 100 FROM lead_stage_changes JOIN pipeline_stages ON pipeline_stages.id = lead_stage_changes.to_stage_id WHERE lead_stage_changes.created_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "lead_stage_changes.created_at",
+        "lead_stage_changes.lead_id",
+        "lead_stage_changes.to_stage_id",
+        "pipeline_stages.id",
+        "pipeline_stages.outcome"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.lead_conversion_percent",
+      "detail_screen": "P-SAL-02",
+      "detail_filter": "Prospectos ganados y perdidos del periodo"
+    },
+    {
+      "code": "KPI-CRM-04",
+      "group": "crm",
+      "name": "Tasa de conversión por etapa",
+      "name_en": "Stage conversion rate",
+      "definition": "Por cada etapa, porcentaje de los prospectos que entraron en ella en el periodo y pasaron a una etapa posterior.",
+      "formula": "COUNT(DISTINCT lead_stage_changes.lead_id que pasan a una etapa con pipeline_stages.sort_order mayor) / COUNT(DISTINCT lead_stage_changes.lead_id con lead_stage_changes.to_stage_id = etapa) * 100 WHERE lead_stage_changes.created_at BETWEEN :inicio AND :fin GROUP BY lead_stage_changes.to_stage_id",
+      "sources": [
+        "lead_stage_changes.created_at",
+        "lead_stage_changes.lead_id",
+        "lead_stage_changes.to_stage_id",
+        "pipeline_stages.sort_order"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-01",
+      "detail_filter": "Historial de etapas del periodo"
+    },
+    {
+      "code": "KPI-CRM-05",
+      "group": "crm",
+      "name": "Tasa de conversión por canal",
+      "name_en": "Conversion rate by channel",
+      "definition": "Tasa de conversión de prospectos agrupada por canal de captación.",
+      "formula": "KPI-CRM-03 GROUP BY leads.lead_channel_id (lead_channels.kind)",
+      "sources": [
+        "lead_channels.kind",
+        "leads.lead_channel_id"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-11",
+      "detail_filter": "Reporte por canal"
+    },
+    {
+      "code": "KPI-CRM-06",
+      "group": "crm",
+      "name": "Ciclo de venta promedio",
+      "name_en": "Average sales cycle",
+      "definition": "Días promedio entre el alta del prospecto y su conversión en cliente.",
+      "formula": "AVG(leads.converted_at::date - leads.created_at::date) FROM leads WHERE leads.status = 'won' AND leads.converted_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "leads.converted_at",
+        "leads.created_at",
+        "leads.status"
+      ],
+      "unit": "days",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-02",
+      "detail_filter": "Prospectos ganados del periodo"
+    },
+    {
+      "code": "KPI-CRM-07",
+      "group": "crm",
+      "name": "Prospectos sin seguimiento",
+      "name_en": "Leads without follow-up",
+      "definition": "Prospectos abiertos con el seguimiento vencido o sin actividad desde hace más de sales.lead.followup_alert_days días.",
+      "formula": "COUNT(leads.id) FROM leads WHERE leads.status = 'open' AND leads.deleted_at IS NULL AND (leads.next_follow_up_at < :ahora OR (leads.next_follow_up_at IS NULL AND COALESCE(leads.last_activity_at, leads.created_at) < :ahora - sales.lead.followup_alert_days))",
+      "sources": [
+        "leads.created_at",
+        "leads.deleted_at",
+        "leads.id",
+        "leads.last_activity_at",
+        "leads.next_follow_up_at",
+        "leads.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-02",
+      "detail_filter": "Prospectos con seguimiento vencido"
+    },
+    {
+      "code": "KPI-CRM-08",
+      "group": "crm",
+      "name": "Tasa de aceptación de cotizaciones",
+      "name_en": "Quote acceptance rate",
+      "definition": "Cotizaciones aceptadas en el periodo entre cotizaciones enviadas en el periodo.",
+      "formula": "COUNT(quotes.id WHERE quotes.status = 'accepted' AND quotes.accepted_at BETWEEN :inicio AND :fin) / COUNT(quotes.id WHERE quotes.sent_at BETWEEN :inicio AND :fin) * 100 FROM quotes WHERE quotes.deleted_at IS NULL",
+      "sources": [
+        "quotes.accepted_at",
+        "quotes.deleted_at",
+        "quotes.id",
+        "quotes.sent_at",
+        "quotes.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SAL-05",
+      "detail_filter": "Cotizaciones enviadas y aceptadas"
+    },
+    {
+      "code": "KPI-FIN-01",
+      "group": "finance",
+      "name": "Facturado",
+      "name_en": "Invoiced",
+      "definition": "Importe de comprobantes emitidos en el periodo (facturas, boletas y notas de débito) menos notas de crédito.",
+      "formula": "SUM(CASE WHEN invoices.type = 'credit_note' THEN -invoices.total_minor ELSE invoices.total_minor END) FROM invoices WHERE invoices.status NOT IN ('draft','void') AND invoices.issue_date BETWEEN :inicio AND :fin",
+      "sources": [
+        "invoices.issue_date",
+        "invoices.status",
+        "invoices.total_minor",
+        "invoices.type"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-04",
+      "detail_filter": "Comprobantes emitidos del periodo"
+    },
+    {
+      "code": "KPI-FIN-02",
+      "group": "finance",
+      "name": "Cobrado",
+      "name_en": "Collected",
+      "definition": "Pagos validados en el periodo aplicados a comprobantes.",
+      "formula": "SUM(payment_allocations.amount_minor) FROM payment_allocations JOIN payments ON payments.id = payment_allocations.payment_id WHERE payments.status = 'validated' AND payments.validated_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "payment_allocations.amount_minor",
+        "payment_allocations.payment_id",
+        "payments.id",
+        "payments.status",
+        "payments.validated_at"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-04",
+      "detail_filter": "Pagos validados del periodo"
+    },
+    {
+      "code": "KPI-FIN-03",
+      "group": "finance",
+      "name": "Reconocido",
+      "name_en": "Recognized revenue",
+      "definition": "Ingreso devengado en el periodo: cada línea se reparte por días entre el inicio y el fin del servicio que factura; una línea sin periodo se reconoce en la fecha de emisión.",
+      "formula": "SUM(invoice_items.subtotal_minor * dias_en_periodo(invoice_items.period_start, invoice_items.period_end, :inicio, :fin) / dias(invoice_items.period_start, invoice_items.period_end)) FROM invoice_items JOIN invoices ON invoices.id = invoice_items.invoice_id WHERE invoices.status NOT IN ('draft','void')",
+      "sources": [
+        "invoice_items.invoice_id",
+        "invoice_items.period_end",
+        "invoice_items.period_start",
+        "invoice_items.subtotal_minor",
+        "invoices.id",
+        "invoices.status"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-04",
+      "detail_filter": "Facturado, cobrado y reconocido"
+    },
+    {
+      "code": "KPI-FIN-04",
+      "group": "finance",
+      "name": "Días promedio de cobro",
+      "name_en": "Days sales outstanding",
+      "definition": "Días promedio entre la emisión y el pago total de los comprobantes pagados en el periodo.",
+      "formula": "AVG(invoices.paid_at::date - invoices.issue_date) FROM invoices WHERE invoices.status = 'paid' AND invoices.paid_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "invoices.issue_date",
+        "invoices.paid_at",
+        "invoices.status"
+      ],
+      "unit": "days",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.days_sales_outstanding",
+      "detail_screen": "P-BIL-12",
+      "detail_filter": "Comprobantes pagados del periodo"
+    },
+    {
+      "code": "KPI-FIN-05",
+      "group": "finance",
+      "name": "Deuda por antigüedad",
+      "name_en": "Receivables aging",
+      "definition": "Saldo pendiente de comprobantes emitidos por tramo de días desde el vencimiento: por vencer, 0 a 30, 31 a 60, 61 a 90 y más de 90.",
+      "formula": "SUM(invoices.balance_minor) FROM invoices WHERE invoices.status IN ('issued','partially_paid','overdue') GROUP BY tramo(:hoy - invoices.due_date)",
+      "sources": [
+        "invoices.balance_minor",
+        "invoices.due_date",
+        "invoices.status"
+      ],
+      "unit": "money",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-12",
+      "detail_filter": "Estado de cuenta y antigüedad de deuda"
+    },
+    {
+      "code": "KPI-FIN-06",
+      "group": "finance",
+      "name": "Deuda vencida sobre cartera",
+      "name_en": "Overdue share of receivables",
+      "definition": "Porcentaje del saldo por cobrar que ya venció.",
+      "formula": "SUM(invoices.balance_minor WHERE invoices.due_date < :hoy) / SUM(invoices.balance_minor) * 100 FROM invoices WHERE invoices.status IN ('issued','partially_paid','overdue')",
+      "sources": [
+        "invoices.balance_minor",
+        "invoices.due_date",
+        "invoices.status"
+      ],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.overdue_debt_percent",
+      "detail_screen": "P-BIL-12",
+      "detail_filter": "Comprobantes vencidos"
+    },
+    {
+      "code": "KPI-FIN-07",
+      "group": "finance",
+      "name": "Margen bruto por servicio",
+      "name_en": "Gross margin by service",
+      "definition": "Ingreso facturado por servicio menos el costo distribuido a ese servicio, sobre el ingreso; los costos se convierten a la moneda del indicador con el tipo de cambio de su mes.",
+      "formula": "(SUM(invoice_items.subtotal_minor) - SUM(a_moneda(cost_allocations.amount_minor, cost_allocations.cost_currency, costs.period_month))) / SUM(invoice_items.subtotal_minor) * 100 FROM invoice_items JOIN cost_allocations ON cost_allocations.service_id = invoice_items.service_id JOIN costs ON costs.id = cost_allocations.cost_id WHERE costs.period_month BETWEEN :inicio AND :fin GROUP BY invoice_items.service_id",
+      "sources": [
+        "cost_allocations.amount_minor",
+        "cost_allocations.cost_currency",
+        "cost_allocations.cost_id",
+        "cost_allocations.service_id",
+        "costs.id",
+        "costs.period_month",
+        "invoice_items.service_id",
+        "invoice_items.subtotal_minor"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category"
+      ],
+      "target_setting_key": "dashboard.targets.gross_margin_percent",
+      "detail_screen": "P-FIN-03",
+      "detail_filter": "Rentabilidad por servicio"
+    },
+    {
+      "code": "KPI-FIN-08",
+      "group": "finance",
+      "name": "Margen bruto por proveedor",
+      "name_en": "Gross margin by provider",
+      "definition": "Ingreso de los servicios que usan cuentas de un proveedor menos los costos de ese proveedor en el periodo.",
+      "formula": "SUM(invoice_items.subtotal_minor) - SUM(a_moneda(cost_allocations.amount_minor, cost_allocations.cost_currency, costs.period_month)) FROM costs JOIN provider_accounts ON provider_accounts.id = costs.provider_account_id JOIN cost_allocations ON cost_allocations.cost_id = costs.id JOIN invoice_items ON invoice_items.service_id = cost_allocations.service_id WHERE costs.period_month BETWEEN :inicio AND :fin GROUP BY provider_accounts.provider_id",
+      "sources": [
+        "cost_allocations.amount_minor",
+        "cost_allocations.cost_currency",
+        "cost_allocations.cost_id",
+        "cost_allocations.service_id",
+        "costs.id",
+        "costs.period_month",
+        "costs.provider_account_id",
+        "invoice_items.service_id",
+        "invoice_items.subtotal_minor",
+        "provider_accounts.id",
+        "provider_accounts.provider_id"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-03",
+      "detail_filter": "Rentabilidad por proveedor"
+    },
+    {
+      "code": "KPI-FIN-09",
+      "group": "finance",
+      "name": "Margen bruto por cliente",
+      "name_en": "Gross margin by customer",
+      "definition": "Ingreso facturado al cliente menos los costos distribuidos a sus servicios en el periodo.",
+      "formula": "SUM(invoice_items.subtotal_minor) - SUM(a_moneda(cost_allocations.amount_minor, cost_allocations.cost_currency, costs.period_month)) FROM services JOIN invoice_items ON invoice_items.service_id = services.id JOIN cost_allocations ON cost_allocations.service_id = services.id JOIN costs ON costs.id = cost_allocations.cost_id WHERE costs.period_month BETWEEN :inicio AND :fin GROUP BY services.customer_id",
+      "sources": [
+        "cost_allocations.amount_minor",
+        "cost_allocations.cost_currency",
+        "cost_allocations.cost_id",
+        "cost_allocations.service_id",
+        "costs.id",
+        "costs.period_month",
+        "invoice_items.service_id",
+        "invoice_items.subtotal_minor",
+        "services.customer_id",
+        "services.id"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-03",
+      "detail_filter": "Rentabilidad por cliente"
+    },
+    {
+      "code": "KPI-FIN-10",
+      "group": "finance",
+      "name": "Costos de proveedores",
+      "name_en": "Provider costs",
+      "definition": "Costos recurrentes, únicos y de licencias de proveedores del periodo, convertidos a la moneda del indicador.",
+      "formula": "SUM(a_moneda(costs.amount_minor, costs.cost_currency, costs.period_month)) FROM costs WHERE costs.kind IN ('provider_recurring','provider_one_time','license') AND costs.period_month BETWEEN :inicio AND :fin",
+      "sources": [
+        "costs.amount_minor",
+        "costs.cost_currency",
+        "costs.kind",
+        "costs.period_month"
+      ],
+      "unit": "money",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "currency",
+        "product_category"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-FIN-01",
+      "detail_filter": "Costos del periodo"
+    },
+    {
+      "code": "KPI-FIN-11",
+      "group": "finance",
+      "name": "Refacturación",
+      "name_en": "Rebilling",
+      "definition": "Importe refacturado a clientes por consumos de proveedores (líneas de refacturación de comprobantes emitidos).",
+      "formula": "SUM(invoice_items.total_minor) FROM invoice_items JOIN invoices ON invoices.id = invoice_items.invoice_id WHERE invoice_items.kind = 'rebilling' AND invoices.status NOT IN ('draft','void') AND invoices.issue_date BETWEEN :inicio AND :fin",
+      "sources": [
+        "invoice_items.invoice_id",
+        "invoice_items.kind",
+        "invoice_items.total_minor",
+        "invoices.id",
+        "invoices.issue_date",
+        "invoices.status"
+      ],
+      "unit": "money",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-11",
+      "detail_filter": "Facturas de proveedor refacturadas"
+    },
+    {
+      "code": "KPI-FIN-12",
+      "group": "finance",
+      "name": "Facturas de proveedor por refacturar",
+      "name_en": "Provider bills pending rebilling",
+      "definition": "Facturas de proveedor asignadas a un cliente que siguen pendientes de refacturar.",
+      "formula": "COUNT(provider_bills.id) FROM provider_bills WHERE provider_bills.status = 'pending' AND provider_bills.customer_id IS NOT NULL",
+      "sources": [
+        "provider_bills.customer_id",
+        "provider_bills.id",
+        "provider_bills.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-11",
+      "detail_filter": "Facturas de proveedor pendientes"
+    },
+    {
+      "code": "KPI-FIN-13",
+      "group": "finance",
+      "name": "Comisiones de medios de pago",
+      "name_en": "Payment method fees",
+      "definition": "Comisiones cobradas por los medios de pago (pasarela, PayPal, Global66, bancos) sobre los pagos validados en el periodo.",
+      "formula": "SUM(payments.fee_minor) FROM payments WHERE payments.status = 'validated' AND payments.validated_at BETWEEN :inicio AND :fin GROUP BY payments.payment_method_id",
+      "sources": [
+        "payments.fee_minor",
+        "payments.payment_method_id",
+        "payments.status",
+        "payments.validated_at"
+      ],
+      "unit": "money",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "currency"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-13",
+      "detail_filter": "Pagos validados por medio de pago"
+    },
+    {
+      "code": "KPI-FIN-14",
+      "group": "finance",
+      "name": "Recargos por mora",
+      "name_en": "Late fees",
+      "definition": "Recargos por mora facturados en el periodo.",
+      "formula": "SUM(invoice_items.total_minor) FROM invoice_items JOIN invoices ON invoices.id = invoice_items.invoice_id WHERE invoice_items.kind = 'late_fee' AND invoices.status NOT IN ('draft','void') AND invoices.issue_date BETWEEN :inicio AND :fin",
+      "sources": [
+        "invoice_items.invoice_id",
+        "invoice_items.kind",
+        "invoice_items.total_minor",
+        "invoices.id",
+        "invoices.issue_date",
+        "invoices.status"
+      ],
+      "unit": "money",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-02",
+      "detail_filter": "Comprobantes con recargo por mora"
+    },
+    {
+      "code": "KPI-COB-01",
+      "group": "collections",
+      "name": "Facturas por vencer",
+      "name_en": "Invoices due soon",
+      "definition": "Comprobantes emitidos con saldo cuyo vencimiento cae dentro de la ventana dashboard.expiring_window_days.",
+      "formula": "COUNT(invoices.id) FROM invoices WHERE invoices.status IN ('issued','partially_paid') AND invoices.due_date BETWEEN :hoy AND :hoy + dashboard.expiring_window_days",
+      "sources": [
+        "invoices.due_date",
+        "invoices.id",
+        "invoices.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-01",
+      "detail_filter": "Bandeja diaria: por vencer"
+    },
+    {
+      "code": "KPI-COB-02",
+      "group": "collections",
+      "name": "Facturas vencidas",
+      "name_en": "Overdue invoices",
+      "definition": "Comprobantes vencidos con saldo.",
+      "formula": "COUNT(invoices.id) FROM invoices WHERE invoices.status = 'overdue'",
+      "sources": [
+        "invoices.id",
+        "invoices.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-01",
+      "detail_filter": "Bandeja diaria: vencidas"
+    },
+    {
+      "code": "KPI-COB-03",
+      "group": "collections",
+      "name": "Monto vencido",
+      "name_en": "Overdue amount",
+      "definition": "Saldo de los comprobantes vencidos.",
+      "formula": "SUM(invoices.balance_minor) FROM invoices WHERE invoices.status = 'overdue'",
+      "sources": [
+        "invoices.balance_minor",
+        "invoices.status"
+      ],
+      "unit": "money",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-12",
+      "detail_filter": "Antigüedad de deuda vencida"
+    },
+    {
+      "code": "KPI-COB-04",
+      "group": "collections",
+      "name": "Compromisos de pago cumplidos",
+      "name_en": "Payment promises kept",
+      "definition": "Compromisos de pago resueltos como cumplidos en el periodo.",
+      "formula": "COUNT(payment_promises.id) FROM payment_promises WHERE payment_promises.status = 'kept' AND payment_promises.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "payment_promises.id",
+        "payment_promises.resolved_at",
+        "payment_promises.status"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-10",
+      "detail_filter": "Compromisos cumplidos"
+    },
+    {
+      "code": "KPI-COB-05",
+      "group": "collections",
+      "name": "Tasa de cumplimiento de compromisos",
+      "name_en": "Promise kept rate",
+      "definition": "Compromisos cumplidos entre compromisos resueltos (cumplidos más incumplidos) en el periodo.",
+      "formula": "COUNT(payment_promises.id WHERE payment_promises.status = 'kept') / COUNT(payment_promises.id WHERE payment_promises.status IN ('kept','broken')) * 100 FROM payment_promises WHERE payment_promises.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "payment_promises.id",
+        "payment_promises.resolved_at",
+        "payment_promises.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.promise_kept_percent",
+      "detail_screen": "P-BIL-10",
+      "detail_filter": "Compromisos resueltos"
+    },
+    {
+      "code": "KPI-COB-06",
+      "group": "collections",
+      "name": "Compromisos de pago incumplidos",
+      "name_en": "Payment promises broken",
+      "definition": "Compromisos de pago resueltos como incumplidos en el periodo.",
+      "formula": "COUNT(payment_promises.id) FROM payment_promises WHERE payment_promises.status = 'broken' AND payment_promises.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "payment_promises.id",
+        "payment_promises.resolved_at",
+        "payment_promises.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "currency",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-10",
+      "detail_filter": "Compromisos incumplidos"
+    },
+    {
+      "code": "KPI-COB-07",
+      "group": "collections",
+      "name": "Suspensiones por mora",
+      "name_en": "Suspensions for non-payment",
+      "definition": "Servicios suspendidos por la secuencia de cobranza en el periodo.",
+      "formula": "COUNT(service_status_history.id) FROM service_status_history WHERE service_status_history.to_status = 'suspended' AND service_status_history.trigger_source = 'dunning' AND service_status_history.occurred_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "service_status_history.id",
+        "service_status_history.occurred_at",
+        "service_status_history.to_status",
+        "service_status_history.trigger_source"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SRV-01",
+      "detail_filter": "Servicios suspendidos por mora"
+    },
+    {
+      "code": "KPI-COB-08",
+      "group": "collections",
+      "name": "Reactivaciones tras pago",
+      "name_en": "Reactivations after payment",
+      "definition": "Servicios suspendidos que volvieron a activo por un pago validado en el periodo.",
+      "formula": "COUNT(service_status_history.id) FROM service_status_history WHERE service_status_history.from_status = 'suspended' AND service_status_history.to_status = 'active' AND service_status_history.trigger_source = 'payment' AND service_status_history.occurred_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "service_status_history.from_status",
+        "service_status_history.id",
+        "service_status_history.occurred_at",
+        "service_status_history.to_status",
+        "service_status_history.trigger_source"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SRV-01",
+      "detail_filter": "Servicios reactivados"
+    },
+    {
+      "code": "KPI-COB-09",
+      "group": "collections",
+      "name": "Vouchers por validar",
+      "name_en": "Vouchers awaiting validation",
+      "definition": "Pagos reportados con voucher que finanzas aún no valida ni rechaza.",
+      "formula": "COUNT(payments.id) FROM payments WHERE payments.status = 'reported' AND payments.proof_file_id IS NOT NULL",
+      "sources": [
+        "payments.id",
+        "payments.proof_file_id",
+        "payments.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "currency"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-08",
+      "detail_filter": "Validación de vouchers"
+    },
+    {
+      "code": "KPI-COB-10",
+      "group": "collections",
+      "name": "Antigüedad del voucher más antiguo por validar",
+      "name_en": "Oldest pending voucher age",
+      "definition": "Horas que lleva esperando el voucher reportado más antiguo.",
+      "formula": "MAX(:ahora - payments.created_at) FROM payments WHERE payments.status = 'reported' AND payments.proof_file_id IS NOT NULL",
+      "sources": [
+        "payments.created_at",
+        "payments.proof_file_id",
+        "payments.status"
+      ],
+      "unit": "hours",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "currency"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-BIL-08",
+      "detail_filter": "Validación de vouchers, más antiguos primero"
+    },
+    {
+      "code": "KPI-OPE-01",
+      "group": "operations",
+      "name": "Servicios por vencer",
+      "name_en": "Services due for renewal",
+      "definition": "Servicios activos cuyo vencimiento comercial cae dentro de la ventana dashboard.expiring_window_days.",
+      "formula": "COUNT(services.id) FROM services WHERE services.status = 'active' AND services.commercial_due_date BETWEEN :hoy AND :hoy + dashboard.expiring_window_days",
+      "sources": [
+        "services.commercial_due_date",
+        "services.id",
+        "services.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-SRV-03",
+      "detail_filter": "Panel de renovaciones"
+    },
+    {
+      "code": "KPI-OPE-02",
+      "group": "operations",
+      "name": "Tasa de renovación",
+      "name_en": "Renewal rate",
+      "definition": "Servicios con vencimiento comercial en el periodo que siguen activos al cierre, entre todos los que vencían.",
+      "formula": "COUNT(services.id WHERE services.status = 'active') / COUNT(services.id) * 100 FROM services WHERE services.commercial_due_date BETWEEN :inicio AND :fin AND services.deleted_at IS NULL",
+      "sources": [
+        "services.commercial_due_date",
+        "services.deleted_at",
+        "services.id",
+        "services.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "product_category",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.renewal_rate_percent",
+      "detail_screen": "P-SRV-03",
+      "detail_filter": "Renovaciones del periodo"
+    },
+    {
+      "code": "KPI-OPE-03",
+      "group": "operations",
+      "name": "Dominios por vencer",
+      "name_en": "Domains expiring soon",
+      "definition": "Dominios activos cuyo vencimiento en el registro cae dentro de la ventana dashboard.expiring_window_days.",
+      "formula": "COUNT(domains.id) FROM domains WHERE domains.status = 'active' AND domains.deleted_at IS NULL AND domains.registry_expires_at BETWEEN :hoy AND :hoy + dashboard.expiring_window_days",
+      "sources": [
+        "domains.deleted_at",
+        "domains.id",
+        "domains.registry_expires_at",
+        "domains.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-DOM-03",
+      "detail_filter": "Dominios por vencer"
+    },
+    {
+      "code": "KPI-OPE-04",
+      "group": "operations",
+      "name": "Uso de disco de nodos de hosting",
+      "name_en": "Hosting node disk usage",
+      "definition": "Mayor porcentaje de disco usado entre los nodos de hosting activos (el detalle muestra cada nodo contra sus umbrales).",
+      "formula": "MAX(hosting_nodes.disk_used_mb * 100.0 / hosting_nodes.disk_quota_mb) FROM hosting_nodes WHERE hosting_nodes.status = 'active' AND hosting_nodes.disk_quota_mb > 0",
+      "sources": [
+        "hosting_nodes.disk_quota_mb",
+        "hosting_nodes.disk_used_mb",
+        "hosting_nodes.status"
+      ],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [],
+      "target_setting_key": "dashboard.targets.node_usage_max_percent",
+      "detail_screen": "P-INV-01",
+      "detail_filter": "Nodos de hosting por uso"
+    },
+    {
+      "code": "KPI-OPE-05",
+      "group": "operations",
+      "name": "Uso de cuentas de nodos de hosting",
+      "name_en": "Hosting node account usage",
+      "definition": "Cuentas usadas sobre el límite de cuentas de los nodos de hosting activos.",
+      "formula": "SUM(hosting_nodes.accounts_used) * 100.0 / SUM(hosting_nodes.accounts_limit) FROM hosting_nodes WHERE hosting_nodes.status = 'active' AND hosting_nodes.accounts_limit > 0",
+      "sources": [
+        "hosting_nodes.accounts_limit",
+        "hosting_nodes.accounts_used",
+        "hosting_nodes.status"
+      ],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [],
+      "target_setting_key": null,
+      "detail_screen": "P-INV-01",
+      "detail_filter": "Nodos de hosting por cuentas"
+    },
+    {
+      "code": "KPI-OPE-06",
+      "group": "operations",
+      "name": "Respaldos exitosos",
+      "name_en": "Successful backups",
+      "definition": "Respaldos terminados con éxito entre respaldos terminados en el periodo (exitosos, fallidos y parciales).",
+      "formula": "COUNT(backup_runs.id WHERE backup_runs.status = 'succeeded') / COUNT(backup_runs.id WHERE backup_runs.status IN ('succeeded','failed','partial')) * 100 FROM backup_runs WHERE backup_runs.finished_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "backup_runs.finished_at",
+        "backup_runs.id",
+        "backup_runs.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [],
+      "target_setting_key": "dashboard.targets.backup_success_percent",
+      "detail_screen": "P-MON-06",
+      "detail_filter": "Backups fallidos y parciales"
+    },
+    {
+      "code": "KPI-OPE-07",
+      "group": "operations",
+      "name": "Disponibilidad",
+      "name_en": "Availability",
+      "definition": "Chequeos con resultado arriba entre todos los chequeos de los monitores activos en el periodo.",
+      "formula": "COUNT(monitor_results.id WHERE monitor_results.status = 'up') / COUNT(monitor_results.id) * 100 FROM monitor_results JOIN monitors ON monitors.id = monitor_results.monitor_id WHERE monitors.is_active AND monitor_results.checked_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "monitor_results.checked_at",
+        "monitor_results.id",
+        "monitor_results.monitor_id",
+        "monitor_results.status",
+        "monitors.id",
+        "monitors.is_active"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "intraday",
+      "dimensions": [],
+      "target_setting_key": "dashboard.targets.availability_percent",
+      "detail_screen": "P-MON-01",
+      "detail_filter": "Monitores por disponibilidad"
+    },
+    {
+      "code": "KPI-OPE-08",
+      "group": "operations",
+      "name": "Incidentes",
+      "name_en": "Incidents",
+      "definition": "Incidentes iniciados en el periodo, por severidad.",
+      "formula": "COUNT(incidents.id) FROM incidents WHERE incidents.started_at BETWEEN :inicio AND :fin GROUP BY incidents.severity",
+      "sources": [
+        "incidents.id",
+        "incidents.severity",
+        "incidents.started_at"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-MON-03",
+      "detail_filter": "Incidentes del periodo"
+    },
+    {
+      "code": "KPI-OPE-09",
+      "group": "operations",
+      "name": "Tiempo medio de resolución de incidentes",
+      "name_en": "Mean time to resolve incidents",
+      "definition": "Horas promedio entre el inicio y la resolución de los incidentes resueltos en el periodo.",
+      "formula": "AVG(incidents.resolved_at - incidents.started_at) FROM incidents WHERE incidents.status = 'resolved' AND incidents.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "incidents.resolved_at",
+        "incidents.started_at",
+        "incidents.status"
+      ],
+      "unit": "hours",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-MON-03",
+      "detail_filter": "Incidentes resueltos"
+    },
+    {
+      "code": "KPI-OPE-10",
+      "group": "operations",
+      "name": "Avance de la migración",
+      "name_en": "Migration progress",
+      "definition": "Cuentas verificadas o cerradas entre las cuentas de los lotes de migración vigentes.",
+      "formula": "COUNT(migration_items.id WHERE migration_items.status IN ('verified','closed')) / COUNT(migration_items.id) * 100 FROM migration_items JOIN migration_batches ON migration_batches.id = migration_items.migration_batch_id WHERE migration_batches.status <> 'cancelled'",
+      "sources": [
+        "migration_batches.id",
+        "migration_batches.status",
+        "migration_items.id",
+        "migration_items.migration_batch_id",
+        "migration_items.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-INV-08",
+      "detail_filter": "Tablero de avance de migración"
+    },
+    {
+      "code": "KPI-OPE-11",
+      "group": "operations",
+      "name": "Alertas abiertas",
+      "name_en": "Open alerts",
+      "definition": "Alertas abiertas o reconocidas sin resolver, por severidad.",
+      "formula": "COUNT(alerts.id) FROM alerts WHERE alerts.status IN ('open','acknowledged') GROUP BY alerts.severity",
+      "sources": [
+        "alerts.id",
+        "alerts.severity",
+        "alerts.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [],
+      "target_setting_key": null,
+      "detail_screen": "P-MON-08",
+      "detail_filter": "Alertas abiertas"
+    },
+    {
+      "code": "KPI-SOP-01",
+      "group": "support",
+      "name": "Tickets abiertos",
+      "name_en": "Open tickets",
+      "definition": "Tickets sin resolver ni cerrar, por prioridad.",
+      "formula": "COUNT(tickets.id) FROM tickets WHERE tickets.status NOT IN ('resolved','closed') AND tickets.deleted_at IS NULL GROUP BY tickets.priority",
+      "sources": [
+        "tickets.deleted_at",
+        "tickets.id",
+        "tickets.priority",
+        "tickets.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Bandeja de tickets abiertos"
+    },
+    {
+      "code": "KPI-SOP-02",
+      "group": "support",
+      "name": "Tiempo de primera respuesta",
+      "name_en": "First response time",
+      "definition": "Minutos promedio entre la creación del ticket y la primera respuesta del personal, en tickets respondidos en el periodo.",
+      "formula": "AVG(tickets.first_responded_at - tickets.created_at) FROM tickets WHERE tickets.first_responded_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "tickets.created_at",
+        "tickets.first_responded_at"
+      ],
+      "unit": "minutes",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.first_response_minutes",
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Tickets respondidos en el periodo"
+    },
+    {
+      "code": "KPI-SOP-03",
+      "group": "support",
+      "name": "Tiempo de solución",
+      "name_en": "Resolution time",
+      "definition": "Horas promedio entre la creación y la solución, descontando el tiempo en pausa del SLA, en tickets resueltos en el periodo.",
+      "formula": "AVG(tickets.resolved_at - tickets.created_at - tickets.sla_paused_minutes) FROM tickets WHERE tickets.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "tickets.created_at",
+        "tickets.resolved_at",
+        "tickets.sla_paused_minutes"
+      ],
+      "unit": "hours",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Tickets resueltos en el periodo"
+    },
+    {
+      "code": "KPI-SOP-04",
+      "group": "support",
+      "name": "Cumplimiento de SLA",
+      "name_en": "SLA compliance",
+      "definition": "Tickets resueltos en el periodo sin incumplir el SLA, entre todos los resueltos.",
+      "formula": "COUNT(tickets.id WHERE NOT tickets.sla_breached) / COUNT(tickets.id) * 100 FROM tickets WHERE tickets.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "tickets.id",
+        "tickets.resolved_at",
+        "tickets.sla_breached"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.sla_compliance_percent",
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Tickets con SLA incumplido"
+    },
+    {
+      "code": "KPI-SOP-05",
+      "group": "support",
+      "name": "Satisfacción del cliente",
+      "name_en": "Customer satisfaction",
+      "definition": "Encuestas respondidas con 4 o 5 entre encuestas respondidas en el periodo.",
+      "formula": "COUNT(satisfaction_surveys.id WHERE satisfaction_surveys.score >= 4) / COUNT(satisfaction_surveys.id) * 100 FROM satisfaction_surveys JOIN tickets ON tickets.id = satisfaction_surveys.ticket_id WHERE satisfaction_surveys.answered_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "satisfaction_surveys.answered_at",
+        "satisfaction_surveys.id",
+        "satisfaction_surveys.score",
+        "satisfaction_surveys.ticket_id",
+        "tickets.id"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": "dashboard.targets.csat_percent",
+      "detail_screen": "P-HLP-07",
+      "detail_filter": "Encuestas del periodo"
+    },
+    {
+      "code": "KPI-SOP-06",
+      "group": "support",
+      "name": "Puntaje promedio de satisfacción",
+      "name_en": "Average satisfaction score",
+      "definition": "Promedio de puntaje (1 a 5) de las encuestas respondidas en el periodo.",
+      "formula": "AVG(satisfaction_surveys.score) FROM satisfaction_surveys WHERE satisfaction_surveys.answered_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "satisfaction_surveys.answered_at",
+        "satisfaction_surveys.score"
+      ],
+      "unit": "score",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-HLP-07",
+      "detail_filter": "Encuestas del periodo"
+    },
+    {
+      "code": "KPI-SOP-07",
+      "group": "support",
+      "name": "Carga por técnico",
+      "name_en": "Workload per technician",
+      "definition": "Tickets abiertos asignados a cada técnico; el detalle suma las horas registradas en el periodo.",
+      "formula": "COUNT(tickets.id) FROM tickets WHERE tickets.status NOT IN ('resolved','closed') AND tickets.deleted_at IS NULL GROUP BY tickets.assignee_id  -- detalle: SUM(time_entries.minutes) / 60 GROUP BY time_entries.user_id",
+      "sources": [
+        "tickets.assignee_id",
+        "tickets.deleted_at",
+        "tickets.id",
+        "tickets.status",
+        "time_entries.minutes",
+        "time_entries.user_id"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Bandeja por técnico"
+    },
+    {
+      "code": "KPI-SOP-08",
+      "group": "support",
+      "name": "Tickets reabiertos",
+      "name_en": "Reopened tickets",
+      "definition": "Reaperturas de tickets resueltos en el periodo, sobre los tickets resueltos.",
+      "formula": "SUM(tickets.reopened_count) / COUNT(tickets.id) * 100 FROM tickets WHERE tickets.resolved_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "tickets.id",
+        "tickets.reopened_count",
+        "tickets.resolved_at"
+      ],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand",
+        "owner"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-HLP-01",
+      "detail_filter": "Tickets reabiertos"
+    },
+    {
+      "code": "KPI-REC-01",
+      "group": "complaints",
+      "name": "Reclamos recibidos",
+      "name_en": "Claims received",
+      "definition": "Hojas del Libro de Reclamaciones de tipo reclamo registradas en el periodo (sin hojas de prueba).",
+      "formula": "COUNT(complaints.id) FROM complaints WHERE complaints.complaint_type = 'claim' AND NOT complaints.is_test AND complaints.received_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "complaints.complaint_type",
+        "complaints.id",
+        "complaints.is_test",
+        "complaints.received_at"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Libro de Reclamaciones: reclamos"
+    },
+    {
+      "code": "KPI-REC-02",
+      "group": "complaints",
+      "name": "Quejas recibidas",
+      "name_en": "Grievances received",
+      "definition": "Hojas del Libro de Reclamaciones de tipo queja registradas en el periodo (sin hojas de prueba).",
+      "formula": "COUNT(complaints.id) FROM complaints WHERE complaints.complaint_type = 'grievance' AND NOT complaints.is_test AND complaints.received_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "complaints.complaint_type",
+        "complaints.id",
+        "complaints.is_test",
+        "complaints.received_at"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Libro de Reclamaciones: quejas"
+    },
+    {
+      "code": "KPI-REC-03",
+      "group": "complaints",
+      "name": "Respondidos dentro del plazo",
+      "name_en": "Answered on time",
+      "definition": "Hojas cuyo plazo vence en el periodo y se respondieron a más tardar en su fecha de vencimiento, entre todas las que vencían.",
+      "formula": "COUNT(complaints.id WHERE complaints.answered_at IS NOT NULL AND complaints.answered_at <= complaints.due_at) / COUNT(complaints.id) * 100 FROM complaints WHERE NOT complaints.is_test AND complaints.due_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "complaints.answered_at",
+        "complaints.due_at",
+        "complaints.id",
+        "complaints.is_test"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": "dashboard.targets.complaints_on_time_percent",
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Hojas que vencían en el periodo"
+    },
+    {
+      "code": "KPI-REC-04",
+      "group": "complaints",
+      "name": "Próximos a vencer",
+      "name_en": "Due soon",
+      "definition": "Hojas sin responder cuyo plazo vence dentro del mayor aviso de complaints.alert_days_before (días hábiles).",
+      "formula": "COUNT(complaints.id) FROM complaints WHERE complaints.status IN ('received','in_progress') AND NOT complaints.is_test AND complaints.due_at BETWEEN :ahora AND sumar_dias_habiles(:ahora, MAX(complaints.alert_days_before))",
+      "sources": [
+        "complaints.due_at",
+        "complaints.id",
+        "complaints.is_test",
+        "complaints.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Hojas por vencer"
+    },
+    {
+      "code": "KPI-REC-05",
+      "group": "complaints",
+      "name": "Vencidos sin respuesta",
+      "name_en": "Overdue without answer",
+      "definition": "Hojas sin responder cuyo plazo ya venció.",
+      "formula": "COUNT(complaints.id) FROM complaints WHERE complaints.status IN ('received','in_progress') AND NOT complaints.is_test AND complaints.due_at < :ahora",
+      "sources": [
+        "complaints.due_at",
+        "complaints.id",
+        "complaints.is_test",
+        "complaints.status"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "intraday",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Hojas vencidas"
+    },
+    {
+      "code": "KPI-REC-06",
+      "group": "complaints",
+      "name": "Tiempo promedio de respuesta",
+      "name_en": "Average response time",
+      "definition": "Días promedio entre el registro de la hoja y su respuesta, en hojas respondidas en el periodo.",
+      "formula": "AVG(complaints.answered_at::date - complaints.received_at::date) FROM complaints WHERE NOT complaints.is_test AND complaints.answered_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "complaints.answered_at",
+        "complaints.is_test",
+        "complaints.received_at"
+      ],
+      "unit": "days",
+      "direction": "down",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-LRC-01",
+      "detail_filter": "Hojas respondidas"
+    },
+    {
+      "code": "KPI-WEB-01",
+      "group": "web",
+      "name": "Pedidos en línea",
+      "name_en": "Online orders",
+      "definition": "Pedidos generados por compras en línea pagadas en el periodo.",
+      "formula": "COUNT(orders.id) FROM orders WHERE orders.channel = 'online' AND orders.created_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "orders.channel",
+        "orders.created_at",
+        "orders.id"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency",
+        "product_category"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-07",
+      "detail_filter": "Compras en línea"
+    },
+    {
+      "code": "KPI-WEB-02",
+      "group": "web",
+      "name": "Carritos abandonados",
+      "name_en": "Abandoned carts",
+      "definition": "Carritos marcados como abandonados en el periodo entre carritos creados en el periodo.",
+      "formula": "COUNT(carts.id WHERE carts.status = 'abandoned' AND carts.abandoned_at BETWEEN :inicio AND :fin) / COUNT(carts.id WHERE carts.created_at BETWEEN :inicio AND :fin) * 100 FROM carts",
+      "sources": [
+        "carts.abandoned_at",
+        "carts.created_at",
+        "carts.id",
+        "carts.status"
+      ],
+      "unit": "percent",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency"
+      ],
+      "target_setting_key": "dashboard.targets.cart_abandonment_percent",
+      "detail_screen": "P-ORD-06",
+      "detail_filter": "Carritos abandonados"
+    },
+    {
+      "code": "KPI-WEB-03",
+      "group": "web",
+      "name": "Carritos recuperados",
+      "name_en": "Recovered carts",
+      "definition": "Carritos que fueron abandonados y luego terminaron en compra dentro del periodo.",
+      "formula": "COUNT(carts.id) FROM carts WHERE carts.abandoned_at IS NOT NULL AND carts.status = 'converted' AND carts.converted_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "carts.abandoned_at",
+        "carts.converted_at",
+        "carts.id",
+        "carts.status"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-06",
+      "detail_filter": "Carritos recuperados"
+    },
+    {
+      "code": "KPI-WEB-04",
+      "group": "web",
+      "name": "Conversión de la compra en línea por marca",
+      "name_en": "Online checkout conversion by brand",
+      "definition": "Compras completadas entre carritos creados en el periodo, por marca.",
+      "formula": "COUNT(checkout_sessions.id WHERE checkout_sessions.status = 'completed' AND checkout_sessions.completed_at BETWEEN :inicio AND :fin) / COUNT(carts.id WHERE carts.created_at BETWEEN :inicio AND :fin) * 100 GROUP BY carts.brand_id",
+      "sources": [
+        "carts.brand_id",
+        "carts.created_at",
+        "carts.id",
+        "checkout_sessions.completed_at",
+        "checkout_sessions.id",
+        "checkout_sessions.status"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-07",
+      "detail_filter": "Compras en línea por marca"
+    },
+    {
+      "code": "KPI-WEB-05",
+      "group": "web",
+      "name": "Búsquedas de dominio",
+      "name_en": "Domain searches",
+      "definition": "Consultas de disponibilidad, WHOIS y sugerencias atendidas desde las webs (sin las frenadas por límite o captcha).",
+      "formula": "COUNT(whois_lookups.id) FROM whois_lookups WHERE whois_lookups.result NOT IN ('rate_limited','captcha_required') AND whois_lookups.created_at BETWEEN :inicio AND :fin GROUP BY whois_lookups.query_kind",
+      "sources": [
+        "whois_lookups.created_at",
+        "whois_lookups.id",
+        "whois_lookups.query_kind",
+        "whois_lookups.result"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-DOM-08",
+      "detail_filter": "Consultas WHOIS de la web"
+    },
+    {
+      "code": "KPI-WEB-06",
+      "group": "web",
+      "name": "Registros de dominio en línea",
+      "name_en": "Online domain registrations",
+      "definition": "Dominios a registrar incluidos en carritos convertidos en compra en el periodo.",
+      "formula": "COUNT(cart_items.id) FROM cart_items JOIN carts ON carts.id = cart_items.cart_id WHERE cart_items.domain_action = 'register' AND carts.status = 'converted' AND carts.converted_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "cart_items.cart_id",
+        "cart_items.domain_action",
+        "cart_items.id",
+        "carts.converted_at",
+        "carts.id",
+        "carts.status"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand",
+        "currency"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-ORD-07",
+      "detail_filter": "Compras con registro de dominio"
+    },
+    {
+      "code": "KPI-WEB-07",
+      "group": "web",
+      "name": "Conversión de búsqueda a registro",
+      "name_en": "Search to registration conversion",
+      "definition": "Registros de dominio en línea entre dominios distintos consultados y encontrados disponibles en el periodo.",
+      "formula": "KPI-WEB-06 / COUNT(DISTINCT whois_lookups.domain_name WHERE whois_lookups.result = 'available' AND whois_lookups.created_at BETWEEN :inicio AND :fin) * 100",
+      "sources": [
+        "whois_lookups.created_at",
+        "whois_lookups.domain_name",
+        "whois_lookups.result"
+      ],
+      "unit": "percent",
+      "direction": "up",
+      "frequency": "monthly",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-DOM-08",
+      "detail_filter": "Consultas disponibles y registros"
+    },
+    {
+      "code": "KPI-WEB-08",
+      "group": "web",
+      "name": "Consultas frenadas por abuso",
+      "name_en": "Lookups blocked for abuse",
+      "definition": "Consultas de dominio rechazadas por el límite por visitante o que exigieron captcha.",
+      "formula": "COUNT(whois_lookups.id) FROM whois_lookups WHERE whois_lookups.result IN ('rate_limited','captcha_required') AND whois_lookups.created_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "whois_lookups.created_at",
+        "whois_lookups.id",
+        "whois_lookups.result"
+      ],
+      "unit": "count",
+      "direction": "down",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-DOM-08",
+      "detail_filter": "Consultas frenadas"
+    },
+    {
+      "code": "KPI-WEB-09",
+      "group": "web",
+      "name": "Envíos de formularios derivados",
+      "name_en": "Routed form submissions",
+      "definition": "Envíos de formularios de las webs derivados a prospecto, ticket o correo en el periodo.",
+      "formula": "COUNT(web_form_submissions.id) FROM web_form_submissions WHERE web_form_submissions.status = 'routed' AND web_form_submissions.routed_at BETWEEN :inicio AND :fin",
+      "sources": [
+        "web_form_submissions.id",
+        "web_form_submissions.routed_at",
+        "web_form_submissions.status"
+      ],
+      "unit": "count",
+      "direction": "up",
+      "frequency": "daily",
+      "dimensions": [
+        "brand"
+      ],
+      "target_setting_key": null,
+      "detail_screen": "P-WCN-06",
+      "detail_filter": "Envíos de formularios"
+    }
+  ]
+}

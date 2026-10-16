@@ -1,0 +1,3873 @@
+{
+  "version": 1,
+  "generated_from": "`docs/00-requerimientos.md` §7, §8, §13–§27 y `docs/01-contrato-de-nombres.md`",
+  "scope_order": [
+    "contract",
+    "customer",
+    "product",
+    "brand",
+    "global"
+  ],
+  "settings": [
+    {
+      "key": "billing.invoice_generation_days",
+      "group": "Facturación",
+      "description": "Días de anticipación con que se genera la factura en borrador antes de la próxima fecha de facturación de la suscripción.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7, §23",
+      "unit": "days"
+    },
+    {
+      "key": "billing.invoice_generation_days_by_cycle",
+      "group": "Facturación",
+      "description": "Días de anticipación por ciclo de facturación (clave = ciclo del plan). Un ciclo sin valor usa billing.invoice_generation_days.",
+      "type": "json",
+      "default": {},
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23 (\"por ciclo\")",
+      "notes": "Vacío por defecto: todos los ciclos usan 30 días."
+    },
+    {
+      "key": "billing.invoice_consolidation",
+      "group": "Facturación",
+      "description": "Consolidar los servicios del cliente que vencen en la misma ventana en una factura, o emitir una factura por servicio.",
+      "type": "enum",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7, §23",
+      "enum_values": [
+        "consolidated",
+        "per_service"
+      ],
+      "notes": "El kit dice \"según cliente\": falta el valor general que aplica a clientes sin preferencia."
+    },
+    {
+      "key": "billing.consolidation_window_days",
+      "group": "Facturación",
+      "description": "Tamaño de la ventana, en días, dentro de la cual los vencimientos se consolidan en una sola factura.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7",
+      "unit": "days"
+    },
+    {
+      "key": "billing.currencies",
+      "group": "Facturación",
+      "description": "Monedas activas para documentos de venta.",
+      "type": "list",
+      "default": [
+        "PEN",
+        "USD"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§2, §21",
+      "notes": "El CHECK de base de datos solo admite PEN y USD."
+    },
+    {
+      "key": "billing.exchange_rate.source",
+      "group": "Facturación",
+      "description": "Fuente del tipo de cambio diario.",
+      "type": "enum",
+      "default": "sunat",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "enum_values": [
+        "sunat"
+      ]
+    },
+    {
+      "key": "billing.exchange_rate.update_frequency",
+      "group": "Facturación",
+      "description": "Frecuencia de actualización del tipo de cambio.",
+      "type": "enum",
+      "default": "daily",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§10, §23",
+      "enum_values": [
+        "daily"
+      ]
+    },
+    {
+      "key": "billing.exchange_rate.update_time",
+      "group": "Facturación",
+      "description": "Hora (HH:MM, zona de la organización) de actualización del tipo de cambio. Vacío = usa system.daily_jobs_time.",
+      "type": "string",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "notes": "El kit fija la fuente y la frecuencia, no una hora propia; sin valor se usa la hora de tareas diarias."
+    },
+    {
+      "key": "billing.rebilling.admin_fee_percent",
+      "group": "Facturación",
+      "description": "Porcentaje de administración sobre el monto del proveedor antes de impuestos, en refacturación. Se fija en cada contrato.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "documentation"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20, §21",
+      "unit": "percent",
+      "notes": "Sin valor general: se define por contrato al redactarlo."
+    },
+    {
+      "key": "billing.rebilling.monthly_minimum",
+      "group": "Facturación",
+      "description": "Mínimo mensual de administración en refacturación (importe en la moneda del contrato). Vacío = sin mínimo.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "documentation"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20, §21",
+      "notes": "El kit indica \"sin mínimo fijo, según contrato\"."
+    },
+    {
+      "key": "billing.rebilling.exchange_rate_date",
+      "group": "Facturación",
+      "description": "Fecha cuyo tipo de cambio se usa cuando la moneda del proveedor difiere de la del cliente en refacturación.",
+      "type": "enum",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20",
+      "enum_values": [
+        "provider_bill_date",
+        "customer_invoice_date"
+      ],
+      "notes": "El kit dice \"la fecha de la factura\" sin precisar cuál."
+    },
+    {
+      "key": "billing.payment_fee.invoice_presentation",
+      "group": "Facturación",
+      "description": "Cómo se refleja en el comprobante la comisión del medio de pago trasladada al cliente.",
+      "type": "enum",
+      "default": "separate_line",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (definiciones adicionales)",
+      "enum_values": [
+        "separate_line"
+      ],
+      "notes": "Línea \"Comisión por medio de pago\". Si la factura ya está emitida va en nota de débito enlazada (a validar por el contador)."
+    },
+    {
+      "key": "billing.payment_fee.show_before_payment",
+      "group": "Facturación",
+      "description": "Mostrar al cliente el recargo del medio de pago antes de pagar.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21"
+    },
+    {
+      "key": "billing.payment_methods.defaults",
+      "group": "Facturación",
+      "description": "Carga inicial de payment_methods: comisión porcentual, comisión fija y si se traslada al cliente, por medio.",
+      "type": "json",
+      "default": [
+        {
+          "code": "bank_transfer",
+          "fee_percent": 0,
+          "fee_fixed": 0,
+          "pass_to_customer": false
+        },
+        {
+          "code": "paypal",
+          "fee_percent": null,
+          "fee_fixed": null,
+          "pass_to_customer": true
+        },
+        {
+          "code": "global66",
+          "fee_percent": null,
+          "fee_fixed": null,
+          "pass_to_customer": null
+        },
+        {
+          "code": "card_gateway",
+          "fee_percent": null,
+          "fee_fixed": null,
+          "pass_to_customer": null
+        }
+      ],
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21, §23",
+      "notes": "Transferencia sin recargo y PayPal trasladado al cliente vienen del kit; las tarifas de PayPal y Global66 son \"según tarifa vigente\" y Global66 no indica traslado. La fila card_gateway toma sus valores de billing.card_gateway.fee_percent, billing.card_gateway.fee_fixed y billing.card_gateway.pass_to_customer (contrato con la pasarela). Se edita luego en la tabla payment_methods."
+    },
+    {
+      "key": "billing.card_gateway.provider",
+      "group": "Facturación",
+      "description": "Pasarela local de pago con tarjeta activa (conector PaymentConnector que usa el medio card_gateway).",
+      "type": "enum",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§6, §21 (pago con tarjeta)",
+      "enum_values": [
+        "niubiz",
+        "izipay",
+        "culqi",
+        "mercado_pago",
+        "other"
+      ],
+      "notes": "Pendiente D-18: se elige con la tabla de requisitos de docs/00 §21. Sin valor, el medio card_gateway no se ofrece en el portal."
+    },
+    {
+      "key": "billing.card_gateway.fee_percent",
+      "group": "Facturación",
+      "description": "Comisión porcentual de la pasarela de tarjetas por transacción, según contrato.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (medios de pago)",
+      "unit": "percent",
+      "notes": "Se copia a payment_methods.fee_percent del medio card_gateway, que es la fila que usa el cálculo del recargo. La comisión real de cada transacción sale de la liquidación."
+    },
+    {
+      "key": "billing.card_gateway.fee_fixed",
+      "group": "Facturación",
+      "description": "Comisión fija por transacción de la pasarela de tarjetas ({\"amount_minor\", \"currency\"}), según contrato.",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (medios de pago)",
+      "notes": "Se copia a payment_methods.fee_fixed_minor y fee_currency del medio card_gateway."
+    },
+    {
+      "key": "billing.card_gateway.pass_to_customer",
+      "group": "Facturación",
+      "description": "Trasladar la comisión de la pasarela al cliente como línea aparte \"Comisión por medio de pago\".",
+      "type": "boolean",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (medios de pago)",
+      "notes": "Se copia a payment_methods.pass_to_customer del medio card_gateway. Si se traslada, el recargo se muestra antes de pagar (billing.payment_fee.show_before_payment)."
+    },
+    {
+      "key": "billing.card_gateway.currencies",
+      "group": "Facturación",
+      "description": "Monedas en que se cobra con tarjeta.",
+      "type": "list",
+      "default": [
+        "PEN",
+        "USD"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (pago con tarjeta)",
+      "notes": "Subconjunto de billing.currencies; la pasarela elegida debe cobrar en ambas."
+    },
+    {
+      "key": "billing.card_gateway.accepted_brands",
+      "group": "Facturación",
+      "description": "Tarjetas y billeteras que se ofrecen en el formulario de la pasarela.",
+      "type": "list",
+      "default": [
+        "visa",
+        "mastercard",
+        "amex",
+        "diners"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (pago con tarjeta)",
+      "notes": "Mínimo del kit: Visa, Mastercard, American Express y Diners. Se agrega yape u otras billeteras si la pasarela elegida las ofrece."
+    },
+    {
+      "key": "billing.card_gateway.settlement_days",
+      "group": "Facturación",
+      "description": "Plazo de abono de la pasarela en días desde la transacción, según contrato; pasado el plazo sin liquidación, la conciliación marca la transacción como pendiente.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (requisitos de la pasarela)",
+      "unit": "days"
+    },
+    {
+      "key": "billing.card_gateway.checkout_expiry_minutes",
+      "group": "Facturación",
+      "description": "Minutos de validez de un intento de pago con tarjeta antes de pasar a vencido.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21 (pago con tarjeta)",
+      "unit": "minutes",
+      "notes": "Debe ser menor o igual al vencimiento de la sesión que fije la pasarela elegida."
+    },
+    {
+      "key": "billing.late_fee.enabled",
+      "group": "Facturación",
+      "description": "Recargo por mora activo.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§22 #3, §23",
+      "notes": "Puede desactivarse por cliente o contrato."
+    },
+    {
+      "key": "billing.late_fee.type",
+      "group": "Facturación",
+      "description": "Forma del recargo por mora: porcentaje del saldo vencido o monto fijo.",
+      "type": "enum",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§23",
+      "enum_values": [
+        "percentage",
+        "fixed_amount"
+      ]
+    },
+    {
+      "key": "billing.late_fee.value",
+      "group": "Facturación",
+      "description": "Valor del recargo por mora (porcentaje o monto según billing.late_fee.type).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§14, §23"
+    },
+    {
+      "key": "billing.late_fee.grace_days",
+      "group": "Facturación",
+      "description": "Días de gracia después del vencimiento antes de aplicar el recargo por mora.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§23",
+      "unit": "days"
+    },
+    {
+      "key": "billing.late_fee.max_amount",
+      "group": "Facturación",
+      "description": "Límite máximo del recargo por mora por factura.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§23"
+    },
+    {
+      "key": "billing.late_fee.document",
+      "group": "Facturación",
+      "description": "Documento en que se cobra el recargo por mora.",
+      "type": "enum",
+      "default": "debit_note",
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§22 #3, §23",
+      "enum_values": [
+        "debit_note",
+        "next_invoice"
+      ]
+    },
+    {
+      "key": "billing.detraction.enabled",
+      "group": "Facturación",
+      "description": "Aplicar detracción en facturas nacionales que cumplan las condiciones.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #5, §23",
+      "notes": "Nunca se aplica en exportación ni fuera de Perú."
+    },
+    {
+      "key": "billing.detraction.percentage",
+      "group": "Facturación",
+      "description": "Porcentaje de detracción.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§14, §23",
+      "unit": "percent",
+      "notes": "Lo valida el contador."
+    },
+    {
+      "key": "billing.detraction.min_amount",
+      "group": "Facturación",
+      "description": "Monto mínimo del comprobante (en PEN) a partir del cual se aplica detracción.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§14, §23",
+      "notes": "Lo valida el contador."
+    },
+    {
+      "key": "billing.detraction.products",
+      "group": "Facturación",
+      "description": "Productos alcanzados por la detracción (códigos de producto).",
+      "type": "list",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "billing.detraction.bank_account",
+      "group": "Facturación",
+      "description": "Cuenta de detracciones del Banco de la Nación que se imprime en el comprobante.",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "billing.detraction.legend",
+      "group": "Facturación",
+      "description": "Leyenda de detracción que se imprime en el comprobante.",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "billing.export.invoice_note",
+      "group": "Facturación",
+      "description": "Nota fija del comprobante de exportación sobre impuestos, retenciones y comisiones a cargo del cliente.",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "notes": "El kit fija el contenido, no el texto exacto ni su traducción."
+    },
+    {
+      "key": "billing.statement.aging_buckets",
+      "group": "Facturación",
+      "description": "Tramos de antigüedad de deuda en días (desde, hasta; hasta vacío = sin límite).",
+      "type": "json",
+      "default": [
+        [
+          0,
+          30
+        ],
+        [
+          31,
+          60
+        ],
+        [
+          61,
+          90
+        ],
+        [
+          91,
+          null
+        ]
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§22 #4"
+    },
+    {
+      "key": "billing.price_change.notice_days",
+      "group": "Facturación",
+      "description": "Días de anticipación con que se avisa un cambio de precio antes de la siguiente renovación.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #7",
+      "unit": "days"
+    },
+    {
+      "key": "billing.einvoice.provider",
+      "group": "Facturación",
+      "description": "Proveedor de facturación electrónica (OSE/PSE) activo.",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§14, §21"
+    },
+    {
+      "key": "billing.dunning.default_sequence",
+      "group": "Cobranza",
+      "description": "Secuencia de avisos y acciones de cobranza (etapas editables, activables y desactivables). Por defecto la que usa hoy la empresa: avisos a 30, 15, 7 y 3 días antes, el día del vencimiento y suspensión con aviso 1 día después.",
+      "type": "json",
+      "default": {
+        "stages": [
+          {
+            "code": "renewal_30",
+            "timing": "before_due",
+            "days": 30,
+            "actions": [
+              "send_notice"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.renewal_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "none",
+            "send_time": "09:00",
+            "non_business_day": "send_anyway",
+            "active": true,
+            "include_payment_link": true,
+            "allow_voucher_upload": true
+          },
+          {
+            "code": "renewal_15",
+            "timing": "before_due",
+            "days": 15,
+            "actions": [
+              "send_notice"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.renewal_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "none",
+            "send_time": "09:00",
+            "non_business_day": "send_anyway",
+            "active": true,
+            "include_payment_link": true,
+            "allow_voucher_upload": true
+          },
+          {
+            "code": "renewal_7",
+            "timing": "before_due",
+            "days": 7,
+            "actions": [
+              "send_notice"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.renewal_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "none",
+            "send_time": "09:00",
+            "non_business_day": "send_anyway",
+            "active": true,
+            "include_payment_link": true,
+            "allow_voucher_upload": true
+          },
+          {
+            "code": "renewal_3",
+            "timing": "before_due",
+            "days": 3,
+            "actions": [
+              "send_notice"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.renewal_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "none",
+            "send_time": "09:00",
+            "non_business_day": "send_anyway",
+            "active": true,
+            "include_payment_link": true,
+            "allow_voucher_upload": true
+          },
+          {
+            "code": "due_day",
+            "timing": "on_due",
+            "days": 0,
+            "actions": [
+              "send_notice"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.due_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "none",
+            "send_time": "09:00",
+            "non_business_day": "send_anyway",
+            "active": true,
+            "include_payment_link": true,
+            "allow_voucher_upload": true
+          },
+          {
+            "code": "suspension",
+            "timing": "after_due",
+            "days": 1,
+            "actions": [
+              "send_notice",
+              "suspend_service"
+            ],
+            "channels": [
+              "email",
+              "portal"
+            ],
+            "template": "dunning.suspension_notice",
+            "recipient_contact_role": "billing",
+            "internal_copy": "finance",
+            "send_time": "09:00",
+            "non_business_day": "next_business_day",
+            "active": true,
+            "days_setting": "services.suspension.days_after_due"
+          }
+        ],
+        "options": {
+          "timing": [
+            "before_due",
+            "on_due",
+            "after_due"
+          ],
+          "actions": [
+            "send_notice",
+            "create_finance_task",
+            "suspend_service"
+          ],
+          "channels": [
+            "email",
+            "portal",
+            "whatsapp"
+          ],
+          "recipient_contact_role": [
+            "billing",
+            "administrative",
+            "technical"
+          ],
+          "internal_copy": [
+            "finance",
+            "account_manager",
+            "none"
+          ],
+          "non_business_day": [
+            "send_anyway",
+            "next_business_day"
+          ]
+        }
+      },
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§7, §21, §23",
+      "notes": "La etapa de suspensión toma sus días de services.suspension.days_after_due (days_setting) para que exista una sola fuente. Los servicios de dominio omiten la acción suspend_service. Se materializa en dunning_sequences y dunning_stages."
+    },
+    {
+      "key": "finance.labor_hour_cost",
+      "group": "Finanzas",
+      "description": "Costo de la hora técnica para la rentabilidad: general y por técnico ({\"default\": {\"amount_minor\", \"currency\"}, \"users\": {\"<user_id>\": {...}}}).",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 (rentabilidad por técnico)",
+      "notes": "Lo define finanzas; sin valor la rentabilidad muestra horas sin costo."
+    },
+    {
+      "key": "billing.collections_inbox_days",
+      "group": "Cobranza",
+      "description": "Días hacia adelante que muestra la bandeja diaria de cobranza en la sección de próximos vencimientos.",
+      "type": "integer",
+      "default": 15,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§7 (bandeja diaria), M-BIL",
+      "unit": "days"
+    },
+    {
+      "key": "billing.auto_apply_credit_balance",
+      "group": "Facturación",
+      "description": "Aplicar automáticamente el saldo a favor del cliente a la siguiente factura que se emita.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7 (cálculo: saldo a favor)",
+      "notes": "Con false, finanzas aplica el saldo a mano desde la ficha del cliente (applyCreditBalance)."
+    },
+    {
+      "key": "notifications.whatsapp.enabled",
+      "group": "Cobranza",
+      "description": "Canal WhatsApp habilitado para avisos (requiere plantillas aprobadas por Meta).",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§22 #13, §23",
+      "notes": "El kit lo marca \"cuando esté activo\": inicia apagado."
+    },
+    {
+      "key": "services.suspension.days_after_due",
+      "group": "Servicios",
+      "description": "Días de mora después del vencimiento para suspender el servicio.",
+      "type": "integer",
+      "default": 1,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§7, §21, §23",
+      "unit": "days"
+    },
+    {
+      "key": "services.termination.days_after_suspension",
+      "group": "Servicios",
+      "description": "Días en estado suspendido tras los cuales se propone la baja definitiva (requiere respaldo y aprobación del administrador).",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§22 #2, §23",
+      "unit": "days"
+    },
+    {
+      "key": "services.terminate_requires_approval",
+      "group": "Servicios",
+      "description": "La baja definitiva tras suspensión requiere aprobación del administrador (tarea en in_review); el sistema solo la propone.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7, §5 (el administrador aprueba)",
+      "notes": "El kit no permite bajas automáticas: el valor false se rechaza al guardar mientras no se decida lo contrario."
+    },
+    {
+      "key": "services.reactivation.auto_on_payment",
+      "group": "Servicios",
+      "description": "Reactivar automáticamente el servicio suspendido al validarse el pago.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§7, §23"
+    },
+    {
+      "key": "services.suspension.exempt",
+      "group": "Servicios",
+      "description": "Exento de suspensión automática (sigue recibiendo avisos).",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§7, §21, §23",
+      "notes": "Por defecto ningún cliente ni producto exento. Solo el administrador marca exenciones."
+    },
+    {
+      "key": "domains.customer_notice_days",
+      "group": "Dominios",
+      "description": "Días antes del vencimiento comercial en que se avisa al cliente.",
+      "type": "list",
+      "default": [
+        30,
+        15,
+        7,
+        3
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.dunning.update",
+      "origin": "§21, §23",
+      "unit": "days"
+    },
+    {
+      "key": "domains.internal_notice_days",
+      "group": "Dominios",
+      "description": "Días antes de la expiración real en el registrador en que se avisa internamente.",
+      "type": "list",
+      "default": [
+        30,
+        15,
+        7,
+        3
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "days"
+    },
+    {
+      "key": "domains.sync_frequency",
+      "group": "Dominios",
+      "description": "Frecuencia de sincronización con registradores.",
+      "type": "enum",
+      "default": "daily",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§10, §23",
+      "enum_values": [
+        "daily"
+      ]
+    },
+    {
+      "key": "domains.transfer_out.min_days_since_registration_or_transfer",
+      "group": "Dominios",
+      "description": "Días posteriores al registro o a una transferencia en que no se acepta una transferencia de salida (las reglas de tld_rules prevalecen).",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§16",
+      "unit": "days"
+    },
+    {
+      "key": "domains.owner_change.transfer_lock_days",
+      "group": "Dominios",
+      "description": "Días de bloqueo de transferencia que se avisan al cambiar el titular de un dominio genérico.",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§16",
+      "unit": "days"
+    },
+    {
+      "key": "domains.confirmation_link_ttl_hours",
+      "group": "Dominios",
+      "description": "Vigencia del enlace de confirmación por correo de una operación de dominio.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§16",
+      "unit": "hours"
+    },
+    {
+      "key": "catalog.domain_prices.min_margin_percent",
+      "group": "Catálogo",
+      "description": "Margen mínimo por extensión y registrador bajo el cual se alerta.",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #6",
+      "unit": "percent"
+    },
+    {
+      "key": "catalog.hosting.allow_node_fallback",
+      "group": "Catálogo",
+      "description": "Si el nodo preferido de un paquete de hosting no acepta cuentas nuevas o no tiene capacidad, crear la cuenta en otro nodo con capacidad; si es false, el pedido pasa a revisión manual.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "mail.ssl.notice_days",
+      "group": "Certificados y licencias",
+      "description": "Días antes de la expiración en que se avisa y se crea tarea para certificados de renovación manual.",
+      "type": "list",
+      "default": [
+        30,
+        15,
+        7
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§18, §23",
+      "unit": "days"
+    },
+    {
+      "key": "mail.ssl.free_cert_alert_days",
+      "group": "Certificados y licencias",
+      "description": "Días antes de expirar en que un certificado gratuito no renovado genera alerta técnica.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§18",
+      "unit": "days"
+    },
+    {
+      "key": "mail.licenses.notice_days",
+      "group": "Certificados y licencias",
+      "description": "Días antes de la expiración de licencias (Google Workspace, Microsoft 365 y otras) en que se avisa.",
+      "type": "list",
+      "default": [
+        30,
+        15,
+        7
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "days"
+    },
+    {
+      "key": "mail.dns_checks.frequency",
+      "group": "Certificados y licencias",
+      "description": "Frecuencia de verificación de MX, SPF, DKIM y DMARC y lectura de certificados publicados.",
+      "type": "enum",
+      "default": "daily",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§10, §18",
+      "enum_values": [
+        "daily"
+      ]
+    },
+    {
+      "key": "providers.account_renewal_notice_days",
+      "group": "Proveedores",
+      "description": "Días antes de la renovación de cada cuenta de proveedor en que se avisa internamente.",
+      "type": "list",
+      "default": [
+        30,
+        7
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "days"
+    },
+    {
+      "key": "inventory.capacity_thresholds",
+      "group": "Capacidad",
+      "description": "Umbrales de uso de nodos y planes que generan alerta.",
+      "type": "list",
+      "default": [
+        70,
+        85,
+        95
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§10, §23",
+      "unit": "percent"
+    },
+    {
+      "key": "cloud.budget_thresholds",
+      "group": "Cloud",
+      "description": "Umbrales del presupuesto mensual por proyecto cloud que generan alerta.",
+      "type": "list",
+      "default": [
+        80,
+        100
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20, §23",
+      "unit": "percent"
+    },
+    {
+      "key": "cloud.tagging.required_keys",
+      "group": "Cloud",
+      "description": "Etiquetas obligatorias para asignar un recurso cloud.",
+      "type": "list",
+      "default": [
+        "customer",
+        "project",
+        "environment"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20"
+    },
+    {
+      "key": "saas.limit_alert_percent",
+      "group": "Capacidad",
+      "description": "Porcentaje de uso del límite de un plan SaaS (usuarios, almacenamiento) que genera alerta.",
+      "type": "list",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "Derivada (M-SAA)",
+      "unit": "percent",
+      "notes": "null: se usan los umbrales de inventory.capacity_thresholds."
+    },
+    {
+      "key": "helpdesk.sla.default_targets",
+      "group": "Tickets",
+      "description": "SLA inicial de primera respuesta y solución por prioridad (propuesta editable). Se materializa en sla_policies y sla_targets.",
+      "type": "json",
+      "default": {
+        "critical": {
+          "first_response": {
+            "value": 1,
+            "unit": "business_hours"
+          },
+          "resolution": {
+            "value": 4,
+            "unit": "business_hours"
+          }
+        },
+        "high": {
+          "first_response": {
+            "value": 4,
+            "unit": "business_hours"
+          },
+          "resolution": {
+            "value": 1,
+            "unit": "business_days"
+          }
+        },
+        "medium": {
+          "first_response": {
+            "value": 8,
+            "unit": "business_hours"
+          },
+          "resolution": {
+            "value": 3,
+            "unit": "business_days"
+          }
+        },
+        "low": {
+          "first_response": {
+            "value": 1,
+            "unit": "business_days"
+          },
+          "resolution": {
+            "value": 5,
+            "unit": "business_days"
+          }
+        }
+      },
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "helpdesk.sla.pause_statuses",
+      "group": "Tickets",
+      "description": "Estados de ticket que pausan el reloj del SLA.",
+      "type": "list",
+      "default": [
+        "waiting_customer",
+        "waiting_provider"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "helpdesk.sla.holiday_country",
+      "group": "Tickets",
+      "description": "País cuyos feriados (tabla holidays) descuenta el SLA.",
+      "type": "string",
+      "default": "PE",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "helpdesk.sla.warning_percent",
+      "group": "Tickets",
+      "description": "Porcentaje del tiempo de SLA consumido al que se alerta (además de al incumplir).",
+      "type": "integer",
+      "default": 75,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "percent"
+    },
+    {
+      "key": "helpdesk.sla.alert_recipients",
+      "group": "Tickets",
+      "description": "Destinatarios de las alertas de SLA (roles o usuarios).",
+      "type": "list",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "helpdesk.auto_close.waiting_customer_days",
+      "group": "Tickets",
+      "description": "Días en \"esperando cliente\" tras los cuales el ticket se cierra solo.",
+      "type": "integer",
+      "default": 7,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #14, §23",
+      "unit": "days"
+    },
+    {
+      "key": "helpdesk.auto_close_notice_days",
+      "group": "Tickets",
+      "description": "Días antes del cierre automático en que se avisa al cliente que el ticket se cerrará si no responde.",
+      "type": "integer",
+      "default": 2,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #14",
+      "unit": "days",
+      "notes": "Debe ser menor que helpdesk.auto_close.waiting_customer_days."
+    },
+    {
+      "key": "helpdesk.ticket_types",
+      "group": "Tickets",
+      "description": "Tipos de ticket habilitados en el panel y el portal (subconjunto de tickets.type).",
+      "type": "list",
+      "default": [
+        "incident",
+        "request",
+        "question",
+        "billing",
+        "complaint",
+        "security"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21, M-HLP",
+      "notes": "Los valores posibles los fija el CHECK de tickets.type; aquí solo se habilitan o se ocultan."
+    },
+    {
+      "key": "helpdesk.departments",
+      "group": "Tickets",
+      "description": "Departamentos a los que se asigna un ticket (columna tickets.department).",
+      "type": "list",
+      "default": [
+        "support",
+        "billing",
+        "sales"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "M-HLP",
+      "notes": "Lista editable; etiquetas en el idioma del panel."
+    },
+    {
+      "key": "helpdesk.categories",
+      "group": "Tickets",
+      "description": "Categorías de ticket para reportes (columna tickets.category).",
+      "type": "list",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "M-HLP",
+      "notes": "Se define con soporte antes de la puesta en marcha."
+    },
+    {
+      "key": "helpdesk.attachments.retention_months",
+      "group": "Tickets",
+      "description": "Meses de retención de adjuntos de tickets.",
+      "type": "integer",
+      "default": 12,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "months"
+    },
+    {
+      "key": "service_map.metrics_frequency",
+      "group": "Mapa de servicios",
+      "description": "Frecuencia de lectura de consumo de los componentes.",
+      "type": "enum",
+      "default": "daily",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§15, §23",
+      "enum_values": [
+        "daily"
+      ]
+    },
+    {
+      "key": "portal.show_provider_name",
+      "group": "Panel del cliente",
+      "description": "Mostrar al cliente el nombre real del proveedor en lugar de solo la marca propia.",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§15, §21, §23",
+      "notes": "Sobrescritura por servicio en la columna services.show_provider."
+    },
+    {
+      "key": "portal.actions.cpanel_login.enabled",
+      "group": "Panel del cliente",
+      "description": "Acción del cliente: entrar a su cPanel con sesión temporal.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21",
+      "notes": "El nivel cliente se guarda en customer_action_flags."
+    },
+    {
+      "key": "portal.actions.usage_view.enabled",
+      "group": "Panel del cliente",
+      "description": "Acción del cliente: ver consumo y características.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21",
+      "notes": "El nivel cliente se guarda en customer_action_flags."
+    },
+    {
+      "key": "portal.actions.dns_change.enabled",
+      "group": "Panel del cliente",
+      "description": "Acción del cliente: cambiar servidores DNS (con confirmación por correo y aviso de impacto).",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21, §23",
+      "notes": "Construida, apagada. El nivel cliente se guarda en customer_action_flags."
+    },
+    {
+      "key": "portal.actions.server_reboot.enabled",
+      "group": "Panel del cliente",
+      "description": "Acción del cliente: solicitar reinicio de servidor (soporte aprueba, el sistema ejecuta).",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21, §23",
+      "notes": "Construida, apagada. El nivel cliente se guarda en customer_action_flags."
+    },
+    {
+      "key": "sales.lead.followup_alert_days",
+      "group": "Ventas",
+      "description": "Días sin seguimiento tras los cuales un prospecto abierto genera alerta.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§24",
+      "unit": "days"
+    },
+    {
+      "key": "sales.quote.validity_days",
+      "group": "Ventas",
+      "description": "Vigencia por defecto de una cotización.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§24",
+      "unit": "days"
+    },
+    {
+      "key": "sales.referral_commission_percent",
+      "group": "Ventas",
+      "description": "Comisión por defecto para enlaces de referido (se copia a referral_links.commission_rate al crear el enlace).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§24 (referidos)",
+      "unit": "percent"
+    },
+    {
+      "key": "contracts.expiry_notice_days",
+      "group": "Contratos",
+      "description": "Días antes del fin del contrato en que se avisa.",
+      "type": "list",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand",
+        "product",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "documentation"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§24",
+      "unit": "days"
+    },
+    {
+      "key": "contracts.account_handover.notice_days",
+      "group": "Contratos",
+      "description": "Días antes del fin del periodo de una cuenta administrada en que se avisa y se programa la entrega.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "contract"
+      ],
+      "edit_roles": [
+        "admin",
+        "documentation"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§20",
+      "unit": "days"
+    },
+    {
+      "key": "security.session_duration_hours",
+      "group": "Seguridad",
+      "description": "Duración de la sesión.",
+      "type": "integer",
+      "default": 8,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23, §26",
+      "unit": "hours"
+    },
+    {
+      "key": "security.login_max_attempts",
+      "group": "Seguridad",
+      "description": "Intentos fallidos de inicio de sesión antes de bloquear temporalmente la cuenta.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §26"
+    },
+    {
+      "key": "security.login_lockout_minutes",
+      "group": "Seguridad",
+      "description": "Minutos de bloqueo tras superar security.login_max_attempts.",
+      "type": "integer",
+      "default": 15,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §26",
+      "unit": "minutes"
+    },
+    {
+      "key": "security.mfa.required_for_staff",
+      "group": "Seguridad",
+      "description": "Segundo factor obligatorio para el personal (tipo de usuario staff), salvo que security.mfa.required_by_role diga otra cosa para el rol.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §23, §26"
+    },
+    {
+      "key": "security.mfa.required_for_customers",
+      "group": "Seguridad",
+      "description": "Segundo factor obligatorio para los usuarios de clientes (tipo de usuario customer), salvo que security.mfa.required_by_role diga otra cosa para el rol.",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §23, §26"
+    },
+    {
+      "key": "security.vault.reveal_limit_per_hour",
+      "group": "Seguridad",
+      "description": "Límite de revelaciones de secretos por usuario y por hora.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §23"
+    },
+    {
+      "key": "security.sensitive_action_mfa_max_age_minutes",
+      "group": "Seguridad",
+      "description": "Antigüedad máxima del MFA para revelar un acceso, ejecutar en un servidor o autorizar un reembolso.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§5",
+      "unit": "minutes"
+    },
+    {
+      "key": "security.password.min_length",
+      "group": "Seguridad",
+      "description": "Longitud mínima de las contraseñas del personal y de los clientes.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "characters"
+    },
+    {
+      "key": "security.password.complexity",
+      "group": "Seguridad",
+      "description": "Clases de caracteres exigidas en las contraseñas: mayúsculas, minúsculas, números y símbolos.",
+      "type": "json",
+      "default": {
+        "uppercase": true,
+        "lowercase": true,
+        "number": true,
+        "symbol": false
+      },
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "notes": "Propuesta del kit; además se rechazan contraseñas filtradas conocidas."
+    },
+    {
+      "key": "security.password.expiry_days",
+      "group": "Seguridad",
+      "description": "Días tras los que la contraseña caduca y se pide cambiarla al iniciar sesión; 0 = no caduca.",
+      "type": "integer",
+      "default": 0,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "days"
+    },
+    {
+      "key": "security.password.history_count",
+      "group": "Seguridad",
+      "description": "Cantidad de contraseñas anteriores que no se pueden reutilizar; 0 = sin historial.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "security.mfa.email_enabled",
+      "group": "Seguridad",
+      "description": "Permite el segundo factor por código enviado al correo.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "security.mfa.app_enabled",
+      "group": "Seguridad",
+      "description": "Permite el segundo factor por aplicación de autenticación (TOTP).",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "security.mfa.required_by_role",
+      "group": "Seguridad",
+      "description": "Obligatoriedad del segundo factor por código de rol (required u optional); sobrescribe la regla del tipo de usuario. El rol admin siempre es required.",
+      "type": "json",
+      "default": {
+        "admin": "required"
+      },
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "security.mfa.email_code_ttl_minutes",
+      "group": "Seguridad",
+      "description": "Minutos de validez de un código de acceso enviado al correo (un solo uso).",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "minutes"
+    },
+    {
+      "key": "security.mfa.email_code_max_attempts",
+      "group": "Seguridad",
+      "description": "Intentos permitidos con un mismo código enviado al correo antes de invalidarlo.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "security.trusted_device_days",
+      "group": "Seguridad",
+      "description": "Días que un dispositivo marcado como de confianza no pide el segundo factor al iniciar sesión (nunca en acciones sensibles); 0 = no se permiten dispositivos de confianza.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "days"
+    },
+    {
+      "key": "vault.secret.default_rotation_days",
+      "group": "Seguridad",
+      "description": "Días por defecto hasta la fecha de rotación de un secreto nuevo.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8",
+      "unit": "days"
+    },
+    {
+      "key": "vault.one_time_link.ttl_hours",
+      "group": "Seguridad",
+      "description": "Vigencia de un enlace de un solo uso para entregar accesos.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§22 #11",
+      "unit": "hours"
+    },
+    {
+      "key": "system.daily_jobs_time",
+      "group": "Sistema",
+      "description": "Hora de ejecución de las tareas diarias (HH:MM, zona de la organización).",
+      "type": "string",
+      "default": "06:00",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23"
+    },
+    {
+      "key": "system.locales",
+      "group": "Sistema",
+      "description": "Idiomas activos de la interfaz y de las plantillas.",
+      "type": "list",
+      "default": [
+        "es",
+        "en"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§2"
+    },
+    {
+      "key": "system.retention.inactive_customers",
+      "group": "Sistema",
+      "description": "Retención de datos de clientes inactivos (por país).",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§14, §23",
+      "notes": "Por definir según ley aplicable."
+    },
+    {
+      "key": "system.retention.technical_records",
+      "group": "Sistema",
+      "description": "Retención de registros técnicos (logs, monitoreo, sincronizaciones).",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "notes": "Por definir según ley aplicable."
+    },
+    {
+      "key": "system.retention.personal_data",
+      "group": "Sistema",
+      "description": "Plazos de retención de datos personales por país.",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §14"
+    },
+    {
+      "key": "system.backup.frequency",
+      "group": "Sistema",
+      "description": "Frecuencia del respaldo cifrado del sistema en AWS S3.",
+      "type": "enum",
+      "default": "daily",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§12, §23",
+      "enum_values": [
+        "daily"
+      ]
+    },
+    {
+      "key": "system.backup.retention_days",
+      "group": "Sistema",
+      "description": "Días de retención de los respaldos del sistema en AWS S3.",
+      "type": "integer",
+      "default": 35,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§23",
+      "unit": "days"
+    },
+    {
+      "key": "system.backup.cold_storage_after_days",
+      "group": "Sistema",
+      "description": "Días tras los cuales un respaldo pasa a almacenamiento de bajo costo.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§21",
+      "unit": "days"
+    },
+    {
+      "key": "brands.theme.min_contrast_ratio",
+      "group": "Apariencia",
+      "description": "Relación de contraste mínima de texto contra fondo (WCAG 2.1) que debe alcanzar cada par de colores de un tema del portal, el panel o los correos, en modo claro y oscuro, para poder publicarlo.",
+      "type": "decimal",
+      "default": 4.5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25, §26",
+      "unit": "ratio",
+      "notes": "Propuesta del kit: 4.5 es el nivel AA para texto normal."
+    },
+    {
+      "key": "brands.theme.allowed_fonts",
+      "group": "Apariencia",
+      "description": "Tipografías que se pueden elegir en los tokens de un tema; se sirven desde el propio servidor.",
+      "type": "list",
+      "default": [
+        "Inter",
+        "Roboto",
+        "Open Sans",
+        "Montserrat",
+        "Source Sans 3"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25, §26",
+      "notes": "Propuesta del kit; cada fuente nueva debe tener licencia de uso web."
+    },
+    {
+      "key": "brands.theme.preview_link_minutes",
+      "group": "Apariencia",
+      "description": "Minutos de validez del enlace firmado de vista previa de un tema (portal, panel y correos).",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25, §26",
+      "unit": "minutes",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "complaints.response_days",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Plazo de respuesta al consumidor de una hoja del Libro de Reclamaciones, en días hábiles; se copia a la hoja al registrarla.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "business_days",
+      "notes": "La Ley 31435 redujo el plazo (referencia: 15 días hábiles); el valor exacto lo confirma la asesoría legal. Mientras sea null, el formulario no se habilita y la compra en línea no se activa (docs/11)."
+    },
+    {
+      "key": "complaints.alert_days_before",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Días antes del vencimiento en que se avisa a documentación y al administrador por cada hoja sin responder.",
+      "type": "list",
+      "default": [
+        5,
+        1
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "business_days"
+    },
+    {
+      "key": "complaints.code_prefix",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Prefijo del número correlativo de las hojas de la marca.",
+      "type": "string",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "null usa el código de la marca en mayúsculas seguido de -LR (por ejemplo SERVERCREATIVO-LR-000001)."
+    },
+    {
+      "key": "complaints.public_limit_per_ip_per_day",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Hojas que puede enviar una misma IP por día desde la web (antiabuso; no limita el derecho a reclamar por otros canales).",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "complaints"
+    },
+    {
+      "key": "complaints.retention_years",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Años que se conservan las hojas y sus respuestas para fiscalización antes de anonimizar los datos del consumidor.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "years",
+      "notes": "Confirmar con asesoría legal el plazo de conservación exigido."
+    },
+    {
+      "key": "complaints.privacy_response_days",
+      "group": "Libro de Reclamaciones y datos personales",
+      "description": "Plazo de respuesta por tipo de solicitud de derechos sobre datos personales (acceso, rectificación, cancelación, oposición), en días hábiles.",
+      "type": "json",
+      "default": {
+        "access": null,
+        "rectification": null,
+        "cancellation": null,
+        "opposition": null
+      },
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "business_days",
+      "notes": "Ley 29733 y su reglamento fijan plazos distintos por derecho; confirmar con asesoría legal. Mientras un valor sea null, la solicitud de ese tipo se registra con alerta diaria hasta definirlo."
+    },
+    {
+      "key": "orders.online.enabled",
+      "group": "Compra en línea",
+      "description": "Compra en línea activa en la web de la marca. Apagada, los planes muestran \"Solicitar cotización\".",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "orders.online.new_customer_max_open_checkouts",
+      "group": "Compra en línea",
+      "description": "Compras en línea en curso o pagadas que puede tener un cliente nuevo dentro de la ventana; la siguiente pasa a revisión manual.",
+      "type": "integer",
+      "default": 2,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.new_customer_window_days",
+      "group": "Compra en línea",
+      "description": "Días desde el alta durante los que un cliente se considera nuevo para el límite de compras en línea.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "days",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.manual_review_rules",
+      "group": "Compra en línea",
+      "description": "Reglas que mandan una compra en línea a revisión manual: total máximo por moneda, cantidad máxima de dominios, país del cliente distinto del de la IP, correo de dominio desechable.",
+      "type": "json",
+      "default": {
+        "max_total_minor": {
+          "PEN": null,
+          "USD": null
+        },
+        "max_domains": null,
+        "country_mismatch": true,
+        "disposable_email": true
+      },
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Faltan los montos y la cantidad máxima de dominios; mientras sean null esas reglas no se aplican."
+    },
+    {
+      "key": "orders.online.checkout_expiry_hours",
+      "group": "Compra en línea",
+      "description": "Horas que una compra en línea abierta o esperando el pago con tarjeta o PayPal queda vigente antes de vencer.",
+      "type": "integer",
+      "default": 48,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "hours",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.voucher_validation_alert_hours",
+      "group": "Compra en línea",
+      "description": "Horas tras las cuales una compra con voucher sin validar alerta a finanzas.",
+      "type": "integer",
+      "default": 24,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "hours",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.cart_expiry_days",
+      "group": "Compra en línea",
+      "description": "Días sin actividad tras los que un carrito vence.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "days",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.abandoned_cart_after_hours",
+      "group": "Compra en línea",
+      "description": "Horas sin actividad tras las que un carrito se marca abandonado.",
+      "type": "integer",
+      "default": 24,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "hours",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "orders.online.abandoned_cart_notice_enabled",
+      "group": "Compra en línea",
+      "description": "Enviar un aviso de carrito abandonado, solo a quien aceptó comunicaciones comerciales.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "orders.online.captcha_provider",
+      "group": "Compra en línea",
+      "description": "Servicio de captcha del alta de cuenta, la compra y el asistente público.",
+      "type": "enum",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "enum_values": [
+        "turnstile",
+        "recaptcha",
+        "hcaptcha"
+      ]
+    },
+    {
+      "key": "orders.online.domain_check_limit_per_ip_per_hour",
+      "group": "Compra en línea",
+      "description": "Consultas de disponibilidad de dominio por IP y hora en la web pública.",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "assistant.enabled",
+      "group": "Asistente con IA",
+      "description": "Asistente con IA activo en la web y el portal de la marca. Apagado hasta definir modelo, instrucciones y tope.",
+      "type": "boolean",
+      "default": false,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "assistant.model",
+      "group": "Asistente con IA",
+      "description": "Modelo de Claude que usa el asistente (identificador de la API de Anthropic).",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "assistant.instructions",
+      "group": "Asistente con IA",
+      "description": "Instrucciones del asistente por idioma para la marca (tono, productos que puede recomendar, cuándo derivar). Se copian a ai_assistant_profiles.instructions.",
+      "type": "json",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "assistant.max_messages_per_conversation",
+      "group": "Asistente con IA",
+      "description": "Mensajes del visitante o cliente por conversación; al llegar al tope la conversación pasa a limit_reached y ofrece hablar con una persona.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "assistant.max_output_tokens_per_reply",
+      "group": "Asistente con IA",
+      "description": "Tokens máximos de cada respuesta del asistente.",
+      "type": "integer",
+      "default": 800,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "assistant.monthly_token_limit",
+      "group": "Asistente con IA",
+      "description": "Tope mensual de tokens (entrada más salida) por marca; al alcanzarlo el asistente se apaga hasta el mes siguiente y ofrece contacto humano.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "assistant.public_messages_per_ip_per_hour",
+      "group": "Asistente con IA",
+      "description": "Mensajes por IP y hora en el asistente de la web pública.",
+      "type": "integer",
+      "default": 20,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "assistant.conversation_retention_days",
+      "group": "Asistente con IA",
+      "description": "Días que se conservan las conversaciones del asistente antes de anonimizarlas.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "days"
+    },
+    {
+      "key": "monitoring.restore.customer_target_kinds",
+      "group": "Respaldos",
+      "description": "Qué puede pedir restaurar el cliente desde el portal (sitio, base de datos, buzón, cuenta completa).",
+      "type": "list",
+      "default": [
+        "website",
+        "database",
+        "mailbox"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "product"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "monitoring.backup_report.visible",
+      "group": "Respaldos",
+      "description": "Mostrar al cliente el informe de respaldos de sus servicios en el portal.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "customer"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25"
+    },
+    {
+      "key": "system.backup.rpo_minutes",
+      "group": "Respaldos",
+      "description": "Objetivo de pérdida máxima de datos (RPO) del propio sistema, en minutos.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "minutes"
+    },
+    {
+      "key": "system.backup.rto_minutes",
+      "group": "Respaldos",
+      "description": "Objetivo de tiempo de recuperación (RTO) del propio sistema en otro servidor, en minutos.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "minutes"
+    },
+    {
+      "key": "system.dr_test.frequency_days",
+      "group": "Respaldos",
+      "description": "Cada cuántos días debe registrarse una prueba del plan de recuperación; al vencer se crea una tarea para soporte.",
+      "type": "integer",
+      "default": 90,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "unit": "days",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "portal.central_identity",
+      "group": "Panel del cliente",
+      "description": "Cómo se ve el sistema central para un cliente que llega desde la web de la marca: identidad de AlojamientoPlus con la marca de origen en el encabezado (central_brand) o identidad de su marca dentro del dominio central (origin_brand).",
+      "type": "enum",
+      "default": "central_brand",
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "enum_values": [
+        "central_brand",
+        "origin_brand"
+      ],
+      "notes": "Valor por defecto fijado por docs/00 §25; la identidad final está pendiente."
+    },
+    {
+      "key": "system.central_domains",
+      "group": "Sistema",
+      "description": "Subdominios del sistema central en alojamientoplus.com: portal y compra, panel interno y API.",
+      "type": "json",
+      "default": {
+        "portal": null,
+        "admin": null,
+        "api": null
+      },
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§25",
+      "notes": "Ejemplos de docs/00 §25: mi.alojamientoplus.com y admin.alojamientoplus.com; por confirmar."
+    },
+    {
+      "key": "web_connector.cache_ttl_seconds",
+      "group": "Conector web (WordPress)",
+      "description": "Segundos que el plugin Hub Connector guarda en caché lo que lee del sistema antes de volver a pedirlo; un aviso de invalidación la renueva al instante.",
+      "type": "integer",
+      "default": 600,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "seconds",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "web_connector.stale_max_hours",
+      "group": "Conector web (WordPress)",
+      "description": "Horas durante las que el plugin sigue mostrando la última copia si el sistema no responde; pasado ese plazo muestra un aviso con los datos de contacto.",
+      "type": "integer",
+      "default": 72,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "hours",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "web_connector.token_expiry_days",
+      "group": "Conector web (WordPress)",
+      "description": "Días de vigencia de un token de solo lectura del plugin; 0 = sin vencimiento (se revoca a mano).",
+      "type": "integer",
+      "default": 365,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "days"
+    },
+    {
+      "key": "web_connector.webhook.timeout_seconds",
+      "group": "Conector web (WordPress)",
+      "description": "Segundos que el sistema espera la respuesta del plugin a un aviso de invalidación.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "seconds"
+    },
+    {
+      "key": "web_connector.webhook.max_attempts",
+      "group": "Conector web (WordPress)",
+      "description": "Intentos de entrega de un aviso de invalidación antes de marcarlo fallido y alertar.",
+      "type": "integer",
+      "default": 6,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "web_connector.webhook.secret_overlap_minutes",
+      "group": "Conector web (WordPress)",
+      "description": "Minutos en que el secreto de firma anterior sigue aceptándose tras rotarlo.",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "minutes"
+    },
+    {
+      "key": "web_connector.min_plugin_version",
+      "group": "Conector web (WordPress)",
+      "description": "Versión mínima del plugin aceptada por la API; una anterior recibe 426 y el plugin avisa al administrador de WordPress.",
+      "type": "string",
+      "default": "1.0.0",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "web_connector.kb_url",
+      "group": "Conector web (WordPress)",
+      "description": "URL de la base de conocimientos de la marca en WordPress, enlazada desde la ayuda del portal y del asistente.",
+      "type": "string",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "web_connector.forms.captcha_required",
+      "group": "Conector web (WordPress)",
+      "description": "Exige captcha en los formularios del constructor (cada formulario puede quitarlo solo si el administrador lo permite).",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "web_connector.forms.submissions_per_ip_per_hour",
+      "group": "Conector web (WordPress)",
+      "description": "Envíos de formularios permitidos por IP y hora.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26"
+    },
+    {
+      "key": "web_connector.forms.max_file_mb",
+      "group": "Conector web (WordPress)",
+      "description": "Tamaño máximo de un archivo adjunto en un formulario.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "unit": "MB"
+    },
+    {
+      "key": "web_connector.forms.submission_retention_days",
+      "group": "Conector web (WordPress)",
+      "description": "Días que se conservan los envíos de formularios ya derivados (los datos siguen en el prospecto o el ticket).",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§26",
+      "notes": "Definir con la política de privacidad (Ley 29733)."
+    },
+    {
+      "key": "dashboard.calculation.daily_time",
+      "group": "Indicadores (KPI)",
+      "description": "Hora local (zona de la organización) del cálculo diario y mensual de los indicadores de frecuencia daily y monthly.",
+      "type": "string",
+      "default": "02:00",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "dashboard.calculation.intraday_minutes",
+      "group": "Indicadores (KPI)",
+      "description": "Cada cuántos minutos se recalculan los indicadores de frecuencia intraday (tickets abiertos, vouchers por validar, reclamos próximos a vencer).",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "minutes",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "dashboard.calculation.history_months",
+      "group": "Indicadores (KPI)",
+      "description": "Meses hacia atrás que el job vuelve a calcular cada noche (correcciones tardías: notas de crédito, pagos validados después).",
+      "type": "integer",
+      "default": 3,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "months",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "dashboard.consolidation_currency",
+      "group": "Indicadores (KPI)",
+      "description": "Moneda en que se consolidan los indicadores en dinero cuando no se filtra por moneda (tipo de cambio de la fecha de cada documento).",
+      "type": "enum",
+      "default": "PEN",
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "enum_values": [
+        "PEN",
+        "USD"
+      ]
+    },
+    {
+      "key": "dashboard.expiring_window_days",
+      "group": "Indicadores (KPI)",
+      "description": "Días hacia adelante que cuentan como \"por vencer\" en servicios, dominios y facturas.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "days",
+      "notes": "Igual al primer aviso de domains.internal_notice_days."
+    },
+    {
+      "key": "dashboard.targets.mrr_growth_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto de crecimiento mensual del ingreso recurrente (KPI-COM-03).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.churn_rate_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) de la tasa mensual de abandono de clientes (KPI-COM-07).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.lead_conversion_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto de la tasa de conversión de prospectos a clientes (KPI-CRM-03).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.days_sales_outstanding",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) de los días promedio de cobro (KPI-FIN-04).",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "days",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.gross_margin_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) del margen bruto por servicio (KPI-FIN-07).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.overdue_debt_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) de la deuda vencida sobre la cartera (KPI-FIN-06).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.promise_kept_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) de compromisos de pago cumplidos (KPI-COB-05).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.renewal_rate_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) de la tasa de renovación de servicios (KPI-OPE-02).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.backup_success_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) de respaldos exitosos (KPI-OPE-06).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.availability_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) de disponibilidad de los servicios monitoreados (KPI-OPE-07).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Debe ser coherente con el SLA de disponibilidad que se ofrezca en los contratos (docs/11)."
+    },
+    {
+      "key": "dashboard.targets.node_usage_max_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) de uso de disco de los nodos de hosting (KPI-OPE-04).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "null usa el primer umbral de inventory.capacity_thresholds (70 por defecto)."
+    },
+    {
+      "key": "dashboard.targets.first_response_minutes",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) del tiempo promedio de primera respuesta (KPI-SOP-02).",
+      "type": "integer",
+      "default": null,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "minutes",
+      "notes": "null usa el objetivo de primera respuesta de cada prioridad en helpdesk.sla.default_targets."
+    },
+    {
+      "key": "dashboard.targets.sla_compliance_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) del cumplimiento de SLA (KPI-SOP-04).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.csat_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (mínimo) de clientes satisfechos en las encuestas (KPI-SOP-05).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "dashboard.targets.complaints_on_time_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto de reclamos y quejas respondidos dentro del plazo (KPI-REC-03).",
+      "type": "decimal",
+      "default": 100,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Obligación legal: toda hoja se responde dentro de complaints.response_days."
+    },
+    {
+      "key": "dashboard.targets.cart_abandonment_percent",
+      "group": "Indicadores (KPI)",
+      "description": "Meta por defecto (máximo) de carritos abandonados sobre carritos creados (KPI-WEB-02).",
+      "type": "decimal",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "percent",
+      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+    },
+    {
+      "key": "editor.html.allowed_tags",
+      "group": "Editor de textos",
+      "description": "Etiquetas HTML que conserva el saneado del editor enriquecido; cualquier otra se elimina al guardar (docs/10).",
+      "type": "list",
+      "default": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "ul",
+        "ol",
+        "li",
+        "a",
+        "h2",
+        "h3",
+        "h4",
+        "blockquote",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+        "img",
+        "span",
+        "hr"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27"
+    },
+    {
+      "key": "editor.html.allowed_attributes",
+      "group": "Editor de textos",
+      "description": "Atributos permitidos por etiqueta; class solo con valores del tema (prefijo hub-) y nunca style, on* ni data-*.",
+      "type": "json",
+      "default": {
+        "a": [
+          "href",
+          "title",
+          "target",
+          "rel"
+        ],
+        "img": [
+          "src",
+          "alt",
+          "width",
+          "height"
+        ],
+        "th": [
+          "scope",
+          "colspan",
+          "rowspan"
+        ],
+        "td": [
+          "colspan",
+          "rowspan"
+        ],
+        "span": [
+          "class"
+        ]
+      },
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27"
+    },
+    {
+      "key": "editor.html.allowed_link_schemes",
+      "group": "Editor de textos",
+      "description": "Esquemas de enlace permitidos en el editor; javascript:, data: y vbscript: siempre se eliminan.",
+      "type": "list",
+      "default": [
+        "https",
+        "mailto",
+        "tel"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27"
+    },
+    {
+      "key": "editor.images.max_mb",
+      "group": "Editor de textos",
+      "description": "Tamaño máximo de una imagen insertada en el editor (se sube a files con antivirus; nunca imágenes externas).",
+      "type": "integer",
+      "default": 2,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "MB",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "web_connector.whois.limit_per_visitor_per_hour",
+      "group": "Conector web (WordPress)",
+      "description": "Consultas de disponibilidad y WHOIS por visitante y hora desde [hub_whois] y [hub_buscar_dominio]; al superarlo responde 429 con Retry-After.",
+      "type": "integer",
+      "default": 30,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "notes": "Propuesta del kit. Convive con orders.online.domain_check_limit_per_ip_per_hour, que limita el carrito."
+    },
+    {
+      "key": "web_connector.whois.captcha_after_lookups",
+      "group": "Conector web (WordPress)",
+      "description": "Consultas por visitante en la última hora a partir de las cuales se exige captcha antes de consultar otra vez.",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global",
+        "brand"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "web_connector.whois.cache_minutes",
+      "group": "Conector web (WordPress)",
+      "description": "Minutos que se reutiliza la respuesta del registrador para el mismo dominio (no se consulta al registrador en cada visita).",
+      "type": "integer",
+      "default": 10,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "unit": "minutes",
+      "notes": "Propuesta del kit."
+    },
+    {
+      "key": "web_connector.whois.public_fields",
+      "group": "Conector web (WordPress)",
+      "description": "Campos del WHOIS público que se muestran de un dominio registrado; nunca nombre, correo, teléfono ni dirección del titular aunque el registro los publique.",
+      "type": "list",
+      "default": [
+        "registrar",
+        "created_at",
+        "expires_at",
+        "status",
+        "nameservers"
+      ],
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27"
+    },
+    {
+      "key": "web_connector.whois.suggestions_max",
+      "group": "Conector web (WordPress)",
+      "description": "Máximo de sugerencias de nombres y extensiones alternativas por búsqueda.",
+      "type": "integer",
+      "default": 8,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27"
+    },
+    {
+      "key": "web_connector.whois.retention_days",
+      "group": "Conector web (WordPress)",
+      "description": "Días que se conservan las consultas WHOIS (whois_lookups) antes de purgarlas.",
+      "type": "integer",
+      "default": null,
+      "requires_definition": true,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§27",
+      "notes": "Definir con la política de privacidad (Ley 29733); solo guardan el HMAC de la IP."
+    }
+  ]
+}

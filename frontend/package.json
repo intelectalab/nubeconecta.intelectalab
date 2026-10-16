@@ -1,0 +1,15 @@
+{
+  "name": "hub-frontend-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:admin": "npm run dev --workspace=@hub/admin",
+    "dev:portal": "npm run dev --workspace=@hub/portal",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  }
+}

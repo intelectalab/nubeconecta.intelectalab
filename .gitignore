@@ -1,0 +1,45 @@
+# Dependencias
+/backend/vendor/
+node_modules/
+/frontend/**/node_modules/
+/frontend/**/dist/
+/frontend/**/.vite/
+
+# Entornos y secretos
+.env
+.env.backup
+.env.production
+/backend/.env
+/backend/.env.testing
+
+# Almacenamiento local Laravel
+/backend/storage/*.key
+/backend/storage/app/*
+!/backend/storage/app/.gitignore
+/backend/storage/framework/cache/*
+!/backend/storage/framework/cache/.gitignore
+/backend/storage/framework/sessions/*
+!/backend/storage/framework/sessions/.gitignore
+/backend/storage/framework/views/*
+!/backend/storage/framework/views/.gitignore
+/backend/storage/logs/*
+!/backend/storage/logs/.gitignore
+
+# Cobertura y pruebas
+/backend/.phpunit.result.cache
+coverage/
+
+# IDE y Sistema
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Docker data local
+.docker-data/
