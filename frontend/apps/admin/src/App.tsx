@@ -1,198 +1,215 @@
 import { useState } from 'react';
-import { Button, Card, CardHeader, CardBody, Badge } from '@hub/ui';
+import { Icon } from '@hub/ui';
+import './admin.css';
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<'noc' | 'crm' | 'tickets'>('noc');
+  const [activeTab, setActiveTab] = useState<'noc' | 'crm' | 'cobranza' | 'sla'>('noc');
 
   const nodes = [
-    { id: 'VPS-AP-01', type: 'VPS Propio', ip: '198.51.100.12', accounts: '45/80', ram: '12/16 GB', status: 'OK' },
-    { id: 'VPS-AP-02', type: 'VPS Propio', ip: '198.51.100.15', accounts: '78/80', ram: '15/16 GB', status: 'Alerta' },
-    { id: 'BH-RES-01', type: 'Reseller Bana', ip: '192.0.2.88', accounts: '120/150', ram: 'N/A', status: 'En migración' },
+    { id: 'VPS-AP-01', name: 'Nube Producción 01', type: 'VPS Propio (Hetzner)', ip: '198.51.100.12', accounts: '45 / 80', ram: '12 / 16 GB', status: 'OK', stClass: 'ok' },
+    { id: 'VPS-AP-02', name: 'Nube Producción 02', type: 'VPS Propio (Contabo)', ip: '198.51.100.15', accounts: '78 / 80', ram: '15.2 / 16 GB', status: 'Carga Alta', stClass: 'warn' },
+    { id: 'BH-RES-01', name: 'Reseller BanaHosting', type: 'Revendedor cPanel', ip: '192.0.2.88', accounts: '120 / 150', ram: 'N/A', status: 'En migración', stClass: 'info' },
   ];
 
   const leads = [
-    { company: 'Inversiones del Sur SAC', value: 'S/ 450/mes', stage: 'Cotización enviada', channel: 'WhatsApp' },
-    { company: 'Estudio Jurídico Lima', value: 'S/ 180/mes', stage: 'Contacto inicial', channel: 'Landing Page' },
-    { company: 'Constructora Alfa', value: 'S/ 1,200/mes', stage: 'Negociación', channel: 'Referido' },
+    { co: 'Inversiones del Sur SAC', prod: 'VPS Cloud 8GB + Soporte', val: 'S/ 450/mes', ch: 'WhatsApp', stage: 'Cotización', owner: 'Carlos R.' },
+    { co: 'Estudio Jurídico Lima', prod: 'Hosting Corporativo cPanel', val: 'S/ 180/mes', ch: 'Landing', stage: 'Contacto inicial', owner: 'María P.' },
+    { co: 'Constructora Alfa', prod: 'Infraestructura Dedicada', val: 'S/ 1,200/mes', ch: 'Referido', stage: 'Negociación', owner: 'Carlos R.' },
+  ];
+
+  const slas = [
+    { pri: 'Crítica', fr: '15 min', res: '2 horas', h: '24/7', esc: 'NOC L3 Guardia', open: 0 },
+    { pri: 'Alta', fr: '30 min', res: '6 horas', h: '24/7', esc: 'NOC L2 Especialista', open: 1 },
+    { pri: 'Media', fr: '60 min', res: '24 horas', h: 'Hábil (L-V 9-18)', esc: 'Soporte General', open: 3 },
+    { pri: 'Baja', fr: '120 min', res: '48 horas', h: 'Hábil (L-V 9-18)', esc: 'Soporte General', open: 0 },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="app" id="app">
       {/* Topbar Admin */}
-      <header
-        style={{
-          background: 'var(--topbar-2)',
-          color: 'var(--topbar-ink)',
-          height: 'var(--toph)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 24px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <strong style={{ fontSize: '18px', letterSpacing: '-0.02em' }}>AlojamientoPlus NOC</strong>
-          <span style={{ opacity: 0.7, fontSize: '12px' }}>| Backoffice Operaciones</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Badge variant="ok">Todos los sistemas operativos</Badge>
-          <span style={{ fontSize: '13px' }}>admin@alojamientoplus.pe</span>
+      <header className="topbar" role="banner">
+        <a className="logo" href="#dashboard">
+          <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 42, height: 32, flex: 'none' }}>
+            <path d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z" fill="none" stroke="#4d82ff" strokeWidth="3.2" strokeLinejoin="round" />
+            <path d="M25.6 9.5 17.8 21h6l-2.2 9.5L31 17.6h-6.2l2.6-8.1z" fill="#f2b71a" stroke="#f2b71a" strokeWidth="1" strokeLinejoin="round" />
+          </svg>
+          <b>Alojamiento<span>Plus</span></b>
+          <em>Panel Administrativo</em>
+        </a>
+
+        <div className="tb-spacer" style={{ flex: 1 }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="chip ok"><Icon name="check" className="sm" /> Infraestructura Operativa</span>
+          <span className="tb-user" style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+            admin@alojamientoplus.pe
+          </span>
         </div>
       </header>
 
-      {/* Main Container */}
-      <div style={{ display: 'flex', flex: 1 }}>
-        {/* Sidebar Admin */}
-        <aside
-          style={{
-            width: 'var(--sidew)',
-            background: 'var(--surface)',
-            borderRight: '1px solid var(--border)',
-            padding: '20px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
+      {/* Sidebar Admin */}
+      <nav className="sidebar" aria-label="Navegación backoffice">
+        <div className="nav-group">
           <button
-            onClick={() => setActiveSection('noc')}
-            style={{
-              textAlign: 'left',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              background: activeSection === 'noc' ? 'var(--hover)' : 'transparent',
-              color: activeSection === 'noc' ? 'var(--brand)' : 'var(--text)',
-              fontWeight: activeSection === 'noc' ? 600 : 500,
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            onClick={() => setActiveTab('noc')}
+            className={`nav-item ${activeTab === 'noc' ? 'active' : ''}`}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'noc' ? 'var(--hover)' : 'transparent', color: activeTab === 'noc' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'noc' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
           >
-            Servidores e Infraestructura
+            <Icon name="server" />
+            <span>Servidores e Infraestructura</span>
           </button>
           <button
-            onClick={() => setActiveSection('crm')}
-            style={{
-              textAlign: 'left',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              background: activeSection === 'crm' ? 'var(--hover)' : 'transparent',
-              color: activeSection === 'crm' ? 'var(--brand)' : 'var(--text)',
-              fontWeight: activeSection === 'crm' ? 600 : 500,
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            onClick={() => setActiveTab('crm')}
+            className={`nav-item ${activeTab === 'crm' ? 'active' : ''}`}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'crm' ? 'var(--hover)' : 'transparent', color: activeTab === 'crm' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'crm' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
           >
-            Embudo de Ventas (CRM)
+            <Icon name="funnel" />
+            <span>Embudo Comercial (CRM)</span>
           </button>
           <button
-            onClick={() => setActiveSection('tickets')}
-            style={{
-              textAlign: 'left',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              background: activeSection === 'tickets' ? 'var(--hover)' : 'transparent',
-              color: activeSection === 'tickets' ? 'var(--brand)' : 'var(--text)',
-              fontWeight: activeSection === 'tickets' ? 600 : 500,
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            onClick={() => setActiveTab('cobranza')}
+            className={`nav-item ${activeTab === 'cobranza' ? 'active' : ''}`}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'cobranza' ? 'var(--hover)' : 'transparent', color: activeTab === 'cobranza' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'cobranza' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
           >
-            Mesa de Ayuda (SLA)
+            <Icon name="wallet" />
+            <span>Secuencia de Cobranzas</span>
           </button>
-        </aside>
+          <button
+            onClick={() => setActiveTab('sla')}
+            className={`nav-item ${activeTab === 'sla' ? 'active' : ''}`}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'sla' ? 'var(--hover)' : 'transparent', color: activeTab === 'sla' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'sla' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
+          >
+            <Icon name="clock" />
+            <span>Matriz de SLA y Soporte</span>
+          </button>
+        </div>
+      </nav>
 
-        {/* Content */}
-        <main style={{ flex: 1, padding: '28px 36px', maxWidth: '1200px' }}>
-          {activeSection === 'noc' && (
+      {/* Main Content */}
+      <main className="main" id="main">
+        <div className="page" style={{ padding: '24px 32px', maxWidth: 1240, margin: '0 auto' }}>
+          {/* Header */}
+          <div className="phead">
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: '22px' }}>Nodos y Servidores</h1>
-                  <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                    Capacidad, consumo y asignación de clientes por nodo.
-                  </p>
-                </div>
-                <Button variant="primary">+ Agregar Servidor</Button>
-              </div>
+              <h1>
+                {activeTab === 'noc' && 'Infraestructura y Nodos de Servidores'}
+                {activeTab === 'crm' && 'Embudo de Oportunidades y Leads'}
+                {activeTab === 'cobranza' && 'Automatización de Avisos de Cobranza'}
+                {activeTab === 'sla' && 'Políticas de SLA y Escalamiento'}
+              </h1>
+              <p>
+                {activeTab === 'noc' && 'Monitoreo de recursos, nodos cPanel y migración en lotes.'}
+                {activeTab === 'crm' && 'Seguimiento de prospectos clasificados por canal de adquisición.'}
+                {activeTab === 'cobranza' && 'Secuencia administrable de suspensiones y recargos automáticos.'}
+                {activeTab === 'sla' && 'Tiempos de primera respuesta y resolución por severidad.'}
+              </p>
+            </div>
+            {activeTab === 'noc' && <button className="btn primary"><Icon name="plus" className="sm" /> Añadir Nodo</button>}
+            {activeTab === 'crm' && <button className="btn primary"><Icon name="plus" className="sm" /> Nuevo Prospecto</button>}
+          </div>
 
-              <Card>
-                <CardHeader title="Estado de Infraestructura" subtitle="Monitoreo en tiempo real" />
-                <CardBody style={{ padding: 0 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+          {/* Vistas */}
+          {activeTab === 'noc' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="card">
+                <div className="card-h">
+                  <h2 className="sec">Servidores en Producción</h2>
+                  <span className="sub">3 nodos activos</span>
+                </div>
+                <div className="tw" style={{ overflowX: 'auto' }}>
+                  <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                        <th style={{ padding: '12px 18px' }}>Nodo</th>
-                        <th style={{ padding: '12px 18px' }}>Tipo</th>
-                        <th style={{ padding: '12px 18px' }}>IP</th>
-                        <th style={{ padding: '12px 18px' }}>Cuentas</th>
-                        <th style={{ padding: '12px 18px' }}>RAM</th>
-                        <th style={{ padding: '12px 18px' }}>Estado</th>
+                        <th style={{ padding: '12px 16px' }}>Nodo</th>
+                        <th style={{ padding: '12px 16px' }}>Nombre</th>
+                        <th style={{ padding: '12px 16px' }}>Proveedor</th>
+                        <th style={{ padding: '12px 16px' }}>IP Pública</th>
+                        <th style={{ padding: '12px 16px' }}>Cuentas</th>
+                        <th style={{ padding: '12px 16px' }}>RAM</th>
+                        <th style={{ padding: '12px 16px' }}>Estado</th>
                       </tr>
                     </thead>
                     <tbody>
                       {nodes.map((n) => (
                         <tr key={n.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px 18px', fontWeight: 600 }}>{n.id}</td>
-                          <td style={{ padding: '12px 18px' }}>{n.type}</td>
-                          <td style={{ padding: '12px 18px', fontFamily: 'var(--f-mono)' }}>{n.ip}</td>
-                          <td style={{ padding: '12px 18px' }}>{n.accounts}</td>
-                          <td style={{ padding: '12px 18px' }}>{n.ram}</td>
-                          <td style={{ padding: '12px 18px' }}>
-                            <Badge variant={n.status === 'OK' ? 'ok' : n.status === 'Alerta' ? 'danger' : 'warn'}>
-                              {n.status}
-                            </Badge>
-                          </td>
+                          <td style={{ padding: '12px 16px', fontWeight: 700 }} className="mono">{n.id}</td>
+                          <td style={{ padding: '12px 16px', fontWeight: 600 }}>{n.name}</td>
+                          <td style={{ padding: '12px 16px' }}>{n.type}</td>
+                          <td style={{ padding: '12px 16px' }} className="mono">{n.ip}</td>
+                          <td style={{ padding: '12px 16px' }} className="num">{n.accounts}</td>
+                          <td style={{ padding: '12px 16px' }} className="num">{n.ram}</td>
+                          <td style={{ padding: '12px 16px' }}><span className={`chip ${n.stClass}`}>{n.status}</span></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </CardBody>
-              </Card>
-            </div>
-          )}
-
-          {activeSection === 'crm' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: '22px' }}>Embudo Comercial</h1>
-                  <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                    Oportunidades y prospectos clasificados por canal de adquisición.
-                  </p>
                 </div>
-                <Button variant="primary">+ Nuevo Prospecto</Button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                {leads.map((l, i) => (
-                  <Card key={i}>
-                    <CardHeader
-                      title={l.company}
-                      subtitle={l.channel}
-                      action={<Badge variant="outline">{l.stage}</Badge>}
-                    />
-                    <CardBody>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Valor estimado:</span>
-                        <strong style={{ fontSize: '16px', color: 'var(--brand-text)' }}>{l.value}</strong>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ))}
               </div>
             </div>
           )}
 
-          {activeSection === 'tickets' && (
-            <Card>
-              <CardHeader title="Bandeja de Tickets y SLA" subtitle="Objetivo de primera respuesta: menos de 30 min" />
-              <CardBody>
-                <p style={{ margin: 0, color: 'var(--muted)' }}>No hay tickets con SLA vencido en este momento.</p>
-              </CardBody>
-            </Card>
+          {activeTab === 'crm' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {leads.map((l, i) => (
+                <div key={i} className="card" style={{ padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <b style={{ fontSize: 15 }}>{l.co}</b>
+                    <span className="chip outline">{l.ch}</span>
+                  </div>
+                  <p style={{ margin: '0 0 12px', color: 'var(--muted)', fontSize: 13 }}>{l.prod}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Responsable: <b>{l.owner}</b></span>
+                    <strong className="num" style={{ color: 'var(--brand-text)', fontSize: 15 }}>{l.val}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </main>
-      </div>
+
+          {activeTab === 'sla' && (
+            <div className="card">
+              <div className="card-h">
+                <h2 className="sec">Matriz de Cumplimiento de SLA</h2>
+              </div>
+              <div className="tw" style={{ overflowX: 'auto' }}>
+                <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                      <th style={{ padding: '12px 16px' }}>Prioridad</th>
+                      <th style={{ padding: '12px 16px' }}>1ra Respuesta</th>
+                      <th style={{ padding: '12px 16px' }}>Resolución Máxima</th>
+                      <th style={{ padding: '12px 16px' }}>Horario</th>
+                      <th style={{ padding: '12px 16px' }}>Escalamiento</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>Tickets Abiertos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slas.map((s, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>{s.pri}</td>
+                        <td style={{ padding: '12px 16px' }} className="num">{s.fr}</td>
+                        <td style={{ padding: '12px 16px' }} className="num">{s.res}</td>
+                        <td style={{ padding: '12px 16px' }}>{s.h}</td>
+                        <td style={{ padding: '12px 16px' }}>{s.esc}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }} className="num">{s.open}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'cobranza' && (
+            <div className="card" style={{ padding: 20 }}>
+              <h2 className="sec" style={{ marginBottom: 12 }}>Secuencia de Recordatorios y Cortes</h2>
+              <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+                El motor de facturación envía avisos previos al vencimiento (-5 días, -1 día), aplica recargos automáticos al día +3 y suspende servicios al día +5 si no existe compromiso de pago registrado.
+              </p>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
