@@ -159,64 +159,190 @@ export default function App() {
           </div>
 
           {/* VISTA 1: RESUMEN / DASHBOARD */}
-          {route === 'resumen' && (
-            <div style={{ display: 'grid', gap: 24 }}>
-              <div className="phead">
-                <div>
-                  <h1>Hola, Lucía Quispe</h1>
-                  <p>Bienvenida al portal de autoservicio de {CLIENT.name}. RUC {CLIENT.ruc}.</p>
-                </div>
-                <button className="btn primary" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
-                  <Icon name="wallet" className="sm" /> Pagar pendientes ({money(totalToPay, cur)})
-                </button>
-              </div>
+          {route === 'resumen' && (() => {
+            const pendInvoices = INV.filter((i) => i.st !== 'pagada');
+            const totalPend = pendInvoices.reduce((acc, curr) => acc + conv(curr.amt, curr.c), 0);
+            const overdue = INV.filter((i) => i.st === 'vencida');
+            const warnServices = SRV.filter((s) => s.st !== 'ok');
+            const openTickets = ticketsList.filter((t) => t.st !== 'Resuelto');
 
-              {/* Accesos rápidos */}
-              <div className="qa">
-                <button onClick={() => setRoute('servicios')}>
-                  <span className="ico"><Icon name="server" /></span>
-                  <div><b>{SRV.length} Servicios Activos</b><small>cPanel, VPS y Correo</small></div>
-                </button>
-                <button onClick={() => setRoute('facturas')}>
-                  <span className="ico" style={{ background: 'var(--warn-bg)', color: 'var(--warn-text)' }}><Icon name="wallet" /></span>
-                  <div><b>Facturas por Pagar</b><small>1 vencida, 3 pendientes</small></div>
-                </button>
-                <button onClick={() => setRoute('dominios')}>
-                  <span className="ico"><Icon name="globe" /></span>
-                  <div><b>{DOMS.length} Dominios</b><small>.pe y .com vigentes</small></div>
-                </button>
-                <button onClick={() => setRoute('soporte')}>
-                  <span className="ico"><Icon name="msg" /></span>
-                  <div><b>Tickets de Atención</b><small>1 en atención activa</small></div>
-                </button>
-              </div>
-
-              {/* Alerta de servicio requiriendo atención */}
-              <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn)', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'center' }}>
-                <span style={{ color: 'var(--warn-text)', display: 'grid', placeItems: 'center' }}><Icon name="tri" className="lg" /></span>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ color: 'var(--warn-text)', fontSize: 14 }}>Atención requerida en tu Sistema de Reservas</strong>
-                  <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-2)' }}>Picos de memoria en horario punta (ticket TK-10482 en curso). El equipo de soporte está optimizando la caché.</p>
-                </div>
-                <button className="btn sm" onClick={() => { setSelectedServiceId('reservas'); setRoute('servicio-detalle'); }}>Ver servicio</button>
-              </div>
-
-              {/* Tus ejecutivos asignados */}
-              <div className="card">
-                <div className="card-h">
-                  <h2 className="sec"><Icon name="user" className="sm" /> Tu Ejecutiva de Cuenta</h2>
-                  <span className="sub">Lunes a viernes 9:00 a 18:00</span>
-                </div>
-                <div className="card-b" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            return (
+              <div style={{ display: 'grid', gap: 20 }}>
+                {/* Banner de Bienvenida estilo prototipo */}
+                <section className="hello">
                   <div>
-                    <strong style={{ fontSize: 15 }}>{CLIENT.exec}</strong>
-                    <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: 13 }}>Atención corporativa personalizada, ampliación de planes y contratos anuales.</p>
+                    <h1>Hola, Lucía Quispe</h1>
+                    <p>Este es el estado integral de la infraestructura de {CLIENT.name} al día de hoy.</p>
                   </div>
-                  <button className="btn primary sm" onClick={() => setRoute('soporte')}>Contactar por ticket</button>
+                  <div className="acts">
+                    {pendInvoices.length > 0 && (
+                      <button className="btn success" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                        <Icon name="card" /> Pagar pendientes ({money(totalPend, cur)})
+                      </button>
+                    )}
+                    <button className="btn" onClick={() => setRoute('soporte')}>
+                      <Icon name="plus" /> Crear ticket
+                    </button>
+                  </div>
+                </section>
+
+                {/* Avisos prioritarios */}
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {overdue.map((inv) => (
+                    <div key={inv.id} className="alert danger">
+                      <span className="ico"><Icon name="receipt" /></span>
+                      <div className="tx">
+                        <b>Factura {inv.id} vencida ({money(inv.amt, inv.c)})</b>
+                        <small>{inv.desc} · venció el {inv.due}. Cancela para evitar interrupciones en el servicio.</small>
+                      </div>
+                      <button
+                        className="btn sm primary"
+                        onClick={() => { setSelectedInvoices([inv.id]); setPayStep(2); setRoute('pagar'); }}
+                      >
+                        Pagar ahora
+                      </button>
+                    </div>
+                  ))}
+
+                  {warnServices.map((s) => (
+                    <div key={s.id} className="alert warn">
+                      <span className="ico"><Icon name="tri" /></span>
+                      <div className="tx">
+                        <b>Atención requerida en {s.name}</b>
+                        <small>{s.stNote}</small>
+                      </div>
+                      <button
+                        className="btn sm"
+                        onClick={() => { setSelectedServiceId(s.id); setRoute('servicio-detalle'); }}
+                      >
+                        Ver servicio
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* KPIs principales */}
+                <section className="kpis" aria-label="Indicadores clave">
+                  <div className="card kpi" onClick={() => setRoute('servicios')} style={{ cursor: 'pointer' }}>
+                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                      <span className="ico ok"><Icon name="server" className="sm" /></span>
+                      Servicios activos
+                    </span>
+                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{SRV.length}</span>
+                    <span className="meta" style={{ fontSize: 12, color: warnServices.length ? 'var(--warn-text)' : 'var(--ok-text)' }}>
+                      {warnServices.length ? `${warnServices.length} requiere atención` : 'Todo operativo'}
+                    </span>
+                  </div>
+
+                  <div className="card kpi" onClick={() => setRoute('facturas')} style={{ cursor: 'pointer' }}>
+                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                      <span className="ico warn"><Icon name="wallet" className="sm" /></span>
+                      Saldo por pagar
+                    </span>
+                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{money(totalPend, cur)}</span>
+                    <span className="meta" style={{ fontSize: 12, color: overdue.length ? 'var(--danger-text)' : 'var(--muted)' }}>
+                      {pendInvoices.length} facturas pendientes
+                    </span>
+                  </div>
+
+                  <div className="card kpi" onClick={() => setRoute('dominios')} style={{ cursor: 'pointer' }}>
+                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                      <span className="ico"><Icon name="globe" className="sm" /></span>
+                      Dominios activos
+                    </span>
+                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{DOMS.length}</span>
+                    <span className="meta" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      .pe y .com vigentes
+                    </span>
+                  </div>
+
+                  <div className="card kpi" onClick={() => setRoute('soporte')} style={{ cursor: 'pointer' }}>
+                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                      <span className="ico"><Icon name="msg" className="sm" /></span>
+                      Tickets de atención
+                    </span>
+                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{openTickets.length}</span>
+                    <span className="meta" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Respuesta promedio &lt; 15 min
+                    </span>
+                  </div>
+                </section>
+
+                {/* Grid a dos columnas: Proyectos y Accesos Rápidos */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 18 }}>
+                  {/* Columna Izquierda: Servicios por proyecto */}
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    {PROJ.map((p) => {
+                      const ss = SRV.filter((s) => s.proj === p.id);
+                      return (
+                        <section key={p.id} className="card">
+                          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 className="sec"><Icon name={p.icon} className="sm" /> {p.name}</h2>
+                            <button className="btn sm ghost" onClick={() => setRoute('servicios')}>Ver servicios →</button>
+                          </div>
+                          <ul className="rows">
+                            {ss.map((s) => (
+                              <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>
+                                <span className={`st-dot ${s.st === 'ok' ? '' : 'warn'}`} />
+                                <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => { setSelectedServiceId(s.id); setRoute('servicio-detalle'); }}>
+                                  <b style={{ display: 'block', fontSize: 13.5 }}>{s.name}</b>
+                                  <small style={{ color: 'var(--muted)', fontSize: 12 }}>{s.plan} · <span className="mono">{s.host}</span></small>
+                                </div>
+                                <span className={`chip ${s.st === 'ok' ? 'ok' : 'warn'}`}>
+                                  {s.st === 'ok' ? 'Operativo' : 'Atención'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      );
+                    })}
+                  </div>
+
+                  {/* Columna Derecha: Accesos rápidos y Cuenta */}
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    <div className="card">
+                      <div className="card-h">
+                        <h2 className="sec">Accesos Rápidos</h2>
+                      </div>
+                      <div className="card-b" style={{ padding: '12px 16px' }}>
+                        <div className="qa" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                          <button onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
+                            <span className="ico"><Icon name="external" /></span>
+                            <div><b>cPanel</b><small>andestravel.pe</small></div>
+                          </button>
+                          <button onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                            <span className="ico"><Icon name="card" /></span>
+                            <div><b>Pagar Facturas</b><small>3 pasos seguros</small></div>
+                          </button>
+                          <button onClick={() => setRoute('soporte')}>
+                            <span className="ico"><Icon name="msg" /></span>
+                            <div><b>Crear Ticket</b><small>Guardia NOC 24/7</small></div>
+                          </button>
+                          <button onClick={() => setRoute('respaldos')}>
+                            <span className="ico"><Icon name="restore" /></span>
+                            <div><b>Respaldos</b><small>Copias diarias</small></div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="user" className="sm" /> Ejecutiva Asignada</h2>
+                      </div>
+                      <div className="card-b" style={{ padding: '14px 16px', fontSize: 13 }}>
+                        <strong style={{ fontSize: 14.5 }}>{CLIENT.exec}</strong>
+                        <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
+                          Atención de contratos anuales y facturación corporativa (Lun - Vie 9:00 a 18:00).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* VISTA 2: MIS SERVICIOS (LISTA POR PROYECTOS) */}
           {route === 'servicios' && (
@@ -289,100 +415,168 @@ export default function App() {
           )}
 
           {/* VISTA 3: DETALLE PROFUNDO DE UN SERVICIO */}
-          {route === 'servicio-detalle' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center' }}>
-                    <Icon name={selectedService.icon} className="lg" />
+          {route === 'servicio-detalle' && (() => {
+            const p = PROJ.find((x) => x.id === selectedService.proj);
+            const serviceTickets = ticketsList.filter((t) => t.srv.toLowerCase().includes(selectedService.name.toLowerCase()) || (selectedService.id === 'reservas' && t.id === 'TK-10482'));
+
+            return (
+              <div style={{ display: 'grid', gap: 20 }}>
+                {/* Cabecera del servicio */}
+                <div className="dhead">
+                  <div className="ico">
+                    <Icon name={selectedService.icon} />
                   </div>
-                  <div>
-                    <h1 style={{ fontSize: 24, margin: 0 }}>{selectedService.name}</h1>
-                    <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{selectedService.plan} • <span className="mono">{selectedService.host}</span></p>
+                  <div className="tt">
+                    <h1>{selectedService.name}</h1>
+                    <p>{selectedService.plan} · <span className="mono">{selectedService.host}</span> · Proyecto «{p?.name}»</p>
+                    <div style={{ marginTop: 8 }}>
+                      <span className={`chip ${selectedService.st === 'ok' ? 'ok' : 'warn'}`}>
+                        {selectedService.st === 'ok' ? 'Todo operativo' : 'Requiere atención'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn ghost" onClick={() => setRoute('servicios')}>← Volver a lista</button>
-                  {selectedService.cpanel && (
-                    <button className="btn primary">
-                      <Icon name="external" className="sm" /> Ingresar directo a cPanel
+                  <div className="acts">
+                    {selectedService.cpanel && (
+                      <button className="btn primary" onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
+                        <Icon name="external" className="sm" /> Abrir cPanel
+                      </button>
+                    )}
+                    <button className="btn" onClick={() => setRoute('soporte')}>
+                      <Icon name="msg" className="sm" /> Crear ticket
                     </button>
-                  )}
+                    <button className="btn ghost" onClick={() => setRoute('servicios')}>
+                      ← Volver a servicios
+                    </button>
+                  </div>
+                </div>
+
+                {selectedService.stNote && (
+                  <div className="alert warn">
+                    <span className="ico"><Icon name="tri" /></span>
+                    <div className="tx">
+                      <b>Requiere atención</b>
+                      <small>{selectedService.stNote}</small>
+                    </div>
+                  </div>
+                )}
+
+                {/* Layout a dos columnas (.detail) */}
+                <div className="detail">
+                  {/* Columna Izquierda: Consumo y Características */}
+                  <div className="stack" style={{ display: 'grid', gap: 16 }}>
+                    <section className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="activity" className="sm" /> Consumo de Recursos</h2>
+                        <span className="sub">Medición en vivo</span>
+                      </div>
+                      <div className="card-b" style={{ display: 'grid', gap: 14 }}>
+                        {selectedService.usage.map((u, i) => {
+                          const pct = u.total ? Math.round((u.used / u.total) * 100) : u.used;
+                          return (
+                            <div key={i}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                                <span>{u.label}</span>
+                                <b className="num">{u.used} {u.total ? `/ ${u.total}` : ''} {u.unit} ({pct}%)</b>
+                              </div>
+                              <div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: pct > 80 ? 'var(--danger)' : pct > 60 ? 'var(--warn)' : 'var(--ok)' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="legend" style={{ marginTop: 6, fontSize: 12 }}>
+                          <span><i style={{ background: 'var(--ok)' }} /> Normal</span>
+                          <span><i style={{ background: 'var(--warn)' }} /> Desde 75%</span>
+                          <span><i style={{ background: 'var(--danger)' }} /> Crítico (&gt; 90%)</span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="sliders" className="sm" /> Características Técnicas</h2>
+                      </div>
+                      <div className="card-b" style={{ padding: '14px 18px' }}>
+                        <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '10px 14px', fontSize: 13.5, margin: 0 }}>
+                          {selectedService.feats.map(([k, v], idx) => (
+                            <div key={idx} style={{ display: 'contents' }}>
+                              <dt style={{ color: 'var(--muted)', fontWeight: 500 }}>{k}</dt>
+                              <dd style={{ margin: 0, fontWeight: 600 }}>{v}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Columna Derecha: Plan comercial, Respaldo y Tickets vinculados */}
+                  <div className="stack" style={{ display: 'grid', gap: 16 }}>
+                    <section className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="receipt" className="sm" /> Tu Plan</h2>
+                      </div>
+                      <div className="card-b" style={{ padding: '14px 18px', display: 'grid', gap: 10, fontSize: 13.5 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--muted)' }}>Plan contratado:</span>
+                          <b>{selectedService.plan}</b>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--muted)' }}>Importe recurrente:</span>
+                          <strong className="num" style={{ color: 'var(--brand-text)' }}>
+                            {money(selectedService.price[0], selectedService.price[1])} /{selectedService.price[2]}
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--muted)' }}>Próxima renovación:</span>
+                          <span className="num">{selectedService.renew || 'Junto con tu plan'}</span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="archive" className="sm" /> Respaldo Automatizado</h2>
+                      </div>
+                      <div className="card-b" style={{ padding: '14px 18px', display: 'grid', gap: 8, fontSize: 13 }}>
+                        <div>
+                          <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11.5 }}>ÚLTIMO RESPALDO EXITOSO</span>
+                          <b>Hoy 03:00 AM (Íntegro)</b>
+                        </div>
+                        <button className="btn sm" onClick={() => setRoute('respaldos')}>
+                          <Icon name="restore" className="sm" /> Solicitar restauración
+                        </button>
+                      </div>
+                    </section>
+
+                    <section className="card">
+                      <div className="card-h">
+                        <h2 className="sec"><Icon name="msg" className="sm" /> Tickets de este servicio</h2>
+                      </div>
+                      {serviceTickets.length > 0 ? (
+                        <ul className="rows">
+                          {serviceTickets.map((t) => (
+                            <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                              <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => { setSelectedTicketId(t.id); setRoute('ticket-detalle'); }}>
+                                <b style={{ fontSize: 13 }}>{t.subj}</b>
+                                <small style={{ color: 'var(--muted)' }}>{t.id} · {t.upd}</small>
+                              </div>
+                              <span className={`chip ${t.st === 'En atención' ? 'warn' : 'ok'}`}>
+                                {t.st}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="card-b" style={{ padding: '14px 18px', color: 'var(--muted)', fontSize: 13 }}>
+                          Sin incidencias ni tickets abiertos para este servicio.
+                        </div>
+                      )}
+                    </section>
+                  </div>
                 </div>
               </div>
-
-              {selectedService.stNote && (
-                <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn)', borderRadius: 8, padding: '12px 16px', color: 'var(--warn-text)', fontSize: 13.5 }}>
-                  <Icon name="tri" className="sm" /> {selectedService.stNote}
-                </div>
-              )}
-
-              {/* Cuadrícula de detalles */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
-                {/* Consumo de recursos */}
-                <div className="card">
-                  <div className="card-h">
-                    <h2 className="sec"><Icon name="activity" className="sm" /> Consumo de Recursos</h2>
-                    <span className="sub">Medición en vivo</span>
-                  </div>
-                  <div className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 16 }}>
-                    {selectedService.usage.map((u, i) => {
-                      const pct = u.total ? Math.round((u.used / u.total) * 100) : u.used;
-                      return (
-                        <div key={i}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                            <span>{u.label}</span>
-                            <strong>{u.used} {u.total ? `de ${u.total}` : ''} {u.unit} ({pct}%)</strong>
-                          </div>
-                          <div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: pct > 80 ? 'var(--danger)' : pct > 60 ? 'var(--warn)' : 'var(--ok)' }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Características técnicas */}
-                <div className="card">
-                  <div className="card-h">
-                    <h2 className="sec"><Icon name="sliders" className="sm" /> Características Técnicas</h2>
-                  </div>
-                  <div className="card-b" style={{ padding: '12px 20px' }}>
-                    <dl style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '10px 12px', fontSize: 13.5, margin: 0 }}>
-                      {selectedService.feats.map(([k, v], idx) => (
-                        <div key={idx} style={{ display: 'contents' }}>
-                          <dt style={{ color: 'var(--muted)', fontWeight: 500 }}>{k}</dt>
-                          <dd style={{ margin: 0, fontWeight: 600 }}>{v}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                </div>
-
-                {/* Facturación y renovación */}
-                <div className="card">
-                  <div className="card-h">
-                    <h2 className="sec"><Icon name="receipt" className="sm" /> Renovación y Plan</h2>
-                  </div>
-                  <div className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--muted)' }}>Importe recurrente:</span>
-                      <strong className="num" style={{ fontSize: 16 }}>{money(selectedService.price[0], selectedService.price[1])} /{selectedService.price[2]}</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--muted)' }}>Próxima renovación:</span>
-                      <span>{selectedService.renew || 'Junto con tu plan'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--muted)' }}>Estado comercial:</span>
-                      <span className="chip ok">Al día</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* VISTA 4: FACTURAS Y PAGOS */}
           {route === 'facturas' && (() => {
