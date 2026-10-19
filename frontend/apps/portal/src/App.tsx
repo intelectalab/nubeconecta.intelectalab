@@ -15,6 +15,8 @@ export default function App() {
   const [voucherUploaded, setVoucherUploaded] = useState(false);
   const [newReply, setNewReply] = useState('');
   const [ticketsList, setTicketsList] = useState(TK);
+  const [invFilter, setInvFilter] = useState<'pend' | 'paid' | 'all'>('pend');
+  const [tkFilter, setTkFilter] = useState<'abiertos' | 'cerrados' | 'todos'>('abiertos');
 
   const TC = 3.75;
   const conv = (amt: number, from: 'PEN' | 'USD') => {
@@ -383,60 +385,159 @@ export default function App() {
           )}
 
           {/* VISTA 4: FACTURAS Y PAGOS */}
-          {route === 'facturas' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div className="phead">
-                <div>
-                  <h1>Facturas y Pagos</h1>
-                  <p>Consulta tus comprobantes emitidos, historial y realiza el pago de tus servicios en {cur === 'PEN' ? 'Soles (PEN)' : 'Dólares (USD)'}.</p>
-                </div>
-                <button className="btn primary" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
-                  <Icon name="card" className="sm" /> Pagar facturas pendientes
-                </button>
-              </div>
+          {route === 'facturas' && (() => {
+            const filteredInvoices = INV.filter((i) => {
+              if (invFilter === 'pend') return i.st !== 'pagada';
+              if (invFilter === 'paid') return i.st === 'pagada';
+              return true;
+            });
+            const pendCount = INV.filter((i) => i.st !== 'pagada').length;
+            const paidCount = INV.filter((i) => i.st === 'pagada').length;
 
-              <div className="card">
-                <div className="card-h">
-                  <h2 className="sec">Comprobantes Electrónicos</h2>
-                  <span className="sub">RUC emisor: 20614587231 • Tipo de cambio S/ 3.75</span>
+            return (
+              <div style={{ display: 'grid', gap: 20 }}>
+                <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h1>Facturas y Pagos</h1>
+                    <p className="lead">Paga una o varias facturas a la vez con tarjeta, PayPal o transferencia bancaria. Comprobantes oficiales SUNAT.</p>
+                  </div>
+                  {pendCount > 0 && (
+                    <button className="btn primary" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                      <Icon name="card" className="sm" /> Pagar facturas pendientes ({pendCount})
+                    </button>
+                  )}
                 </div>
-                <div className="tw" style={{ overflowX: 'auto' }}>
-                  <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--surface-2)', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '12px 16px' }}>Factura</th>
-                        <th style={{ padding: '12px 16px' }}>Emisión</th>
-                        <th style={{ padding: '12px 16px' }}>Vencimiento</th>
-                        <th style={{ padding: '12px 16px' }}>Descripción</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Total</th>
-                        <th style={{ padding: '12px 16px' }}>Estado</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'center' }}>Comprobante</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {INV.map((i) => (
-                        <tr key={i.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 700 }} className="mono">{i.id}</td>
-                          <td style={{ padding: '12px 16px' }}>{i.date}</td>
-                          <td style={{ padding: '12px 16px' }}>{i.due}</td>
-                          <td style={{ padding: '12px 16px' }}>{i.desc}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }} className="num">{money(i.amt, i.c)}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span className={`chip ${i.st === 'pagada' ? 'ok' : i.st === 'vencida' ? 'danger' : 'warn'}`}>
-                              {i.st}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            <button className="btn sm ghost" title="Descargar PDF SUNAT">PDF</button>
-                          </td>
+
+                <div className="card">
+                  <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                    <div className="seg" role="group" aria-label="Filtrar facturas">
+                      <button
+                        type="button"
+                        aria-pressed={invFilter === 'pend'}
+                        onClick={() => setInvFilter('pend')}
+                      >
+                        Por pagar <span className="num">({pendCount})</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={invFilter === 'paid'}
+                        onClick={() => setInvFilter('paid')}
+                      >
+                        Pagadas <span className="num">({paidCount})</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={invFilter === 'all'}
+                        onClick={() => setInvFilter('all')}
+                      >
+                        Todas <span className="num">({INV.length})</span>
+                      </button>
+                    </div>
+
+                    <span className="sub" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      RUC emisor: 20614587231 • Tipo de cambio referencial S/ {TC}
+                    </span>
+                  </div>
+
+                  <div className="tw">
+                    <table className="t">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 44, textAlign: 'center' }}>
+                            <span className="sr-only">Sel</span>
+                          </th>
+                          <th>Comprobante</th>
+                          <th>Emisión</th>
+                          <th>Vencimiento</th>
+                          <th>Descripción</th>
+                          <th className="r">Total</th>
+                          <th>Estado</th>
+                          <th className="r">Acción</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredInvoices.map((i) => {
+                          const isPayable = i.st !== 'pagada';
+                          const isSelected = selectedInvoices.includes(i.id);
+                          return (
+                            <tr key={i.id}>
+                              <td style={{ textAlign: 'center' }}>
+                                {isPayable ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) setSelectedInvoices([...selectedInvoices, i.id]);
+                                      else setSelectedInvoices(selectedInvoices.filter((id) => id !== i.id));
+                                    }}
+                                    aria-label={`Seleccionar ${i.id}`}
+                                  />
+                                ) : (
+                                  <span style={{ color: 'var(--muted)' }}>—</span>
+                                )}
+                              </td>
+                              <td className="nw mono" style={{ fontWeight: 700 }}>{i.id}</td>
+                              <td className="num">{i.date}</td>
+                              <td className="num">{i.due}</td>
+                              <td>{i.desc}</td>
+                              <td className="r num" style={{ fontWeight: 700 }}>{money(i.amt, i.c)}</td>
+                              <td>
+                                <span className={`chip ${i.st === 'pagada' ? 'ok' : i.st === 'vencida' ? 'danger' : 'warn'}`}>
+                                  {i.st}
+                                </span>
+                              </td>
+                              <td className="r nw">
+                                <div style={{ display: 'inline-flex', gap: 6 }}>
+                                  <button
+                                    className="btn sm ghost"
+                                    title="Descargar comprobante PDF"
+                                    onClick={() => alert(`Descargando comprobante ${i.id} en formato PDF oficial SUNAT`)}
+                                  >
+                                    PDF
+                                  </button>
+                                  {isPayable && (
+                                    <button
+                                      className="btn sm primary"
+                                      onClick={() => {
+                                        setSelectedInvoices([i.id]);
+                                        setPayStep(2);
+                                        setRoute('pagar');
+                                      }}
+                                    >
+                                      Pagar
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Barra flotante inferior de pago si hay pendientes seleccionadas */}
+                  {selectedInvoices.length > 0 && pendCount > 0 && (
+                    <div className="paybar">
+                      <div className="sum">
+                        <small>{selectedInvoices.length} {selectedInvoices.length === 1 ? 'factura seleccionada' : 'facturas seleccionadas'}</small>
+                        <b>{money(totalToPay, cur)}</b>
+                      </div>
+                      <button
+                        className="btn primary lg"
+                        onClick={() => {
+                          setPayStep(2);
+                          setRoute('pagar');
+                        }}
+                      >
+                        <Icon name="card" className="sm" /> Pagar seleccionadas ({money(totalToPay, cur)})
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* VISTA 5: PASARELA DE PAGO EN 3 PASOS */}
           {route === 'pagar' && (
@@ -746,58 +847,101 @@ export default function App() {
           )}
 
           {/* VISTA 7: SOPORTE Y TICKETS */}
-          {route === 'soporte' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div className="phead">
-                <div>
-                  <h1>Soporte Técnico</h1>
-                  <p>Atención de consultas, incidencias y solicitudes con respuesta en horario hábil y emergencias 24/7.</p>
-                </div>
-                <button className="btn primary" onClick={() => alert('Modal para abrir ticket')}>+ Crear Ticket</button>
-              </div>
+          {route === 'soporte' && (() => {
+            const filteredTickets = ticketsList.filter((t) => {
+              if (tkFilter === 'abiertos') return t.st !== 'Resuelto';
+              if (tkFilter === 'cerrados') return t.st === 'Resuelto';
+              return true;
+            });
+            const openTkCount = ticketsList.filter((t) => t.st !== 'Resuelto').length;
+            const closedTkCount = ticketsList.filter((t) => t.st === 'Resuelto').length;
 
-              <div className="card">
-                <div className="card-h">
-                  <h2 className="sec">Tickets Registrados</h2>
-                  <span className="sub">{ticketsList.length} tickets en historial</span>
+            return (
+              <div style={{ display: 'grid', gap: 20 }}>
+                <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h1>Soporte Técnico</h1>
+                    <p className="lead">Atención de consultas e incidencias con respuesta garantizada por SLA. Urgencias NOC 24/7.</p>
+                  </div>
+                  <button className="btn primary" onClick={() => alert('Modal para abrir ticket')}>
+                    <Icon name="msg" className="sm" /> + Crear Ticket
+                  </button>
                 </div>
-                <div className="tw" style={{ overflowX: 'auto' }}>
-                  <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--surface-2)', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '12px 16px' }}>Código</th>
-                        <th style={{ padding: '12px 16px' }}>Asunto</th>
-                        <th style={{ padding: '12px 16px' }}>Servicio</th>
-                        <th style={{ padding: '12px 16px' }}>Prioridad</th>
-                        <th style={{ padding: '12px 16px' }}>Última Actividad</th>
-                        <th style={{ padding: '12px 16px' }}>Estado</th>
-                        <th style={{ padding: '12px 16px' }}>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ticketsList.map((t) => (
-                        <tr key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 700 }} className="mono">{t.id}</td>
-                          <td style={{ padding: '12px 16px', fontWeight: 600 }}>{t.subj}</td>
-                          <td style={{ padding: '12px 16px' }}>{t.srv}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span className={`chip ${t.pri === 'alta' ? 'danger' : 'info'}`}>{t.pri}</span>
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>{t.upd}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span className={`chip ${t.st === 'En atención' ? 'warn' : 'ok'}`}>{t.st}</span>
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <button className="btn sm primary" onClick={() => { setSelectedTicketId(t.id); setRoute('ticket-detalle'); }}>Ver conversación</button>
-                          </td>
+
+                <div className="card">
+                  <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                    <div className="seg" role="group" aria-label="Filtrar tickets">
+                      <button
+                        type="button"
+                        aria-pressed={tkFilter === 'abiertos'}
+                        onClick={() => setTkFilter('abiertos')}
+                      >
+                        Abiertos <span className="num">({openTkCount})</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={tkFilter === 'cerrados'}
+                        onClick={() => setTkFilter('cerrados')}
+                      >
+                        Resueltos y cerrados <span className="num">({closedTkCount})</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={tkFilter === 'todos'}
+                        onClick={() => setTkFilter('todos')}
+                      >
+                        Todos <span className="num">({ticketsList.length})</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="tw">
+                    <table className="t">
+                      <thead>
+                        <tr>
+                          <th>Código</th>
+                          <th>Asunto</th>
+                          <th>Servicio</th>
+                          <th>Prioridad</th>
+                          <th>Última Actividad</th>
+                          <th>Estado</th>
+                          <th className="r">Acción</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredTickets.map((t) => (
+                          <tr key={t.id}>
+                            <td className="nw mono" style={{ fontWeight: 700 }}>{t.id}</td>
+                            <td style={{ fontWeight: 600 }}>{t.subj}</td>
+                            <td>{t.srv}</td>
+                            <td>
+                              <span className={`chip ${t.pri === 'alta' ? 'danger' : 'info'}`}>
+                                {t.pri}
+                              </span>
+                            </td>
+                            <td className="num">{t.upd}</td>
+                            <td>
+                              <span className={`chip ${t.st === 'En atención' ? 'warn' : 'ok'}`}>
+                                {t.st}
+                              </span>
+                            </td>
+                            <td className="r nw">
+                              <button
+                                className="btn sm primary"
+                                onClick={() => { setSelectedTicketId(t.id); setRoute('ticket-detalle'); }}
+                              >
+                                Ver conversación →
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* VISTA 8: HILO DE CONVERSACIÓN DE UN TICKET */}
           {route === 'ticket-detalle' && (
