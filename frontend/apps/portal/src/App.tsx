@@ -101,7 +101,16 @@ export default function App() {
 
       {/* Sidebar de navegación */}
       <nav className="sidebar" aria-label="Navegación principal">
-        <div className="nav-group">
+        <div className="acct">
+          <div className="ico"><Icon name="building" /></div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <b style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{CLIENT.name}</b>
+            <small>RUC {CLIENT.ruc}</small>
+          </div>
+        </div>
+
+        <div className="nav-title">Módulos</div>
+        <div style={{ display: 'grid', gap: 2 }}>
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -112,26 +121,12 @@ export default function App() {
                 else setRoute(item.id as any);
               }}
               className={`nav-item ${route.startsWith(item.id) ? 'active' : ''}`}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                borderRadius: 8,
-                background: route.startsWith(item.id) ? 'var(--hover)' : 'transparent',
-                color: route.startsWith(item.id) ? 'var(--brand-text)' : 'var(--text)',
-                fontWeight: route.startsWith(item.id) ? 600 : 500,
-                border: 0,
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: '13.5px',
-              }}
+              style={{ width: '100%', border: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
             >
               <Icon name={item.icon} />
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.badge ? (
-                <span className={`chip sm ${item.id === 'facturas' ? 'warn' : 'info'}`} style={{ height: 18, fontSize: 11, padding: '0 6px' }}>
+                <span className={`cnt ${item.id === 'facturas' ? 'hot' : ''}`}>
                   {item.badge}
                 </span>
               ) : null}
@@ -142,7 +137,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="main" id="main">
-        <div className="page" style={{ padding: '24px 36px', maxWidth: 1180, margin: '0 auto' }}>
+        <div className="page">
           
           {/* Breadcrumbs */}
           <div className="crumbs">
@@ -716,64 +711,106 @@ export default function App() {
           {/* VISTA 8: HILO DE CONVERSACIÓN DE UN TICKET */}
           {route === 'ticket-detalle' && (
             <div style={{ display: 'grid', gap: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div>
+                  <button className="btn sm ghost" onClick={() => setRoute('soporte')} style={{ paddingLeft: 0, marginBottom: 6 }}>
+                    ← Volver a tickets
+                  </button>
                   <h1 style={{ fontSize: 22, margin: 0 }}>{selectedTicket.subj}</h1>
-                  <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}><span className="mono">{selectedTicket.id}</span> • {selectedTicket.srv} • Abierto el {selectedTicket.created}</p>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: 13 }}>
+                    <span className="mono">{selectedTicket.id}</span> • Creado el {selectedTicket.created}
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn ghost" onClick={() => setRoute('soporte')}>← Volver a tickets</button>
-                  <span className="chip warn">{selectedTicket.st}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span className={`chip ${selectedTicket.pri === 'alta' ? 'danger' : 'info'}`}>Prioridad {selectedTicket.pri}</span>
+                  <span className={`chip ${selectedTicket.st === 'En atención' ? 'warn' : 'ok'}`}>{selectedTicket.st}</span>
                 </div>
               </div>
 
-              {/* Hilo de mensajes */}
-              <div className="card">
-                <div className="card-h">
-                  <h2 className="sec">Mensajes e Historial</h2>
-                </div>
-                <div className="card-b" style={{ padding: '20px', display: 'grid', gap: 18 }}>
-                  {selectedTicket.msgs.map((m, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '14px 18px',
-                        borderRadius: 10,
-                        background: m.w === 'a' ? 'var(--hover)' : 'var(--surface-2)',
-                        border: '1px solid var(--border)',
-                        marginLeft: m.w === 'a' ? '24px' : '0',
-                        marginRight: m.w === 'c' ? '24px' : '0',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <strong style={{ color: m.w === 'a' ? 'var(--brand-text)' : 'var(--text)' }}>{m.n}</strong>
-                        <small style={{ color: 'var(--muted)' }}>{m.t}</small>
-                      </div>
-                      <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5 }}>{m.x}</p>
-                      {m.files && (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                          {m.files.map((f, i) => (
-                            <span key={i} className="chip outline" style={{ fontSize: 11 }}>📎 {f}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+              <div className="tk-detail">
+                {/* Columna Izquierda: Conversación e Historial */}
+                <div className="card">
+                  <div className="card-h">
+                    <h2 className="sec"><Icon name="msg" className="sm" /> Conversación</h2>
+                    <span className="sub">{selectedTicket.msgs.length} mensajes intercambiados</span>
+                  </div>
+                  
+                  <div className="card-b" style={{ padding: '16px 18px', display: 'grid', gap: 16 }}>
+                    <ul className="thread">
+                      {selectedTicket.msgs.map((m, idx) => (
+                        <li key={idx} className={`msg ${m.w === 'a' ? 'agente' : 'cliente'}`}>
+                          <div className="mh">
+                            <span className="av">{m.w === 'a' ? '🛠️' : '👤'}</span>
+                            <b>{m.n}</b>
+                            <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                              ({m.w === 'a' ? 'Soporte Técnico Especializado' : 'Cliente / Andes Travel'})
+                            </span>
+                            <time>{m.t}</time>
+                          </div>
+                          <p>{m.x}</p>
+                          {m.files && (
+                            <div className="atts">
+                              {m.files.map((f, i) => (
+                                <span key={i} className="chip outline" style={{ fontSize: 11 }}>📎 {f}</span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
 
-                  {/* Formulario de respuesta */}
-                  <form onSubmit={handleSendTicketReply} style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'grid', gap: 12 }}>
-                    <label style={{ fontWeight: 600, fontSize: 13 }}>Escribir respuesta al equipo técnico:</label>
-                    <textarea
-                      rows={3}
-                      value={newReply}
-                      onChange={(e) => setNewReply(e.target.value)}
-                      placeholder="Agrega información adicional o responde a la consulta del agente..."
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 13.5, fontFamily: 'inherit' }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                      <button type="submit" className="btn primary">Enviar mensaje</button>
+                    {/* Caja de respuesta / Composer */}
+                    <form onSubmit={handleSendTicketReply} className="composer" style={{ padding: '14px 0 0' }}>
+                      <label style={{ fontWeight: 600, fontSize: 13 }}>Responder a este ticket:</label>
+                      <textarea
+                        rows={3}
+                        value={newReply}
+                        onChange={(e) => setNewReply(e.target.value)}
+                        placeholder="Escribe tu mensaje o adjunta detalles para el equipo de soporte..."
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Respuesta promedio: &lt; 15 min en horario hábil</span>
+                        <button type="submit" className="btn primary">
+                          <Icon name="check" className="sm" /> Enviar Respuesta
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Columna Derecha: Información del Ticket y Servicio Asociado */}
+                <div style={{ display: 'grid', gap: 16 }}>
+                  <div className="card">
+                    <div className="card-h">
+                      <h2 className="sec">Detalles del Caso</h2>
                     </div>
-                  </form>
+                    <div className="card-b" style={{ padding: '14px 18px', display: 'grid', gap: 12, fontSize: 13 }}>
+                      <div>
+                        <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11.5 }}>SERVICIO ASOCIADO</span>
+                        <b>{selectedTicket.srv}</b>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11.5 }}>ÚLTIMA ACTUALIZACIÓN</span>
+                        <b>{selectedTicket.upd}</b>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11.5 }}>CANAL</span>
+                        <span>Portal Web con autenticación segura</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11.5 }}>SLA DE RESPUESTA</span>
+                        <span className="chip ok" style={{ marginTop: 4 }}>En cumplimiento (&lt; 30 min)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card" style={{ background: 'var(--surface-2)' }}>
+                    <div className="card-b" style={{ padding: '14px 18px', fontSize: 12.5, color: 'var(--muted)' }}>
+                      <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 4 }}>💡 ¿Problema urgente?</strong>
+                      Para caídas críticas fuera de horario, nuestra guardia NOC 24/7 atiende vía tickets marcados con prioridad Alta.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
