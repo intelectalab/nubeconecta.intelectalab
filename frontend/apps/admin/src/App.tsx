@@ -1,32 +1,21 @@
-import { useState } from 'react';
-import { Icon } from '@hub/ui';
+﻿import { useState } from 'react';
+import { LayoutDashboard, Server, Filter, Box, Wallet, Clock, CheckCircle2, MessageSquare } from 'lucide-react';
 import './admin.css';
+import DashboardView from './views/DashboardView';
+import NOCView from './views/NOCView';
+import CRMView from './views/CRMView';
+import SLAView from './views/SLAView';
+import CobranzaView from './views/CobranzaView';
+import CatalogView from './views/CatalogView';
+import HelpDeskView from './views/HelpDeskView';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'noc' | 'crm' | 'cobranza' | 'sla'>('noc');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'noc' | 'crm' | 'cobranza' | 'sla' | 'catalog' | 'helpdesk'>('dashboard');
 
-  const nodes = [
-    { id: 'VPS-AP-01', name: 'Nube Producción 01', type: 'VPS Propio (Hetzner)', ip: '198.51.100.12', accounts: '45 / 80', ram: '12 / 16 GB', status: 'OK', stClass: 'ok' },
-    { id: 'VPS-AP-02', name: 'Nube Producción 02', type: 'VPS Propio (Contabo)', ip: '198.51.100.15', accounts: '78 / 80', ram: '15.2 / 16 GB', status: 'Carga Alta', stClass: 'warn' },
-    { id: 'BH-RES-01', name: 'Reseller BanaHosting', type: 'Revendedor cPanel', ip: '192.0.2.88', accounts: '120 / 150', ram: 'N/A', status: 'En migración', stClass: 'info' },
-  ];
-
-  const leads = [
-    { co: 'Inversiones del Sur SAC', prod: 'VPS Cloud 8GB + Soporte', val: 'S/ 450/mes', ch: 'WhatsApp', stage: 'Cotización', owner: 'Carlos R.' },
-    { co: 'Estudio Jurídico Lima', prod: 'Hosting Corporativo cPanel', val: 'S/ 180/mes', ch: 'Landing', stage: 'Contacto inicial', owner: 'María P.' },
-    { co: 'Constructora Alfa', prod: 'Infraestructura Dedicada', val: 'S/ 1,200/mes', ch: 'Referido', stage: 'Negociación', owner: 'Carlos R.' },
-  ];
-
-  const slas = [
-    { pri: 'Crítica', fr: '15 min', res: '2 horas', h: '24/7', esc: 'NOC L3 Guardia', open: 0 },
-    { pri: 'Alta', fr: '30 min', res: '6 horas', h: '24/7', esc: 'NOC L2 Especialista', open: 1 },
-    { pri: 'Media', fr: '60 min', res: '24 horas', h: 'Hábil (L-V 9-18)', esc: 'Soporte General', open: 3 },
-    { pri: 'Baja', fr: '120 min', res: '48 horas', h: 'Hábil (L-V 9-18)', esc: 'Soporte General', open: 0 },
-  ];
+  const getNavClass = (tab: string) => `nav-item ${activeTab === tab ? 'active' : ''}`;
 
   return (
     <div className="app" id="app">
-      {/* Topbar Admin */}
       <header className="topbar" role="banner">
         <a className="logo" href="#dashboard">
           <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 42, height: 32, flex: 'none' }}>
@@ -36,178 +25,74 @@ export default function App() {
           <b>Alojamiento<span>Plus</span></b>
           <em>Panel Administrativo</em>
         </a>
-
         <div className="tb-spacer" style={{ flex: 1 }} />
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span className="chip ok"><Icon name="check" className="sm" /> Infraestructura Operativa</span>
-          <span className="tb-user" style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
-            admin@alojamientoplus.pe
-          </span>
+          <span className="chip ok"><CheckCircle2 size={14} /> Infraestructura Operativa</span>
+          <span className="tb-user" style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>admin@alojamientoplus.pe</span>
         </div>
       </header>
 
-      {/* Sidebar Admin */}
       <nav className="sidebar" aria-label="Navegación backoffice">
-        <div className="nav-group">
-          <button
-            onClick={() => setActiveTab('noc')}
-            className={`nav-item ${activeTab === 'noc' ? 'active' : ''}`}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'noc' ? 'var(--hover)' : 'transparent', color: activeTab === 'noc' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'noc' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
-          >
-            <Icon name="server" />
-            <span>Servidores e Infraestructura</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('crm')}
-            className={`nav-item ${activeTab === 'crm' ? 'active' : ''}`}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'crm' ? 'var(--hover)' : 'transparent', color: activeTab === 'crm' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'crm' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
-          >
-            <Icon name="funnel" />
-            <span>Embudo Comercial (CRM)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('cobranza')}
-            className={`nav-item ${activeTab === 'cobranza' ? 'active' : ''}`}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'cobranza' ? 'var(--hover)' : 'transparent', color: activeTab === 'cobranza' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'cobranza' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
-          >
-            <Icon name="wallet" />
-            <span>Secuencia de Cobranzas</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('sla')}
-            className={`nav-item ${activeTab === 'sla' ? 'active' : ''}`}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: activeTab === 'sla' ? 'var(--hover)' : 'transparent', color: activeTab === 'sla' ? 'var(--brand-text)' : 'var(--text)', fontWeight: activeTab === 'sla' ? 600 : 500, border: 0, cursor: 'pointer', textAlign: 'left' }}
-          >
-            <Icon name="clock" />
-            <span>Matriz de SLA y Soporte</span>
-          </button>
-        </div>
+        <button onClick={() => setActiveTab('dashboard')} className={getNavClass('dashboard')}>
+          <LayoutDashboard size={18} /><span>Dashboard de KPIs</span>
+        </button>
+        <button onClick={() => setActiveTab('noc')} className={getNavClass('noc')}>
+          <Server size={18} /><span>Servidores e Infraestructura</span>
+        </button>
+        <button onClick={() => setActiveTab('crm')} className={getNavClass('crm')}>
+          <Filter size={18} /><span>Embudo Comercial (CRM)</span>
+        </button>
+        <button onClick={() => setActiveTab('catalog')} className={getNavClass('catalog')}>
+          <Box size={18} /><span>Catálogo</span>
+        </button>
+        <button onClick={() => setActiveTab('helpdesk')} className={getNavClass('helpdesk')}>
+          <MessageSquare size={18} /><span>Soporte Técnico (Tickets)</span>
+        </button>
+        <button onClick={() => setActiveTab('cobranza')} className={getNavClass('cobranza')}>
+          <Wallet size={18} /><span>Secuencia de Cobranzas</span>
+        </button>
+        <button onClick={() => setActiveTab('sla')} className={getNavClass('sla')}>
+          <Clock size={18} /><span>Matriz de SLA y Soporte</span>
+        </button>
       </nav>
 
-      {/* Main Content */}
       <main className="main" id="main">
-        <div className="page" style={{ padding: '24px 32px', maxWidth: 1240, margin: '0 auto' }}>
-          {/* Header */}
-          <div className="phead">
+        {/* AQUÍ ESTÁ EL TRUCO: display flex, flexDirection column, height 100% y overflow hidden */}
+        <div className="page" style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+          
+          <div className="phead" style={{ marginBottom: 24, flexShrink: 0 }}>
             <div>
-              <h1>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+                {activeTab === 'dashboard' && 'Resumen General'}
                 {activeTab === 'noc' && 'Infraestructura y Nodos de Servidores'}
                 {activeTab === 'crm' && 'Embudo de Oportunidades y Leads'}
+                {activeTab === 'catalog' && 'Catálogo de Productos y Servicios'}
+                {activeTab === 'helpdesk' && 'Bandeja de Soporte Técnico'}
                 {activeTab === 'cobranza' && 'Automatización de Avisos de Cobranza'}
                 {activeTab === 'sla' && 'Políticas de SLA y Escalamiento'}
               </h1>
-              <p>
+              <p style={{ color: '#64748b', fontSize: 15 }}>
+                {activeTab === 'dashboard' && 'Vista rápida del estado financiero y operativo de la empresa.'}
                 {activeTab === 'noc' && 'Monitoreo de recursos, nodos cPanel y migración en lotes.'}
                 {activeTab === 'crm' && 'Seguimiento de prospectos clasificados por canal de adquisición.'}
+                {activeTab === 'catalog' && 'Administración de planes, precios bimoneda y disponibilidad.'}
+                {activeTab === 'helpdesk' && 'Gestión de tickets, incidencias y comunicación con clientes.'}
                 {activeTab === 'cobranza' && 'Secuencia administrable de suspensiones y recargos automáticos.'}
                 {activeTab === 'sla' && 'Tiempos de primera respuesta y resolución por severidad.'}
               </p>
             </div>
-            {activeTab === 'noc' && <button className="btn primary"><Icon name="plus" className="sm" /> Añadir Nodo</button>}
-            {activeTab === 'crm' && <button className="btn primary"><Icon name="plus" className="sm" /> Nuevo Prospecto</button>}
           </div>
 
-          {/* Vistas */}
-          {activeTab === 'noc' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div className="card">
-                <div className="card-h">
-                  <h2 className="sec">Servidores en Producción</h2>
-                  <span className="sub">3 nodos activos</span>
-                </div>
-                <div className="tw" style={{ overflowX: 'auto' }}>
-                  <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                        <th style={{ padding: '12px 16px' }}>Nodo</th>
-                        <th style={{ padding: '12px 16px' }}>Nombre</th>
-                        <th style={{ padding: '12px 16px' }}>Proveedor</th>
-                        <th style={{ padding: '12px 16px' }}>IP Pública</th>
-                        <th style={{ padding: '12px 16px' }}>Cuentas</th>
-                        <th style={{ padding: '12px 16px' }}>RAM</th>
-                        <th style={{ padding: '12px 16px' }}>Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {nodes.map((n) => (
-                        <tr key={n.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 700 }} className="mono">{n.id}</td>
-                          <td style={{ padding: '12px 16px', fontWeight: 600 }}>{n.name}</td>
-                          <td style={{ padding: '12px 16px' }}>{n.type}</td>
-                          <td style={{ padding: '12px 16px' }} className="mono">{n.ip}</td>
-                          <td style={{ padding: '12px 16px' }} className="num">{n.accounts}</td>
-                          <td style={{ padding: '12px 16px' }} className="num">{n.ram}</td>
-                          <td style={{ padding: '12px 16px' }}><span className={`chip ${n.stClass}`}>{n.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'crm' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-              {leads.map((l, i) => (
-                <div key={i} className="card" style={{ padding: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <b style={{ fontSize: 15 }}>{l.co}</b>
-                    <span className="chip outline">{l.ch}</span>
-                  </div>
-                  <p style={{ margin: '0 0 12px', color: 'var(--muted)', fontSize: 13 }}>{l.prod}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Responsable: <b>{l.owner}</b></span>
-                    <strong className="num" style={{ color: 'var(--brand-text)', fontSize: 15 }}>{l.val}</strong>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'sla' && (
-            <div className="card">
-              <div className="card-h">
-                <h2 className="sec">Matriz de Cumplimiento de SLA</h2>
-              </div>
-              <div className="tw" style={{ overflowX: 'auto' }}>
-                <table className="t" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 16px' }}>Prioridad</th>
-                      <th style={{ padding: '12px 16px' }}>1ra Respuesta</th>
-                      <th style={{ padding: '12px 16px' }}>Resolución Máxima</th>
-                      <th style={{ padding: '12px 16px' }}>Horario</th>
-                      <th style={{ padding: '12px 16px' }}>Escalamiento</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>Tickets Abiertos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {slas.map((s, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>{s.pri}</td>
-                        <td style={{ padding: '12px 16px' }} className="num">{s.fr}</td>
-                        <td style={{ padding: '12px 16px' }} className="num">{s.res}</td>
-                        <td style={{ padding: '12px 16px' }}>{s.h}</td>
-                        <td style={{ padding: '12px 16px' }}>{s.esc}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }} className="num">{s.open}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'cobranza' && (
-            <div className="card" style={{ padding: 20 }}>
-              <h2 className="sec" style={{ marginBottom: 12 }}>Secuencia de Recordatorios y Cortes</h2>
-              <p style={{ color: 'var(--muted)', fontSize: 13 }}>
-                El motor de facturación envía avisos previos al vencimiento (-5 días, -1 día), aplica recargos automáticos al día +3 y suspende servicios al día +5 si no existe compromiso de pago registrado.
-              </p>
-            </div>
-          )}
+          {/* El div que envuelve las vistas ahora tiene flex: 1 y minHeight: 0 para que se adapte al hueco */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            {activeTab === 'dashboard' && <DashboardView />}
+            {activeTab === 'noc' && <NOCView />}
+            {activeTab === 'crm' && <CRMView />}
+            {activeTab === 'catalog' && <CatalogView />}
+            {activeTab === 'helpdesk' && <HelpDeskView />}
+            {activeTab === 'sla' && <SLAView />}
+            {activeTab === 'cobranza' && <CobranzaView />}
+          </div>
         </div>
       </main>
     </div>

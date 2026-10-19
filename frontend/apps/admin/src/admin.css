@@ -901,3 +901,391 @@ mark.var{background:var(--warn-bg);color:var(--warn-text);padding:0 3px;border-r
 .srv-adds .check{display:flex;font-size:12px}
 .srv-tot{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--mw-line);padding-top:8px}
 .srv-tot b{font-family:var(--mw-fh);font-size:18px}
+/* Mejoras globales de Tablas */
+table.t th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background-color: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 16px !important;
+}
+
+table.t td {
+  padding: 16px !important;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+table.t tbody tr {
+  transition: all 0.2s ease;
+}
+
+table.t tbody tr:hover {
+  background-color: #f8fafc !important;
+  box-shadow: inset 4px 0 0 0 var(--brand-text);
+}
+
+/* Mejoras de Inputs */
+.input, input[type="text"], select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input:focus, input[type="text"]:focus, select:focus {
+  border-color: var(--brand-text);
+  box-shadow: 0 0 0 3px rgba(77, 130, 255, 0.15);
+}
+/* --- Mejoras visuales para la tabla del NOC --- */
+.noc-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.noc-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.noc-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.noc-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.noc-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.noc-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Barras de progreso */
+.progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0%; /* Anime.js lo animará */
+}
+/* --- CORRECCIÓN DE LAYOUT A PANTALLA COMPLETA --- */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden; /* Evita el scroll doble */
+}
+
+#app {
+  display: grid;
+  grid-template-areas: 
+    "header header"
+    "sidebar main";
+  grid-template-columns: 260px 1fr; /* Sidebar de 260px, resto para el main */
+  grid-template-rows: auto 1fr;     /* Header arriba, resto abajo */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* El header ocupa todo el ancho */
+.topbar {
+  grid-area: header;
+  z-index: 10;
+}
+
+/* El sidebar ahora baja hasta el fondo */
+.sidebar {
+  grid-area: sidebar;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+}
+
+/* El contenido principal hace su propio scroll */
+.main {
+  grid-area: main;
+  height: 100%;
+  overflow-y: auto;
+  background: #f8fafc; /* Fondo gris suave para las vistas */
+}
+
+/* --- MEJORAS EN LAS LETRAS DEL SIDEBAR --- */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-item {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  color: #475569 !important;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Estilo para la pestaña activa */
+.nav-item.active {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 600 !important;
+  border-left: 3px solid #2563eb;
+}
+/* --- Arreglar el grosor del Header Superior --- */
+.topbar {
+  height: 72px !important; /* Grosor fijo profesional */
+  min-height: 72px !important;
+  display: flex !important;
+  align-items: center !important; /* Centra el logo y textos verticalmente */
+  padding: 0 32px !important; /* Espacio a los lados */
+  box-sizing: border-box !important;
+}
+
+/* Ajustar el logo para que no se vea desproporcionado */
+.topbar .logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar .logo b {
+  font-size: 18px;
+}
+
+.topbar .logo em {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-left: 4px;
+  font-style: normal;
+}
+/* --- FORMULARIOS Y MODALES PERFECTOS --- */
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-input {
+  width: 100%;
+  height: 44px; /* Altura fija para todos */
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s;
+  background-color: white;
+}
+
+.form-input:focus {
+  border-color: var(--brand-text);
+  box-shadow: 0 0 0 3px rgba(77, 130, 255, 0.15);
+}
+
+/* Arreglar el select para que se vea como los inputs */
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-modal {
+  flex: 1;
+  height: 44px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.btn-cancel:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.btn-save {
+  background: var(--brand-text);
+  border: none;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #2563eb;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+/* --- RESETEO TOTAL DEL SIDEBAR --- */
+.sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px; /* Altura fija para que todos sean iguales */
+  padding: 0 16px !important;
+  border: none !important; /* Elimina el borde gris por defecto */
+  background: transparent !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box;
+}
+
+/* Evitar que el icono se encoja o crezca */
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Efecto al pasar el mouse */
+.nav-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Botón activo (Seleccionado) */
+.nav-item.active {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 600 !important;
+  box-shadow: inset 4px 0 0 0 #2563eb; /* Línea azul elegante a la izquierda */
+}
+/* --- REDISEÑO FINAL DEL SIDEBAR (ESTILO SAAS) --- */
+.sidebar {
+  padding: 16px 12px !important;
+}
+
+.nav-item {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 40px !important; /* Altura más compacta y elegante */
+  padding: 0 12px !important;
+  margin-bottom: 4px !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  cursor: pointer;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+  text-align: left;
+}
+
+/* Forzar que los textos no se desborden de la caja */
+.nav-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tamaño exacto para los iconos (para que no agranden el botón) */
+.nav-item svg {
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 10px !important;
+  flex-shrink: 0;
+}
+
+/* Hover suave */
+.nav-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Pestaña activa (Seleccionada) más limpia */
+.nav-item.active {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 600 !important;
+  box-shadow: none !important; /* Quitamos la sombra que hacía el recuadro grueso */
+  border-left: 3px solid #2563eb !important; /* Una línea limpia a la izquierda */
+  border-radius: 4px 6px 6px 4px !important;
+  padding-left: 9px !important; /* Ajuste por la línea del borde */
+}
