@@ -440,52 +440,62 @@ export default function App() {
 
           {/* VISTA 5: PASARELA DE PAGO EN 3 PASOS */}
           {route === 'pagar' && (
-            <div style={{ display: 'grid', gap: 20, maxWidth: 840, margin: '0 auto' }}>
+            <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
-                <div>
-                  <h1>Pagar Facturas</h1>
-                  <p>Pasarela de pago segura en 3 pasos con soporte para tarjeta, PayPal y transferencia bancaria.</p>
-                </div>
-                <button className="btn ghost" onClick={() => setRoute('facturas')}>← Volver</button>
+                <button className="btn sm ghost" onClick={() => setRoute('facturas')} style={{ paddingLeft: 0, marginBottom: 6 }}>
+                  ← Volver a Facturas y pagos
+                </button>
+                <h1>Pagar Facturas</h1>
+                <p className="lead">Pasarela de pago segura en 3 pasos con soporte para tarjeta, PayPal y transferencia bancaria.</p>
               </div>
 
-              {/* Indicador de pasos */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontWeight: payStep === 1 ? 700 : 500, color: payStep === 1 ? 'var(--brand)' : 'var(--muted)' }}>1. Elegir Facturas</span>
-                <span style={{ fontWeight: payStep === 2 ? 700 : 500, color: payStep === 2 ? 'var(--brand)' : 'var(--muted)' }}>2. Método de Pago</span>
-                <span style={{ fontWeight: payStep === 3 ? 700 : 500, color: payStep === 3 ? 'var(--brand)' : 'var(--muted)' }}>3. Confirmación</span>
-              </div>
+              {/* Indicador de pasos estilo prototipo */}
+              <ol className="pstep" aria-label="Pasos del pago">
+                <li className={payStep > 1 ? 'done' : payStep === 1 ? 'cur' : ''}>
+                  <span>{payStep > 1 ? <Icon name="check" className="sm" /> : 1}</span>
+                  <em>1. Elegir Facturas</em>
+                </li>
+                <li className={payStep > 2 ? 'done' : payStep === 2 ? 'cur' : ''}>
+                  <span>{payStep > 2 ? <Icon name="check" className="sm" /> : 2}</span>
+                  <em>2. Método de Pago</em>
+                </li>
+                <li className={payStep === 3 ? 'cur' : ''}>
+                  <span>3</span>
+                  <em>3. Confirmación</em>
+                </li>
+              </ol>
 
               {/* PASO 1: SELECCIONAR FACTURAS */}
               {payStep === 1 && (
-                <div className="card">
-                  <div className="card-h">
-                    <h2 className="sec">Selecciona las facturas que deseas cancelar</h2>
-                  </div>
-                  <div className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 12 }}>
-                    {INV.filter((i) => i.st !== 'pagada').map((inv) => (
-                      <label key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', background: selectedInvoices.includes(inv.id) ? 'var(--hover)' : 'transparent' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedInvoices.includes(inv.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) setSelectedInvoices([...selectedInvoices, inv.id]);
-                            else setSelectedInvoices(selectedInvoices.filter((id) => id !== inv.id));
-                          }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <b className="mono">{inv.id}</b> — {inv.desc}
-                          <small style={{ color: 'var(--muted)', display: 'block' }}>Vence el {inv.due}</small>
-                        </div>
-                        <strong className="num" style={{ fontSize: 15 }}>{money(inv.amt, inv.c)}</strong>
-                      </label>
-                    ))}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
-                      <div>
-                        <span style={{ color: 'var(--muted)' }}>Total a cancelar:</span>
-                        <h2 className="num" style={{ margin: 0, color: 'var(--brand-text)' }}>{money(totalToPay, cur)}</h2>
-                      </div>
+                <div className="pay-l">
+                  <section className="card">
+                    <div className="card-h">
+                      <h2>Elige qué facturas pagar</h2>
+                    </div>
+                    <ul className="rows">
+                      {INV.filter((i) => i.st !== 'pagada').map((inv) => (
+                        <li key={inv.id}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer', minWidth: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedInvoices.includes(inv.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedInvoices([...selectedInvoices, inv.id]);
+                                else setSelectedInvoices(selectedInvoices.filter((id) => id !== inv.id));
+                              }}
+                            />
+                            <div style={{ minWidth: 0 }}>
+                              <b className="mono">{inv.id}</b>
+                              <small>{inv.desc} · vence {inv.due}</small>
+                            </div>
+                          </label>
+                          <strong className="num" style={{ textAlign: 'right' }}>{money(inv.amt, inv.c)}</strong>
+                          {inv.st === 'vencida' ? <span className="chip danger">Vencida</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="card-b" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                      <button className="btn ghost" onClick={() => setRoute('facturas')}>Cancelar</button>
                       <button
                         className="btn primary"
                         disabled={selectedInvoices.length === 0}
@@ -494,115 +504,196 @@ export default function App() {
                         Continuar al Pago ({selectedInvoices.length}) →
                       </button>
                     </div>
-                  </div>
+                  </section>
+
+                  {/* Resumen lateral */}
+                  <aside className="card sumbox">
+                    <h2 className="sec">Resumen</h2>
+                    {selectedInvoices.map((id) => {
+                      const inv = INV.find((x) => x.id === id);
+                      return inv ? (
+                        <div key={id} className="ln">
+                          <span>{inv.id}</span>
+                          <span>{money(inv.amt, inv.c)}</span>
+                        </div>
+                      ) : null;
+                    })}
+                    <div className="ln tot">
+                      <span>Total a pagar</span>
+                      <span>{money(totalToPay, cur)}</span>
+                    </div>
+                  </aside>
                 </div>
               )}
 
               {/* PASO 2: MEDIO DE PAGO */}
               {payStep === 2 && (
-                <div className="card">
-                  <div className="card-h">
-                    <h2 className="sec">Elige cómo deseas pagar</h2>
-                    <span className="sub">Total: {money(totalToPay, cur)}</span>
-                  </div>
-                  <div className="card-b" style={{ padding: '20px', display: 'grid', gap: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                      <button
-                        type="button"
-                        onClick={() => setPayMethod('card')}
-                        className={`card ${payMethod === 'card' ? 'selected' : ''}`}
-                        style={{ padding: 16, textAlign: 'center', cursor: 'pointer', border: payMethod === 'card' ? '2px solid var(--brand)' : '1px solid var(--border)', background: payMethod === 'card' ? 'var(--hover)' : 'var(--surface)' }}
-                      >
-                        <Icon name="card" className="lg" />
-                        <b style={{ display: 'block', marginTop: 8 }}>Tarjeta de Crédito / Débito</b>
-                        <small style={{ color: 'var(--muted)' }}>Visa, Mastercard, Amex</small>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPayMethod('transfer')}
-                        className={`card ${payMethod === 'transfer' ? 'selected' : ''}`}
-                        style={{ padding: 16, textAlign: 'center', cursor: 'pointer', border: payMethod === 'transfer' ? '2px solid var(--brand)' : '1px solid var(--border)', background: payMethod === 'transfer' ? 'var(--hover)' : 'var(--surface)' }}
-                      >
-                        <Icon name="receipt" className="lg" />
-                        <b style={{ display: 'block', marginTop: 8 }}>Transferencia Bancaria</b>
-                        <small style={{ color: 'var(--muted)' }}>BCP, BBVA, Interbank</small>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPayMethod('paypal')}
-                        className={`card ${payMethod === 'paypal' ? 'selected' : ''}`}
-                        style={{ padding: 16, textAlign: 'center', cursor: 'pointer', border: payMethod === 'paypal' ? '2px solid var(--brand)' : '1px solid var(--border)', background: payMethod === 'paypal' ? 'var(--hover)' : 'var(--surface)' }}
-                      >
-                        <Icon name="globe" className="lg" />
-                        <b style={{ display: 'block', marginTop: 8 }}>PayPal</b>
-                        <small style={{ color: 'var(--muted)' }}>Pagos internacionales USD</small>
-                      </button>
+                <div className="pay-l">
+                  <section className="card">
+                    <div className="card-h">
+                      <h2>¿Cómo quieres pagar?</h2>
                     </div>
+                    <div className="card-b" style={{ display: 'grid', gap: 16 }}>
+                      <div className="methods">
+                        <button
+                          type="button"
+                          className="method"
+                          aria-checked={payMethod === 'card'}
+                          onClick={() => setPayMethod('card')}
+                        >
+                          <span className="ico"><Icon name="card" /></span>
+                          <span>
+                            <b>Tarjeta</b>
+                            <small>Visa, Mastercard, Amex</small>
+                          </span>
+                        </button>
 
-                    {/* Detalle del método elegido */}
-                    {payMethod === 'card' && (
-                      <div style={{ background: 'var(--surface-2)', padding: 18, borderRadius: 8, display: 'grid', gap: 12 }}>
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          <label style={{ fontSize: 12, fontWeight: 600 }}>Número de tarjeta</label>
-                          <input type="text" placeholder="•••• •••• •••• ••••" style={{ height: 38, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)' }} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <label style={{ fontSize: 12, fontWeight: 600 }}>Vencimiento (MM/AA)</label>
-                            <input type="text" placeholder="MM/AA" style={{ height: 38, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)' }} />
-                          </div>
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <label style={{ fontSize: 12, fontWeight: 600 }}>Código CVV</label>
-                            <input type="password" placeholder="•••" style={{ height: 38, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)' }} />
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          className="method"
+                          aria-checked={payMethod === 'transfer'}
+                          onClick={() => setPayMethod('transfer')}
+                        >
+                          <span className="ico"><Icon name="receipt" /></span>
+                          <span>
+                            <b>Transferencia</b>
+                            <small>BCP, BBVA, Interbank</small>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="method"
+                          aria-checked={payMethod === 'paypal'}
+                          onClick={() => setPayMethod('paypal')}
+                        >
+                          <span className="ico"><Icon name="globe" /></span>
+                          <span>
+                            <b>PayPal</b>
+                            <small>Pagos en dólares USD</small>
+                          </span>
+                        </button>
                       </div>
-                    )}
 
-                    {payMethod === 'transfer' && (
-                      <div style={{ background: 'var(--surface-2)', padding: 18, borderRadius: 8, display: 'grid', gap: 12 }}>
-                        <p style={{ margin: 0, fontSize: 13 }}>Transfiere a nuestra cuenta corriente BCP en Soles: <b>193-982145-0-22</b> (CCI: 0021930098214502214) a nombre de <b>AlojamientoPlus S.A.C.</b></p>
-                        <div style={{ border: '2px dashed var(--border-strong)', padding: 20, textAlign: 'center', borderRadius: 8, background: '#fff' }}>
-                          <input
-                            type="file"
-                            id="voucherFile"
-                            style={{ display: 'none' }}
-                            onChange={() => setVoucherUploaded(true)}
-                          />
-                          <label htmlFor="voucherFile" style={{ cursor: 'pointer', display: 'grid', gap: 6 }}>
+                      {/* Detalle del método elegido */}
+                      {payMethod === 'card' && (
+                        <div className="cardf">
+                          <div className="gw">
+                            <Icon name="lock" className="sm" />
+                            <span>Pasarela de pago segura y cifrada. Los datos no se almacenan.</span>
+                          </div>
+                          <div style={{ display: 'grid', gap: 4 }}>
+                            <label style={{ fontSize: 12.5, fontWeight: 600 }}>Número de tarjeta</label>
+                            <input type="text" placeholder="•••• •••• •••• ••••" className="input" />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div style={{ display: 'grid', gap: 4 }}>
+                              <label style={{ fontSize: 12.5, fontWeight: 600 }}>Vencimiento (MM/AA)</label>
+                              <input type="text" placeholder="MM/AA" className="input" />
+                            </div>
+                            <div style={{ display: 'grid', gap: 4 }}>
+                              <label style={{ fontSize: 12.5, fontWeight: 600 }}>Código CVV</label>
+                              <input type="password" placeholder="•••" className="input" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {payMethod === 'transfer' && (
+                        <div style={{ display: 'grid', gap: 14 }}>
+                          <div className="bank">
+                            <div className="row">
+                              <span>Titular:</span>
+                              <b>AlojamientoPlus S.A.C.</b>
+                            </div>
+                            <div className="row">
+                              <span>Cuenta BCP Soles:</span>
+                              <code>193-982145-0-22</code>
+                            </div>
+                            <div className="row">
+                              <span>CCI Interbancario:</span>
+                              <code>0021930098214502214</code>
+                            </div>
+                            <div className="row">
+                              <span>Monto exacto a transferir:</span>
+                              <b className="num" style={{ color: 'var(--brand-text)' }}>{money(totalToPay, cur)}</b>
+                            </div>
+                          </div>
+
+                          <label className="drop">
                             <Icon name="upload" className="lg" />
-                            <b>{voucherUploaded ? '✅ Voucher adjuntado con éxito' : 'Haz clic aquí para subir la foto de tu voucher'}</b>
-                            <small style={{ color: 'var(--muted)' }}>Formatos permitidos: JPG, PNG, PDF (máx. 5 MB)</small>
+                            <b style={{ color: 'var(--text)' }}>
+                              {voucherUploaded ? '✅ Voucher adjuntado con éxito' : 'Arrastra tu voucher aquí o haz clic para subir'}
+                            </b>
+                            <small>JPG, PNG o PDF · máximo 5 MB</small>
+                            <input
+                              type="file"
+                              onChange={() => setVoucherUploaded(true)}
+                              accept="image/*,application/pdf"
+                            />
                           </label>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-                      <button className="btn" onClick={() => setPayStep(1)}>← Modificar facturas</button>
-                      <button className="btn primary" onClick={() => setPayStep(3)}>Procesar Pago ({money(totalToPay, cur)}) →</button>
+                      {payMethod === 'paypal' && (
+                        <div style={{ display: 'grid', gap: 12 }}>
+                          <div className="gw">
+                            <Icon name="globe" className="sm" />
+                            <span>PayPal procesa en USD y aplica tarifa de transacción estándar internacional.</span>
+                          </div>
+                          <div className="bank">
+                            <div className="row">
+                              <span>Total en USD:</span>
+                              <b className="num">{money(totalToPay, 'USD')}</b>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                        <button className="btn" onClick={() => setPayStep(1)}>← Modificar facturas</button>
+                        <button className="btn primary" onClick={() => setPayStep(3)}>
+                          Procesar Pago ({money(totalToPay, cur)}) →
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </section>
+
+                  {/* Resumen lateral */}
+                  <aside className="card sumbox">
+                    <h2 className="sec">Resumen</h2>
+                    {selectedInvoices.map((id) => {
+                      const inv = INV.find((x) => x.id === id);
+                      return inv ? (
+                        <div key={id} className="ln">
+                          <span>{inv.id}</span>
+                          <span>{money(inv.amt, inv.c)}</span>
+                        </div>
+                      ) : null;
+                    })}
+                    <div className="ln tot">
+                      <span>Total a pagar</span>
+                      <span>{money(totalToPay, cur)}</span>
+                    </div>
+                  </aside>
                 </div>
               )}
 
               {/* PASO 3: CONFIRMACIÓN DE PAGO */}
               {payStep === 3 && (
-                <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--ok-bg)', color: 'var(--ok-text)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
-                    <Icon name="check" className="lg" />
+                <div className="card done-box">
+                  <div className={`big ${payMethod === 'transfer' ? 'warn' : ''}`}>
+                    <Icon name={payMethod === 'transfer' ? 'clock' : 'check'} className="lg" />
                   </div>
-                  <h2 style={{ fontSize: 24, margin: '0 0 8px' }}>
+                  <h2>
                     {payMethod === 'transfer' ? '¡Voucher recibido con éxito!' : '¡Pago realizado con éxito!'}
                   </h2>
-                  <p style={{ maxWidth: 480, margin: '0 auto 24px', color: 'var(--muted)', fontSize: 14 }}>
+                  <p>
                     {payMethod === 'transfer'
                       ? 'El comprobante ha sido derivado al área de finanzas. Validaremos tu pago en un plazo máximo de 24 horas hábiles y te enviaremos la constancia por correo.'
                       : 'Tu transacción ha sido aprobada. Enviamos la constancia oficial de pago a facturacion@andestravel.pe. Tus servicios continúan activos sin interrupciones.'}
                   </p>
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
                     <button className="btn" onClick={() => setRoute('facturas')}>Ver mis facturas</button>
                     <button className="btn primary" onClick={() => setRoute('servicios')}>Ir a mis servicios</button>
                   </div>
