@@ -809,36 +809,68 @@ export default function App() {
               <div className="phead">
                 <div>
                   <h1>Mis Dominios</h1>
-                  <p>Administración de zonas DNS, bloqueo de transferencia y fechas de expiración.</p>
+                  <p className="lead">Revisa vencimientos, renovación automática y titularidad. Los cambios sensibles se confirman con el contacto titular registrado.</p>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
+              <div className="lock">
+                <Icon name="lock" className="sm" />
+                <div>
+                  <strong>Bloqueo de seguridad de 60 días:</strong> Por normativa ICANN y de registros de dominios, un dominio recién registrado o transferido no puede moverse a otro proveedor durante sus primeros 60 días.
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 14 }}>
                 {DOMS.map((d) => (
-                  <article key={d.name} className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <b style={{ fontSize: 18 }}>{d.name}</b>
+                  <article key={d.name} className="card dom-card">
+                    <div className="dom-h">
+                      <Icon name="globe" />
+                      <b>{d.name}</b>
                       <span className="chip ok">Activo</span>
+                      {d.lockUntil && (
+                        <span className="chip outline">
+                          <Icon name="lock" className="sm" /> Bloqueado hasta {d.lockUntil} ({d.lockWhy})
+                        </span>
+                      )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
+                    <div className="dom-grid">
                       <div>
-                        <span style={{ color: 'var(--muted)', display: 'block' }}>Vence el:</span>
+                        <small>Vencimiento</small>
                         <b>{d.exp}</b>
                       </div>
                       <div>
-                        <span style={{ color: 'var(--muted)', display: 'block' }}>Autorenovación:</span>
-                        <b>{d.auto ? 'Activada' : 'Manual'}</b>
+                        <small>Titular</small>
+                        <b>{d.holder}</b>
                       </div>
-                      <div style={{ gridColumn: 'span 2' }}>
-                        <span style={{ color: 'var(--muted)', display: 'block' }}>Servidores DNS:</span>
-                        <span className="mono" style={{ fontSize: 12 }}>{d.ns}</span>
+                      <div>
+                        <small>Renovación</small>
+                        <b className="num">{money(d.price[0], d.price[1])} / año</b>
+                      </div>
+                      <div>
+                        <small>Renovación automática</small>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13, marginTop: 2 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.auto ? 'var(--ok)' : 'var(--muted)' }} />
+                          {d.auto ? 'Activada' : 'Manual'}
+                        </span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                      <span className="num" style={{ fontWeight: 700 }}>{money(d.price[0], d.price[1])} /año</span>
-                      <button className="btn sm">Gestionar DNS</button>
+                    <div className="dom-acts">
+                      <button className="btn sm" onClick={() => alert(`Contactos de ${d.name} actualizados en base de datos.`)}>
+                        <Icon name="user" className="sm" /> Actualizar Contactos
+                      </button>
+                      <button className="btn sm" disabled={!!d.lockUntil} title={d.lockUntil ? 'Bloqueado por 60 días' : ''}>
+                        Transferir dominio
+                      </button>
+                      <button className="btn sm ghost" onClick={() => alert(`Zona DNS de ${d.name}:\n${d.ns}`)}>
+                        Ver DNS
+                      </button>
+                      {!d.auto && (
+                        <button className="btn sm primary" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                          Renovar ahora
+                        </button>
+                      )}
                     </div>
                   </article>
                 ))}
@@ -1054,39 +1086,67 @@ export default function App() {
           {/* VISTA 9: RESPALDOS AUTOMÁTICOS */}
           {route === 'respaldos' && (
             <div style={{ display: 'grid', gap: 20 }}>
-              <div className="phead">
+              <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                  <h1>Copias de Seguridad (Respaldos)</h1>
-                  <p>Copias automáticas diarias de tus sitios web, bases de datos PostgreSQL/MySQL y cuentas de correo.</p>
+                  <h1>Respaldos Automáticos</h1>
+                  <p className="lead">Copias automáticas de tus sitios, bases de datos y correos. Si borraste algo por error, solicita una restauración asistida.</p>
                 </div>
-                <button className="btn primary" onClick={() => alert('Solicitud enviada a soporte')}>
-                  <Icon name="restore" className="sm" /> Solicitar Restauración Asistida
+                <button className="btn primary" onClick={() => alert('Solicitud de restauración asistida enviada a la guardia técnica.')}>
+                  <Icon name="restore" className="sm" /> Solicitar Restauración
                 </button>
               </div>
 
               <div className="card">
                 <div className="card-h">
-                  <h2 className="sec"><Icon name="archive" className="sm" /> Respaldos de los Últimos 14 Días</h2>
-                  <span className="sub">Todos los respaldos verificados e íntegros</span>
+                  <h2 className="sec"><Icon name="archive" className="sm" /> Tus respaldos (Últimos 14 días)</h2>
+                  <span className="sub" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    <span style={{ color: 'var(--ok-text)', fontWeight: 700 }}>■</span> exitoso &nbsp;&nbsp;
+                    <span style={{ color: 'var(--warn-text)', fontWeight: 700 }}>■</span> reintentado con éxito
+                  </span>
                 </div>
-                <div className="card-b" style={{ padding: '20px', display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-                    <div style={{ padding: 14, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-2)' }}>
-                      <b style={{ display: 'block' }}>Sitio web andestravel.pe</b>
-                      <small style={{ color: 'var(--muted)' }}>Último respaldo: Hoy 03:00 AM</small>
-                      <div style={{ marginTop: 8 }}><span className="chip ok">Exitoso (3.2 GB)</span></div>
+
+                <div className="card-b" style={{ padding: 0 }}>
+                  {[
+                    { id: 'sitio', name: 'Sitio web andestravel.pe', kind: 'Archivos del sitio WordPress', icon: 'browser', last: 'Hoy 03:10 AM', freq: 'Diario a las 03:00', ret: '30 días', size: '17.9 GB', hist: 'ooooofoooooooo' },
+                    { id: 'bd', name: 'Base de datos de reservas (PostgreSQL)', kind: 'Base de datos transaccional', icon: 'database', last: 'Hoy 06:00 AM', freq: 'Cada 6 horas', ret: '14 días', size: '2.1 GB', hist: 'oooooooooooooo' },
+                    { id: 'wpdb', name: 'Base de datos del sitio (MySQL)', kind: 'Base de datos relacional', icon: 'database', last: 'Hoy 03:25 AM', freq: 'Diario a las 03:00', ret: '30 días', size: '640 MB', hist: 'ooooorooooooo' },
+                    { id: 'mail', name: 'Correo empresarial (30 buzones IMAP)', kind: 'Buzones y adjuntos', icon: 'server', last: 'Ayer 23:40 PM', freq: 'Diario a las 23:00', ret: '14 días', size: '18.6 GB', hist: 'oooooooooooooo' },
+                    { id: 'vps', name: 'Servidor cloud (imagen completa snapshot)', kind: 'Snapshot de sistema operativo', icon: 'server', last: '05/10/2026 02:00', freq: 'Semanal (domingos)', ret: '4 semanas', size: '98 GB', hist: 'oooo' },
+                  ].map((b) => (
+                    <div key={b.id} className="bk">
+                      <div className="ico">
+                        <Icon name={b.icon as any} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <b style={{ fontSize: 14 }}>{b.name}</b>
+                        <small>{b.kind} · {b.freq} · se guardan {b.ret} · {b.size}</small>
+                        <div style={{ fontSize: 12, marginTop: 2, color: 'var(--muted)' }}>
+                          Último respaldo exitoso: <strong style={{ color: 'var(--text)' }}>{b.last}</strong>
+                        </div>
+                        <div className="days" aria-label={`Historial de ${b.name}`}>
+                          {[...b.hist].map((x, idx) => (
+                            <i key={idx} className={x === 'o' ? '' : 'r'} title={x === 'o' ? 'Exitoso' : 'Reintentado'} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <button
+                          className="btn sm"
+                          onClick={() => alert(`Iniciando restauración de respaldo de: ${b.name}`)}
+                        >
+                          <Icon name="restore" className="sm" /> Restaurar
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ padding: 14, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-2)' }}>
-                      <b style={{ display: 'block' }}>Base de datos Reservas</b>
-                      <small style={{ color: 'var(--muted)' }}>Último respaldo: Hoy 06:00 AM</small>
-                      <div style={{ marginTop: 8 }}><span className="chip ok">Exitoso (420 MB)</span></div>
-                    </div>
-                    <div style={{ padding: 14, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-2)' }}>
-                      <b style={{ display: 'block' }}>Buzones de Correo (30)</b>
-                      <small style={{ color: 'var(--muted)' }}>Último respaldo: Ayer 23:00 PM</small>
-                      <div style={{ marginTop: 8 }}><span className="chip ok">Exitoso (18.6 GB)</span></div>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lock" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                <Icon name="activity" className="sm" />
+                <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+                  <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>Política de restauración:</strong>
+                  Las restauraciones no tienen recargo adicional hasta 2 veces al mes. Por seguridad, el sistema crea un clon temporal de validación antes de sobreescribir la base de datos o el sitio en vivo.
                 </div>
               </div>
             </div>
