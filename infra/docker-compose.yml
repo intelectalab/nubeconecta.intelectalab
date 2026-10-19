@@ -108,9 +108,48 @@ services:
     networks:
       - hub_net
 
+  # ========================================================
+  # Web Pública (WordPress Multisite + Hub Connector Plugin)
+  # ========================================================
+  wordpress_db:
+    image: mariadb:10.11
+    container_name: hub_wp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: wp_password
+      MYSQL_ROOT_PASSWORD: wp_root_password
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    networks:
+      - hub_net
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    container_name: hub_wordpress
+    restart: unless-stopped
+    ports:
+      - "${WP_PORT:-8000}:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress_db:3306
+      WORDPRESS_DB_USER: wp_user
+      WORDPRESS_DB_PASSWORD: wp_password
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+      # Monta directamente nuestro plugin Hub Connector para que aparezca en el panel de WP
+      - ../plugins/hub-connector:/var/www/html/wp-content/plugins/hub-connector
+    depends_on:
+      - wordpress_db
+    networks:
+      - hub_net
+
 volumes:
   postgres_data:
   redis_data:
+  wp_db_data:
+  wordpress_data:
 
 networks:
   hub_net:
