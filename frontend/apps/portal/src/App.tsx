@@ -5,7 +5,7 @@ import { AssistantChat } from './components/AssistantChat';
 import './portal.css';
 
 export default function App() {
-  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos'>('resumen');
+  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil'>('resumen');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('sitio');
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TK-10482');
   const [cur, setCur] = useState<'PEN' | 'USD'>('PEN');
@@ -28,13 +28,32 @@ export default function App() {
     return `${cur === 'PEN' ? 'S/' : 'US$'} ${val.toFixed(2)}`;
   };
 
-  const navItems = [
-    { id: 'resumen', label: 'Resumen', icon: 'home' },
-    { id: 'servicios', label: 'Mis servicios', icon: 'server', badge: SRV.filter((s) => s.st === 'warn').length },
-    { id: 'dominios', label: 'Dominios', icon: 'globe' },
-    { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: INV.filter((i) => i.st !== 'pagada').length },
-    { id: 'soporte', label: 'Soporte', icon: 'msg' },
-    { id: 'respaldos', label: 'Respaldos', icon: 'archive' },
+  const navGroups = [
+    {
+      title: 'Mi cuenta',
+      items: [
+        { id: 'resumen', label: 'Resumen', icon: 'home' },
+        { id: 'servicios', label: 'Mis servicios', icon: 'server', badge: SRV.filter((s) => s.st === 'warn').length },
+        { id: 'dominios', label: 'Dominios', icon: 'globe' },
+        { id: 'respaldos', label: 'Respaldos', icon: 'archive' },
+      ],
+    },
+    {
+      title: 'Pagos y soporte',
+      items: [
+        { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: INV.filter((i) => i.st !== 'pagada').length },
+        { id: 'soporte', label: 'Centro de soporte', icon: 'msg' },
+      ],
+    },
+    {
+      title: 'Mi empresa',
+      items: [
+        { id: 'contratos', label: 'Contratos y acuerdos', icon: 'contract' },
+        { id: 'usuarios', label: 'Usuarios del equipo', icon: 'users' },
+        { id: 'seguridad', label: 'Seguridad y 2FA', icon: 'shield' },
+        { id: 'perfil', label: 'Datos fiscales (RUC)', icon: 'building' },
+      ],
+    },
   ];
 
   const selectedService = SRV.find((s) => s.id === selectedServiceId) || SRV[0];
@@ -111,30 +130,33 @@ export default function App() {
           </div>
         </div>
 
-        <div className="nav-title">Módulos</div>
-        <div style={{ display: 'grid', gap: 2 }}>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'servicios') setRoute('servicios');
-                else if (item.id === 'facturas') setRoute('facturas');
-                else if (item.id === 'soporte') setRoute('soporte');
-                else setRoute(item.id as any);
-              }}
-              className={`nav-item ${route.startsWith(item.id) ? 'active' : ''}`}
-              style={{ width: '100%', border: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
-            >
-              <Icon name={item.icon} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge ? (
-                <span className={`cnt ${item.id === 'facturas' ? 'hot' : ''}`}>
-                  {item.badge}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
+        {navGroups.map((group, gIdx) => (
+          <div key={gIdx} style={{ marginBottom: 10 }}>
+            <div className="nav-title">{group.title}</div>
+            <div style={{ display: 'grid', gap: 2 }}>
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (item.id === 'servicios') setRoute('servicios');
+                    else if (item.id === 'facturas') setRoute('facturas');
+                    else if (item.id === 'soporte') setRoute('soporte');
+                    else setRoute(item.id as any);
+                  }}
+                  className={`nav-item ${route === item.id || (item.id === 'servicios' && route === 'servicio-detalle') || (item.id === 'soporte' && route === 'ticket-detalle') || (item.id === 'facturas' && route === 'pagar') ? 'active' : ''}`}
+                >
+                  <Icon name={item.icon} />
+                  <span>{item.label}</span>
+                  {item.badge ? (
+                    <span className={`cnt ${item.id === 'facturas' ? 'hot' : ''}`}>
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Main Content Area */}
@@ -155,6 +177,10 @@ export default function App() {
               {route === 'soporte' && 'Centro de soporte'}
               {route === 'ticket-detalle' && selectedTicket.id}
               {route === 'respaldos' && 'Respaldos automáticos'}
+              {route === 'contratos' && 'Contratos y acuerdos legales'}
+              {route === 'usuarios' && 'Usuarios de la empresa'}
+              {route === 'seguridad' && 'Seguridad de la cuenta y 2FA'}
+              {route === 'perfil' && 'Datos de facturación fiscal'}
             </span>
           </div>
 
@@ -224,46 +250,44 @@ export default function App() {
                 {/* KPIs principales */}
                 <section className="kpis" aria-label="Indicadores clave">
                   <div className="card kpi" onClick={() => setRoute('servicios')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                    <span className="lbl" >
                       <span className="ico ok"><Icon name="server" className="sm" /></span>
                       Servicios activos
                     </span>
-                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{SRV.length}</span>
-                    <span className="meta" style={{ fontSize: 12, color: warnServices.length ? 'var(--warn-text)' : 'var(--ok-text)' }}>
+                    <span className="val num" >{SRV.length}</span>
+                    <span className="meta" style={{ color: warnServices.length ? 'var(--warn-text)' : 'var(--ok-text)' }}>
                       {warnServices.length ? `${warnServices.length} requiere atención` : 'Todo operativo'}
                     </span>
                   </div>
 
                   <div className="card kpi" onClick={() => setRoute('facturas')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                    <span className="lbl" >
                       <span className="ico warn"><Icon name="wallet" className="sm" /></span>
                       Saldo por pagar
                     </span>
-                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{money(totalPend, cur)}</span>
-                    <span className="meta" style={{ fontSize: 12, color: overdue.length ? 'var(--danger-text)' : 'var(--muted)' }}>
+                    <span className="val num" >{money(totalPend, cur)}</span>
+                    <span className="meta" style={{ color: overdue.length ? 'var(--danger-text)' : 'var(--muted)' }}>
                       {pendInvoices.length} facturas pendientes
                     </span>
                   </div>
 
                   <div className="card kpi" onClick={() => setRoute('dominios')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                    <span className="lbl" >
                       <span className="ico"><Icon name="globe" className="sm" /></span>
                       Dominios activos
                     </span>
-                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{DOMS.length}</span>
-                    <span className="meta" style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      .pe y .com vigentes
+                    <span className="val num" >{DOMS.length}</span>
+                    <span className="meta" >.pe y .com vigentes
                     </span>
                   </div>
 
                   <div className="card kpi" onClick={() => setRoute('soporte')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                    <span className="lbl" >
                       <span className="ico"><Icon name="msg" className="sm" /></span>
                       Tickets de atención
                     </span>
-                    <span className="val num" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{openTickets.length}</span>
-                    <span className="meta" style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      Respuesta promedio &lt; 15 min
+                    <span className="val num" >{openTickets.length}</span>
+                    <span className="meta" >Respuesta promedio &lt; 15 min
                     </span>
                   </div>
                 </section>
@@ -350,7 +374,7 @@ export default function App() {
               <div className="phead">
                 <div>
                   <h1>Mis Servicios Contratados</h1>
-                  <p>Estado, recursos consumidos y renovación de tu infraestructura contratada.</p>
+                  <p className="lead">{SRV.every((s) => s.st === 'ok') ? 'Todo funciona con normalidad. Todos tus servicios operan sin incidencias.' : `${SRV.filter((s) => s.st !== 'ok').length} servicio(s) requiere(n) atención.`}</p>
                 </div>
               </div>
 
@@ -1341,6 +1365,237 @@ export default function App() {
                 <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
                   <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>Política de restauración:</strong>
                   Las restauraciones no tienen recargo adicional hasta 2 veces al mes. Por seguridad, el sistema crea un clon temporal de validación antes de sobreescribir la base de datos o el sitio en vivo.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 10: CONTRATOS Y DOCUMENTOS */}
+          {route === 'contratos' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="phead">
+                <div>
+                  <h1>Contratos y Documentos Legales</h1>
+                  <p className="lead">Acuerdos de servicio vigentes aceptados con valor legal, anexos de SLA y comprobantes tributarios.</p>
+                </div>
+              </div>
+
+              <div className="alert info">
+                <span className="ico"><Icon name="file" /></span>
+                <div className="tx">
+                  <b>Nueva versión 5.2 de Términos y Condiciones del Servicio</b>
+                  <small>Vigente desde el 01/11/2026. Revísala y acéptala antes de esa fecha para continuar con el servicio regular.</small>
+                </div>
+                <button className="btn sm primary" onClick={() => alert('Modal para revisar nueva versión 5.2')}>
+                  Revisar versión 5.2
+                </button>
+              </div>
+
+              <div className="card">
+                <div className="card-h">
+                  <h2 className="sec"><Icon name="contract" className="sm" /> Acuerdos Aceptados</h2>
+                </div>
+                <ul className="rows">
+                  {[
+                    { id: 'contrato', name: 'Contrato de prestación de servicios de hosting y nube', ver: '3.2', acc: '15/03/2024 10:12', by: 'Lucía Quispe Mamani' },
+                    { id: 'tyc', name: 'Términos y condiciones del servicio', ver: '5.1', acc: '02/01/2026 09:40', by: 'Lucía Quispe Mamani' },
+                    { id: 'sla', name: 'Acuerdo de nivel de servicio (SLA 99.9%)', ver: '1.8', acc: '01/07/2025 11:05', by: 'Lucía Quispe Mamani' },
+                    { id: 'priv', name: 'Política de privacidad y protección de datos (Ley N.° 29733)', ver: '2.4', acc: '20/02/2025 16:30', by: 'Jorge Huamán Ccori' },
+                    { id: 'dom', name: 'Condiciones de registro de dominios (.pe y genéricos)', ver: '1.3', acc: '01/09/2026 08:50', by: 'Lucía Quispe Mamani' },
+                  ].map((d) => (
+                    <li key={d.id} className="doc">
+                      <div className="ico">
+                        <Icon name="file" className="sm" />
+                      </div>
+                      <div className="tx">
+                        <b style={{ fontSize: 14 }}>{d.name}</b>
+                        <small style={{ color: 'var(--muted)', display: 'block', fontSize: 12.5 }}>
+                          Versión <span className="mono">{d.ver}</span> · Aceptado el {d.acc} por {d.by}
+                        </small>
+                      </div>
+                      <div className="acts">
+                        <button className="btn sm" onClick={() => alert(`Visualizando documento: ${d.name}`)}>Ver</button>
+                        <button className="btn sm ghost" onClick={() => alert(`Descargando copia legal certificada PDF: ${d.name}`)}>PDF</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 11: USUARIOS DE LA EMPRESA */}
+          {route === 'usuarios' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h1>Usuarios de la Empresa</h1>
+                  <p className="lead">Control de accesos para tu equipo. Asigna permisos según sus funciones sin compartir contraseñas.</p>
+                </div>
+                <button className="btn primary" onClick={() => alert('Modal para invitar nuevo usuario')}>
+                  <Icon name="plus" className="sm" /> Invitar Usuario
+                </button>
+              </div>
+
+              <div className="card">
+                <div className="card-h">
+                  <h2 className="sec"><Icon name="users" className="sm" /> Personas con Acceso</h2>
+                  <span className="sub">4 integrantes registrados</span>
+                </div>
+                <ul className="rows">
+                  {[
+                    { name: 'Lucía Quispe Mamani', mail: 'lucia.quispe@andestravel.pe', role: 'Administrador', me: true, st: 'activo', last: 'Hoy 09:02' },
+                    { name: 'Jorge Huamán Ccori', mail: 'jorge.huaman@andestravel.pe', role: 'Facturación', me: false, st: 'activo', last: '05/10/2026 16:40' },
+                    { name: 'Diego Ramos Salas', mail: 'diego.ramos@andestravel.pe', role: 'Técnico', me: false, st: 'activo', last: '07/10/2026 10:18' },
+                    { name: 'Milagros Condori', mail: 'contabilidad@andestravel.pe', role: 'Facturación', me: false, st: 'pendiente', last: 'Invitación enviada 06/10' },
+                  ].map((u, i) => (
+                    <li key={i} className="urow">
+                      <div className="av">
+                        {u.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <div className="tx">
+                        <b>
+                          {u.name} {u.me && <span className="chip outline" style={{ fontSize: 11, marginLeft: 6 }}>Tú</span>}
+                        </b>
+                        <small>
+                          {u.mail} · {u.st === 'pendiente' ? u.last : `Último acceso: ${u.last}`}
+                        </small>
+                      </div>
+                      <span className={`chip ${u.role === 'Administrador' ? 'info' : 'outline'}`}>{u.role}</span>
+                      {u.st === 'pendiente' ? (
+                        <span className="chip warn">Pendiente</span>
+                      ) : null}
+                      {!u.me && (
+                        <button className="btn sm ghost" onClick={() => alert(`Configuración de rol para ${u.name}`)}>
+                          Editar rol
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Roles descriptivos */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+                <div className="card" style={{ padding: '14px 18px', fontSize: 13 }}>
+                  <b style={{ color: 'var(--brand-text)', fontSize: 14 }}>Administrador</b>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>Acceso total. Ve y paga facturas, gestiona servicios, usuarios y datos fiscales.</p>
+                </div>
+                <div className="card" style={{ padding: '14px 18px', fontSize: 13 }}>
+                  <b style={{ color: 'var(--text)', fontSize: 14 }}>Facturación</b>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>Consulta comprobantes SUNAT, descarga XML/PDF y sube vouchers de transferencia.</p>
+                </div>
+                <div className="card" style={{ padding: '14px 18px', fontSize: 13 }}>
+                  <b style={{ color: 'var(--text)', fontSize: 14 }}>Técnico</b>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>Gestión técnica, acceso cPanel, apertura de tickets y solicitud de respaldos.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 12: SEGURIDAD Y 2FA */}
+          {route === 'seguridad' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="phead">
+                <div>
+                  <h1>Seguridad de la Cuenta</h1>
+                  <p className="lead">Protege el acceso a tus servicios web y base de datos con políticas de acceso y doble factor.</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 18 }}>
+                {/* Cambio de Contraseña */}
+                <div className="card">
+                  <div className="card-h">
+                    <h2 className="sec"><Icon name="key" className="sm" /> Cambiar Contraseña</h2>
+                  </div>
+                  <form onSubmit={(e) => { e.preventDefault(); alert('Contraseña actualizada con éxito.'); }} className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 14 }}>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      <label style={{ fontSize: 12.5, fontWeight: 600 }}>Contraseña actual</label>
+                      <input className="input" type="password" placeholder="••••••••••••" required />
+                    </div>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      <label style={{ fontSize: 12.5, fontWeight: 600 }}>Nueva contraseña</label>
+                      <input className="input" type="password" placeholder="Mínimo 10 caracteres alfanuméricos" required />
+                    </div>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      <label style={{ fontSize: 12.5, fontWeight: 600 }}>Confirmar nueva contraseña</label>
+                      <input className="input" type="password" placeholder="Repite la contraseña" required />
+                    </div>
+                    <button type="submit" className="btn primary" style={{ justifySelf: 'start', marginTop: 4 }}>
+                      Guardar nueva contraseña
+                    </button>
+                  </form>
+                </div>
+
+                {/* Autenticación en Dos Pasos (2FA) */}
+                <div className="card">
+                  <div className="card-h">
+                    <h2 className="sec"><Icon name="shield" className="sm" /> Doble Factor (2FA / MFA)</h2>
+                  </div>
+                  <div className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 14, fontSize: 13 }}>
+                    <div className="state on">
+                      <div className="ico">
+                        <Icon name="check" className="lg" />
+                      </div>
+                      <div className="tx">
+                        <b>Autenticador TOTP Activado</b>
+                        <small>Google Authenticator / Microsoft Authenticator</small>
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, color: 'var(--muted)', fontSize: 12.5 }}>
+                      Cada vez que inicies sesión desde una nueva ubicación se solicitará el código dinámico de 6 dígitos.
+                    </p>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', gap: 8 }}>
+                      <button className="btn sm" onClick={() => alert('Mostrando códigos de recuperación de respaldo')}>
+                        Ver códigos de respaldo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 13: DATOS FISCALES / PERFIL */}
+          {route === 'perfil' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="phead">
+                <div>
+                  <h1>Datos de Facturación Fiscal</h1>
+                  <p className="lead">Información tributaria registrada para emisión de Facturas Electrónicas SUNAT.</p>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 className="sec"><Icon name="building" className="sm" /> Empresa Titular</h2>
+                  <span className="chip ok">RUC Habido y Activo</span>
+                </div>
+                <div className="card-b" style={{ padding: '16px 20px', display: 'grid', gap: 14 }}>
+                  <dl className="kv" style={{ gridTemplateColumns: '180px 1fr' }}>
+                    <dt>Razón Social</dt>
+                    <dd>{CLIENT.name}</dd>
+                    <dt>Número de RUC</dt>
+                    <dd className="mono">{CLIENT.ruc}</dd>
+                    <dt>Dirección Fiscal</dt>
+                    <dd>Av. El Sol 845, Oficina 302, Cusco - Perú</dd>
+                    <dt>Correo Facturación</dt>
+                    <dd>facturacion@andestravel.pe</dd>
+                    <dt>Representante Legal</dt>
+                    <dd>Lucía Quispe Mamani</dd>
+                    <dt>Régimen Tributario</dt>
+                    <dd>Régimen MYPE Tributario</dd>
+                  </dl>
+
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                    <small style={{ color: 'var(--muted)' }}>
+                      Para modificaciones de Razón Social o RUC, se requiere adjuntar la Ficha RUC actualizada.
+                    </small>
+                    <button className="btn sm primary" onClick={() => alert('Solicitud de actualización de datos fiscales enviada a administración.')}>
+                      Solicitar Modificación de Datos
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
