@@ -330,22 +330,34 @@ export default function App() {
                         <h2 className="sec">Accesos Rápidos</h2>
                       </div>
                       <div className="card-b" style={{ padding: '12px 16px' }}>
-                        <div className="qa" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                          <button onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
+                        <div className="qa" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                          <button type="button" onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
                             <span className="ico"><Icon name="external" /></span>
-                            <div><b>cPanel</b><small>andestravel.pe</small></div>
+                            <div className="txt">
+                              <b>Abrir cPanel</b>
+                              <small>andestravel.pe</small>
+                            </div>
                           </button>
-                          <button onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                          <button type="button" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
                             <span className="ico"><Icon name="card" /></span>
-                            <div><b>Pagar Facturas</b><small>3 pasos seguros</small></div>
+                            <div className="txt">
+                              <b>Pagar facturas</b>
+                              <small>Tarjeta, PayPal o banco</small>
+                            </div>
                           </button>
-                          <button onClick={() => setRoute('soporte')}>
+                          <button type="button" onClick={() => setRoute('soporte')}>
                             <span className="ico"><Icon name="msg" /></span>
-                            <div><b>Crear Ticket</b><small>Guardia NOC 24/7</small></div>
+                            <div className="txt">
+                              <b>Crear ticket</b>
+                              <small>Guardia NOC 24/7</small>
+                            </div>
                           </button>
-                          <button onClick={() => setRoute('respaldos')}>
+                          <button type="button" onClick={() => setRoute('respaldos')}>
                             <span className="ico"><Icon name="restore" /></span>
-                            <div><b>Respaldos</b><small>Copias diarias</small></div>
+                            <div className="txt">
+                              <b>Respaldos</b>
+                              <small>Copias diarias seguras</small>
+                            </div>
                           </button>
                         </div>
                       </div>
