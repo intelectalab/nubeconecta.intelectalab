@@ -146,7 +146,7 @@ export default function App() {
                   className={`nav-item ${route === item.id || (item.id === 'servicios' && route === 'servicio-detalle') || (item.id === 'soporte' && route === 'ticket-detalle') || (item.id === 'facturas' && route === 'pagar') ? 'active' : ''}`}
                 >
                   <Icon name={item.icon} />
-                  <span>{item.label}</span>
+                  <span className="lbl">{item.label}</span>
                   {item.badge ? (
                     <span className={`cnt ${item.id === 'facturas' ? 'hot' : ''}`}>
                       {item.badge}
