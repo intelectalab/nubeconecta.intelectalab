@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Icon } from '@hub/ui';
 import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { AssistantChat } from './components/AssistantChat';
+import { LoginView } from './components/LoginView';
 import './portal.css';
 
 export default function App() {
-  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil'>('resumen');
+  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil' | 'acceso'>('resumen');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('sitio');
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TK-10482');
   const [cur, setCur] = useState<'PEN' | 'USD'>('PEN');
@@ -17,6 +18,7 @@ export default function App() {
   const [ticketsList, setTicketsList] = useState(TK);
   const [invFilter, setInvFilter] = useState<'pend' | 'paid' | 'all'>('pend');
   const [tkFilter, setTkFilter] = useState<'abiertos' | 'cerrados' | 'todos'>('abiertos');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const TC = 3.75;
   const conv = (amt: number, from: 'PEN' | 'USD') => {
@@ -78,6 +80,15 @@ export default function App() {
     setNewReply('');
   };
 
+  if (route === 'acceso') {
+    return (
+      <LoginView
+        onLoginSuccess={() => setRoute('resumen')}
+        onCancel={() => setRoute('resumen')}
+      />
+    );
+  }
+
   return (
     <div className="app" id="app">
       {/* Topbar oficial de AlojamientoPlus */}
@@ -109,15 +120,42 @@ export default function App() {
           <span className="tb-dot" />
         </button>
 
-        <button className="tb-user" aria-label="Usuario">
-          <span className="av" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>
-            LQ
-          </span>
-          <span className="who" style={{ textAlign: 'left', lineHeight: 1.2 }}>
-            <strong style={{ fontSize: 13, display: 'block' }}>Lucía Quispe</strong>
-            <small style={{ color: 'var(--topbar-muted)', fontSize: 11 }}>{CLIENT.name}</small>
-          </span>
-        </button>
+        <div className="anchor">
+          <button className="tb-user" aria-label="Usuario" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+            <span className="av" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>
+              LQ
+            </span>
+            <span className="who" style={{ textAlign: 'left', lineHeight: 1.2 }}>
+              <strong style={{ fontSize: 13, display: 'block' }}>Lucía Quispe</strong>
+              <small style={{ color: 'var(--topbar-muted)', fontSize: 11 }}>{CLIENT.name}</small>
+            </span>
+          </button>
+
+          {userMenuOpen && (
+            <div className="pop open umenu" style={{ display: 'block', top: 'calc(100% + 8px)', right: 0, width: 230 }}>
+              <div className="who">
+                <b>Lucía Quispe Mamani</b>
+                <small>{CLIENT.name} · Administradora</small>
+              </div>
+              <div className="ttl">Tu cuenta</div>
+              <button type="button" className="mi" onClick={() => { setRoute('perfil'); setUserMenuOpen(false); }}>
+                <Icon name="building" className="sm" /> Datos de facturación
+              </button>
+              <button type="button" className="mi" onClick={() => { setRoute('seguridad'); setUserMenuOpen(false); }}>
+                <Icon name="shield" className="sm" /> Seguridad y 2FA
+              </button>
+              <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
+              <button
+                type="button"
+                className="mi"
+                style={{ color: 'var(--danger-text)' }}
+                onClick={() => { setUserMenuOpen(false); setRoute('acceso'); }}
+              >
+                <Icon name="logout" className="sm" /> Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Sidebar de navegación */}
@@ -159,6 +197,18 @@ export default function App() {
             </div>
           </div>
         ))}
+
+        <div className="nav-foot">
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => setRoute('acceso')}
+            style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'var(--muted)', fontSize: 13 }}
+          >
+            <Icon name="lock" />
+            <span>Pantalla de acceso (login)</span>
+          </button>
+        </div>
       </nav>
 
       {/* Main Content Area */}
