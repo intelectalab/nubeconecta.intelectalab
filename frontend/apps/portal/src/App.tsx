@@ -131,8 +131,10 @@ export default function App() {
         </div>
 
         {navGroups.map((group, gIdx) => (
-          <div key={gIdx} style={{ marginBottom: 10 }}>
-            <div className="nav-title">{group.title}</div>
+          <div key={gIdx} className="nav-group">
+            <div className="nav-title">
+              <span>{group.title}</span>
+            </div>
             <div style={{ display: 'grid', gap: 2 }}>
               {group.items.map((item) => (
                 <button
