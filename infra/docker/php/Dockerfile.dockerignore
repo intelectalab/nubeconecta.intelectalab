@@ -1,0 +1,19 @@
+# Contexto de build = raíz del repo. Solo entran backend/, database/ y el entrypoint.
+**
+!backend/
+!database/
+!infra/docker/php/entrypoint.sh
+
+backend/vendor/
+backend/node_modules/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/pail/
+backend/bootstrap/cache/*.php
+backend/.phpunit.result.cache
+backend/public/hot

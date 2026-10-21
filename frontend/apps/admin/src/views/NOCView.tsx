@@ -37,7 +37,7 @@ export default function NOCView() {
       tl.add(`.progress-acc-${index}`, { width: `${accPct}%` }, 200);
       if (ramPct > 0) tl.add(`.progress-ram-${index}`, { width: `${ramPct}%` }, '<');
     });
-    return () => tl.pause();
+    return () => { tl.pause(); };
   }, [nodes]);
 
   useEffect(() => {

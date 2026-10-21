@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+| Contraseñas con Argon2id (database/schema.sql: users.password_hash, M-IDN §2).
+| En pruebas se bajan memoria y tiempo con ARGON_MEMORY / ARGON_TIME (phpunit.xml).
+*/
+
+return [
+    'driver' => env('HASH_DRIVER', 'argon2id'),
+
+    'bcrypt' => [
+        'rounds' => env('BCRYPT_ROUNDS', 12),
+        'verify' => env('HASH_VERIFY', true),
+        'limit' => env('BCRYPT_LIMIT', null),
+    ],
+
+    'argon' => [
+        'memory' => (int) env('ARGON_MEMORY', 65536),
+        'threads' => (int) env('ARGON_THREADS', 1),
+        'time' => (int) env('ARGON_TIME', 4),
+        'verify' => env('HASH_VERIFY', true),
+    ],
+
+    'rehash_on_login' => true,
+];

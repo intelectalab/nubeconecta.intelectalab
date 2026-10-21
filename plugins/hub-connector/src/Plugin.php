@@ -143,11 +143,74 @@ class Plugin
         return '<p>Teléfono: +51 984 512 337 | Correo: contacto@alojamientoplus.pe</p>';
     }
 
+    /**
+     * Aviso de invalidación firmado por el sistema (docs/13 §6).
+     * La ruta es pública: la autenticación es la firma HMAC de X-Hub-Signature.
+     */
     public function handleCacheInvalidation(\WP_REST_Request $request): \WP_REST_Response
     {
-        // Invalida cachés del catálogo cuando el backend hace cambios
+        // 1. Cuerpo crudo, antes de decodificar el JSON, con tamaño limitado.
+        $raw = (string) $request->get_body();
+        if ($raw === '' || strlen($raw) > 65536) {
+            return new \WP_REST_Response(['error' => 'invalid_body'], 400);
+        }
+
+        // 2. Firma: t=<marca de tiempo>,v1=<hex>, comparada en tiempo constante.
+        $header = (string) $request->get_header('x_hub_signature');
+        if (!preg_match('/^t=(\d+),v1=([a-f0-9]{64})$/', $header, $m)) {
+            return new \WP_REST_Response(['error' => 'invalid_signature'], 401);
+        }
+        $timestamp = (int) $m[1];
+        $signature = $m[2];
+
+        $settings = get_option('hub_connector_settings', []);
+        $secrets = array_filter([
+            $settings['webhook_secret'] ?? '',
+            $settings['previous_webhook_secret'] ?? '',
+        ]);
+        $valid = false;
+        foreach ($secrets as $secret) {
+            if (hash_equals(hash_hmac('sha256', $timestamp . '.' . $raw, $secret), $signature)) {
+                $valid = true;
+                break;
+            }
+        }
+        if (!$valid) {
+            return new \WP_REST_Response(['error' => 'invalid_signature'], 401);
+        }
+
+        // 3. Ventana de 5 minutos.
+        if (abs(time() - $timestamp) > 300) {
+            return new \WP_REST_Response(['error' => 'stale_signature'], 401);
+        }
+
+        $body = json_decode($raw, true);
+        if (!is_array($body) || empty($body['event_id']) || empty($body['scope'])) {
+            return new \WP_REST_Response(['error' => 'invalid_body'], 400);
+        }
+
+        // 4. event_id repetido: 200 sin hacer nada (lista de 24 h).
+        $seen = get_transient('hubc_seen_events');
+        $seen = is_array($seen) ? $seen : [];
+        $eventId = (string) $body['event_id'];
+        if (in_array($eventId, $seen, true)) {
+            return new \WP_REST_Response(['status' => 'duplicate'], 200);
+        }
+
+        // 5. La marca debe ser la del sitio.
+        $siteBrand = (string) ($settings['brand'] ?? '');
+        if ($siteBrand === '' || (string) ($body['brand'] ?? '') !== $siteBrand) {
+            return new \WP_REST_Response(['error' => 'brand_mismatch'], 409);
+        }
+
+        $seen[] = $eventId;
+        set_transient('hubc_seen_events', array_slice($seen, -500), DAY_IN_SECONDS);
+
+        // Borrado por alcance pendiente de la caché por claves (docs/13 §6); hoy solo existe la del catálogo.
         delete_transient('hub_catalog_cache');
-        return new \WP_REST_Response(['status' => 'cache_invalidated', 'time' => time()], 200);
+        do_action('hub_connector_cache_invalidated', (string) $body['scope'], $body['keys'] ?? []);
+
+        return new \WP_REST_Response(['status' => 'processed'], 200);
     }
 
     public function renderAdminSettings(): void
@@ -158,11 +221,21 @@ class Plugin
 
         if (isset($_POST['hub_save_settings'])) {
             check_admin_referer('hub_save_settings_verify');
+            $previous = get_option('hub_connector_settings', []);
             $settings = [
                 'hub_url' => esc_url_raw($_POST['hub_url'] ?? ''),
                 'portal_url' => esc_url_raw($_POST['portal_url'] ?? ''),
                 'api_token' => sanitize_text_field($_POST['api_token'] ?? ''),
+                'brand' => sanitize_key($_POST['brand'] ?? ''),
             ];
+            // Los secretos vacíos en el formulario conservan el valor guardado.
+            foreach (['webhook_secret', 'previous_webhook_secret'] as $key) {
+                $value = sanitize_text_field($_POST[$key] ?? '');
+                $settings[$key] = $value !== '' ? $value : ($previous[$key] ?? '');
+            }
+            if (!empty($_POST['clear_previous_webhook_secret'])) {
+                $settings['previous_webhook_secret'] = '';
+            }
             update_option('hub_connector_settings', $settings);
             echo '<div class="updated"><p>Configuración guardada correctamente.</p></div>';
         }
@@ -180,6 +253,9 @@ class Plugin
         echo '<tr><th><label for="hub_url">URL de la API Hub (Backend)</label></th><td><input type="url" name="hub_url" id="hub_url" value="' . $hubUrl . '" class="regular-text"><p class="description">Ejemplo: https://api.alojamientoplus.pe o http://localhost:8080</p></td></tr>';
         echo '<tr><th><label for="portal_url">URL del Portal de Clientes (Frontend React)</label></th><td><input type="url" name="portal_url" id="portal_url" value="' . $portalUrl . '" class="regular-text"><p class="description">URL donde el cliente completa la compra y gestiona sus servicios.</p></td></tr>';
         echo '<tr><th><label for="api_token">Token del Sitio (Solo Lectura)</label></th><td><input type="password" name="api_token" id="api_token" value="' . $apiToken . '" class="regular-text"></td></tr>';
+        echo '<tr><th><label for="brand">Marca del sitio</label></th><td><input type="text" name="brand" id="brand" value="' . esc_attr($settings['brand'] ?? '') . '" class="regular-text"><p class="description">Código de la marca; los avisos de otra marca se rechazan.</p></td></tr>';
+        echo '<tr><th><label for="webhook_secret">Secreto de avisos (webhook)</label></th><td><input type="password" name="webhook_secret" id="webhook_secret" value="" autocomplete="new-password" class="regular-text"><p class="description">' . (empty($settings['webhook_secret']) ? 'Sin configurar: todos los avisos se rechazan.' : 'Configurado. Déjalo vacío para conservarlo.') . '</p></td></tr>';
+        echo '<tr><th><label for="previous_webhook_secret">Secreto anterior (rotación)</label></th><td><input type="password" name="previous_webhook_secret" id="previous_webhook_secret" value="" autocomplete="new-password" class="regular-text"> <label><input type="checkbox" name="clear_previous_webhook_secret" value="1"> Borrar</label><p class="description">Solo durante una rotación de secreto.</p></td></tr>';
         echo '</table>';
         echo '<p><input type="submit" name="hub_save_settings" class="button button-primary" value="Guardar Cambios"></p>';
         echo '</form>';

@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '@hub/ui';
+import { isProblem } from '@hub/api';
+import type { Me } from '@hub/api';
 import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { AssistantChat } from './components/AssistantChat';
 import { LoginView } from './components/LoginView';
+import { DEMO_MODE, DEMO_USER, hub, initials, onUnauthenticated } from './auth/client';
 import './portal.css';
 
 export default function App() {
-  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil' | 'acceso'>('resumen');
+  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil'>('resumen');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('sitio');
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TK-10482');
   const [cur, setCur] = useState<'PEN' | 'USD'>('PEN');
@@ -19,6 +22,50 @@ export default function App() {
   const [invFilter, setInvFilter] = useState<'pend' | 'paid' | 'all'>('pend');
   const [tkFilter, setTkFilter] = useState<'abiertos' | 'cerrados' | 'todos'>('abiertos');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  /* Sesión real contra /api/v1/auth (o usuario mock con VITE_DEMO=1). */
+  type AuthState = { k: 'loading' } | { k: 'anon'; notice?: string | null; changeFor?: Me } | { k: 'ready'; user: Me };
+  const [auth, setAuth] = useState<AuthState>(() => (DEMO_MODE ? { k: 'ready', user: DEMO_USER } : { k: 'loading' }));
+
+  /** El portal es solo para usuarios de cliente (type=customer). */
+  const enter = useCallback((user: Me) => {
+    if (user.type !== 'customer') {
+      hub.auth.logout().catch(() => undefined);
+      setAuth({ k: 'anon', notice: 'Esta cuenta es del personal: ingresa por el panel de administración.' });
+      return;
+    }
+    if (user.password.change_required) {
+      setAuth({ k: 'anon', changeFor: user });
+      return;
+    }
+    setRoute('resumen');
+    setAuth({ k: 'ready', user });
+  }, []);
+
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    hub.auth
+      .me()
+      .then(enter)
+      .catch((e: unknown) => {
+        const silent = isProblem(e) && e.status === 401;
+        setAuth({ k: 'anon', notice: silent ? null : 'No se pudo comprobar tu sesión. Ingresa de nuevo.' });
+      });
+    return onUnauthenticated(() =>
+      setAuth((a) => (a.k === 'ready' ? { k: 'anon', notice: 'Tu sesión terminó. Vuelve a ingresar.' } : a)),
+    );
+  }, [enter]);
+
+  const logout = useCallback(async () => {
+    setUserMenuOpen(false);
+    if (DEMO_MODE) return;
+    try {
+      await hub.auth.logout();
+    } catch {
+      /* la sesión puede haber expirado ya */
+    }
+    setAuth({ k: 'anon', notice: 'Sesión cerrada.' });
+  }, []);
 
   const TC = 3.75;
   const conv = (amt: number, from: 'PEN' | 'USD') => {
@@ -80,14 +127,20 @@ export default function App() {
     setNewReply('');
   };
 
-  if (route === 'acceso') {
+  if (auth.k === 'loading') {
     return (
-      <LoginView
-        onLoginSuccess={() => setRoute('resumen')}
-        onCancel={() => setRoute('resumen')}
-      />
+      <div className="auth open" role="status" style={{ display: 'grid', placeItems: 'center', position: 'fixed', inset: 0 }}>
+        <span className="spin" aria-hidden="true" /> Comprobando sesión…
+      </div>
     );
   }
+
+  if (auth.k === 'anon') {
+    return <LoginView key={auth.changeFor ? 'change' : (auth.notice ?? '')} notice={auth.notice} changeFor={auth.changeFor} onLoggedIn={enter} />;
+  }
+
+  const user = auth.user;
+  const roleName = user.roles[0]?.name ?? '';
 
   return (
     <div className="app" id="app">
@@ -123,10 +176,10 @@ export default function App() {
         <div className="anchor">
           <button className="tb-user" aria-label="Usuario" onClick={() => setUserMenuOpen(!userMenuOpen)}>
             <span className="av" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>
-              LQ
+              {initials(user.name)}
             </span>
             <span className="who" style={{ textAlign: 'left', lineHeight: 1.2 }}>
-              <strong style={{ fontSize: 13, display: 'block' }}>Lucía Quispe</strong>
+              <strong style={{ fontSize: 13, display: 'block' }}>{user.name}</strong>
               <small style={{ color: 'var(--topbar-muted)', fontSize: 11 }}>{CLIENT.name}</small>
             </span>
           </button>
@@ -134,8 +187,9 @@ export default function App() {
           {userMenuOpen && (
             <div className="pop open umenu" style={{ display: 'block', top: 'calc(100% + 8px)', right: 0, width: 230 }}>
               <div className="who">
-                <b>Lucía Quispe Mamani</b>
-                <small>{CLIENT.name} · Administradora</small>
+                <b>{user.name}</b>
+                <small>{user.email}</small>
+                <small>{CLIENT.name}{roleName ? ` · ${roleName}` : ''}</small>
               </div>
               <div className="ttl">Tu cuenta</div>
               <button type="button" className="mi" onClick={() => { setRoute('perfil'); setUserMenuOpen(false); }}>
@@ -149,7 +203,9 @@ export default function App() {
                 type="button"
                 className="mi"
                 style={{ color: 'var(--danger-text)' }}
-                onClick={() => { setUserMenuOpen(false); setRoute('acceso'); }}
+                onClick={() => void logout()}
+                disabled={DEMO_MODE}
+                title={DEMO_MODE ? 'No disponible en modo demo' : undefined}
               >
                 <Icon name="logout" className="sm" /> Cerrar sesión
               </button>
@@ -202,11 +258,12 @@ export default function App() {
           <button
             type="button"
             className="nav-item"
-            onClick={() => setRoute('acceso')}
+            onClick={() => void logout()}
+            disabled={DEMO_MODE}
             style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'var(--muted)', fontSize: 13 }}
           >
-            <Icon name="lock" />
-            <span>Pantalla de acceso (login)</span>
+            <Icon name="logout" />
+            <span>Cerrar sesión</span>
           </button>
         </div>
       </nav>
@@ -249,7 +306,7 @@ export default function App() {
                 {/* Banner de Bienvenida estilo prototipo */}
                 <section className="hello">
                   <div>
-                    <h1>Hola, Lucía Quispe</h1>
+                    <h1>Hola, {user.name.split(' ')[0]}</h1>
                     <p>Este es el estado integral de la infraestructura de {CLIENT.name} al día de hoy.</p>
                   </div>
                   <div className="acts">

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef } from 'react';
-import { animate, createTimeline, stagger } from 'animejs';
+import { createTimeline, stagger } from 'animejs';
 import { Mail, Bell, Calendar, AlertTriangle, Ban } from 'lucide-react';
 
 export default function CobranzaView() {
@@ -16,6 +16,7 @@ export default function CobranzaView() {
   ];
 
   useEffect(() => {
+    if (!lineRef.current) return;
     const tl = createTimeline({ defaults: { ease: 'outExpo' } });
 
     // 1. La línea conectora crece de izquierda a derecha

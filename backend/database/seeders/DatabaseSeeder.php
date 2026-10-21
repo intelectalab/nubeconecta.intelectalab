@@ -1,25 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Modules\Identity\Database\Seeders\IdentitySeeder;
+use App\Modules\Settings\Database\Seeders\SettingsSeeder;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeders idempotentes de los módulos. No crea usuarios: el administrador
+ * inicial se crea con `php artisan hub:create-admin <correo>`.
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $this->call([IdentitySeeder::class, SettingsSeeder::class]);
     }
 }

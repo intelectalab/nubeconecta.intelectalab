@@ -21,7 +21,7 @@ const getCategoryIcon = (type: string) => {
 };
 
 export default function CatalogView() {
-  const [products, setProducts] = useState(initialProducts);
+  const [products] = useState(initialProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -102,7 +102,7 @@ export default function CatalogView() {
             </tr>
           </thead>
           <tbody ref={tableBodyRef}>
-            {filteredProducts.map((p, index) => (
+            {filteredProducts.map((p) => (
               <tr key={p.id} style={{ opacity: 0 }}>
                 <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#64748b' }}>{p.id}</td>
                 <td>

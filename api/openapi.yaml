@@ -1,0 +1,4375 @@
+# Generado a partir del código implementado el 2026-10-21 porque el paquete api original
+# (api/openapi.yaml del kit) no estaba disponible. Cubre solo los módulos implementados:
+# Health, Auth, Identity, Settings y Brands. Contrato y convenciones: docs/06-api.md.
+
+openapi: 3.1.0
+info:
+  title: Hub API
+  version: 0.1.0
+  description: |-
+    API REST de la plataforma (nombre de trabajo `hub`). Cubre solo los módulos implementados: Health, Auth, Identity, Settings y Brands. Contrato completo y convenciones en `docs/06-api.md`.
+
+    Respuestas `{data, meta, links}`; listados con paginación por cursor; errores `application/problem+json` (RFC 9457); `PATCH` exige `version` (409 `version_conflict`).
+servers:
+  - url: /api/v1
+    description: Base relativa de la API
+tags:
+  - name: Health
+    description: Estado del servicio.
+  - name: Auth
+    description: Inicio de sesión, MFA y contraseña (compartido por panel y portal).
+  - name: Identity
+    description: Usuarios, roles y permisos (M-IDN).
+  - name: Settings
+    description: Ajustes, historial, feriados y horario laboral (M-CFG).
+  - name: Brands
+    description: Marcas, entidades emisoras, cuentas bancarias, series de comprobantes y temas (M-BRD).
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      operationId: health
+      summary: Estado de la aplicación y de sus dependencias
+      description: "Comprueba base de datos y Redis. Nunca lanza excepción: responde 200 (`ok`) o 503 (`degraded`). El detalle del error solo aparece con APP_DEBUG=true."
+      security: []
+      responses:
+        "200":
+          description: Todas las dependencias responden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Alguna dependencia no responde.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      operationId: authLogin
+      summary: "Iniciar sesión (paso 1: credenciales)"
+      description: "Sanctum modo SPA: antes pedir `GET /sanctum/csrf-cookie` (fuera de `/api/v1`) y enviar `X-XSRF-TOKEN`. Si el usuario tiene MFA responde `mfa_required=true` y se completa con `POST /auth/mfa/verify`."
+      x-throttle: identity-login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  maxLength: 1024
+                  format: password
+      responses:
+        "200":
+          description: Sesión iniciada o MFA pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/mfa/verify:
+    post:
+      tags:
+        - Auth
+      operationId: authMfaVerify
+      summary: "Iniciar sesión (paso 2: verificar MFA)"
+      description: Requiere el login previo en la misma sesión; el paso pendiente vence según `hub.auth.mfa_pending_minutes`. Un código inválido responde 422 con error en `code`.
+      x-throttle: identity-login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - method
+                - code
+              properties:
+                method:
+                  type: string
+                  enum:
+                    - totp
+                    - recovery
+                code:
+                  type: string
+                  maxLength: 64
+      responses:
+        "200":
+          description: Sesión iniciada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      operationId: authLogout
+      summary: Cerrar la sesión actual
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      operationId: authMe
+      summary: Usuario autenticado con permisos, MFA y política de contraseña
+      responses:
+        "200":
+          description: Usuario actual.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/password-policy:
+    get:
+      tags:
+        - Auth
+      operationId: authPasswordPolicy
+      summary: Reglas vigentes de contraseña
+      responses:
+        "200":
+          description: Política.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PasswordPolicy"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/password/change:
+    post:
+      tags:
+        - Auth
+      operationId: authPasswordChange
+      summary: Cambiar la contraseña propia
+      x-throttle: identity-mfa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - password
+                - password_confirmation
+              properties:
+                current_password:
+                  type: string
+                  maxLength: 1024
+                  format: password
+                password:
+                  type: string
+                  maxLength: 1024
+                  format: password
+                  description: Debe cumplir `GET /auth/password-policy`.
+                password_confirmation:
+                  type: string
+                  format: password
+                  description: Debe coincidir con `password` (regla `confirmed`).
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/mfa/totp:
+    post:
+      tags:
+        - Auth
+      operationId: authMfaTotpStart
+      summary: Iniciar el alta de TOTP
+      description: Genera el secreto y la URI `otpauth`; se confirma con `POST /auth/mfa/totp/confirm`. 403 si el TOTP está desactivado por política; 409 si el usuario ya tiene MFA.
+      responses:
+        "200":
+          description: Secreto de enrolamiento.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - secret
+                      - otpauth_uri
+                    properties:
+                      secret:
+                        type: string
+                      otpauth_uri:
+                        type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags:
+        - Auth
+      operationId: authMfaTotpDisable
+      summary: Desactivar el TOTP
+      description: Exige MFA reciente (middleware `mfa.recent`). 403 si la política exige segundo factor; 409 si no está activo.
+      x-requires-recent-mfa: true
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /auth/mfa/totp/confirm:
+    post:
+      tags:
+        - Auth
+      operationId: authMfaTotpConfirm
+      summary: Confirmar el alta de TOTP
+      x-throttle: identity-mfa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  maxLength: 16
+      responses:
+        "201":
+          description: TOTP activado; se devuelven los códigos de recuperación (única vez).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - mfa_method
+                      - recovery_codes
+                    properties:
+                      mfa_method:
+                        type: string
+                        enum:
+                          - totp
+                      recovery_codes:
+                        type: array
+                        items:
+                          type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/mfa/step-up:
+    post:
+      tags:
+        - Auth
+      operationId: authMfaStepUp
+      summary: Renovar la verificación MFA reciente (step-up)
+      x-throttle: identity-login, identity-mfa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  maxLength: 16
+      responses:
+        "200":
+          description: MFA verificado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - mfa_verified_at
+                    properties:
+                      mfa_verified_at:
+                        type: string
+                        format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /admin/users:
+    get:
+      tags:
+        - Identity
+      operationId: adminUsersIndex
+      summary: Listar usuarios
+      description: "Ordenable por: created_at, name, email, last_login_at."
+      x-permission: identity.user.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `-created_at`."
+          schema:
+            type: string
+          example: -created_at
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              type:
+                type: string
+                enum:
+                  - staff
+                  - customer
+              status:
+                type: string
+              q:
+                type: string
+                description: Búsqueda parcial por nombre o correo.
+      responses:
+        "200":
+          description: Página de usuarios.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Identity
+      operationId: adminUsersStore
+      summary: Crear usuario
+      x-permission: identity.user.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Usuario creado (queda con `must_change_password=true`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/users/{user}:
+    get:
+      tags:
+        - Identity
+      operationId: adminUsersShow
+      summary: Detalle de usuario
+      x-permission: identity.user.view
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      responses:
+        "200":
+          description: Usuario.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Identity
+      operationId: adminUsersUpdate
+      summary: Actualizar usuario
+      x-permission: identity.user.update
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Usuario actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Identity
+      operationId: adminUsersDestroy
+      summary: Eliminar usuario
+      description: Revoca sus sesiones. 409 si es el propio usuario.
+      x-permission: identity.user.delete
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/users/{user}/disable:
+    post:
+      tags:
+        - Identity
+      operationId: adminUsersDisable
+      summary: Deshabilitar usuario
+      description: Revoca todas sus sesiones. 409 si es el propio usuario.
+      x-permission: identity.user.update
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      responses:
+        "200":
+          description: Usuario deshabilitado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/users/{user}/enable:
+    post:
+      tags:
+        - Identity
+      operationId: adminUsersEnable
+      summary: Habilitar usuario
+      description: Limpia bloqueo e intentos fallidos.
+      x-permission: identity.user.update
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      responses:
+        "200":
+          description: Usuario habilitado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{user}/roles:
+    put:
+      tags:
+        - Identity
+      operationId: adminUsersRoles
+      summary: Reemplazar los roles de un usuario
+      description: Los roles deben ser de la misma audiencia que el usuario; protegido contra escalada de privilegios.
+      x-permission: identity.user.update
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del usuario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roles
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      expires_at:
+                        type: string
+                        format: date-time
+                        description: Posterior a ahora; null = sin vencimiento.
+      responses:
+        "200":
+          description: Usuario con roles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/roles:
+    get:
+      tags:
+        - Identity
+      operationId: adminRolesIndex
+      summary: Listar roles
+      description: "Ordenable por: code, name, created_at."
+      x-permission: identity.role.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `code`."
+          schema:
+            type: string
+          example: code
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              audience:
+                type: string
+                enum:
+                  - staff
+                  - customer
+      responses:
+        "200":
+          description: Página de roles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Role"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Identity
+      operationId: adminRolesStore
+      summary: Crear rol
+      x-permission: identity.role.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "201":
+          description: Rol creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/roles/{role}:
+    get:
+      tags:
+        - Identity
+      operationId: adminRolesShow
+      summary: Detalle de rol con permisos
+      x-permission: identity.role.view
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del rol.
+      responses:
+        "200":
+          description: Rol.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Identity
+      operationId: adminRolesUpdate
+      summary: Actualizar rol
+      description: Cambiar el `code` de un rol del sistema responde 409 `system_role_protected`.
+      x-permission: identity.role.update
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del rol.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+              properties:
+                version:
+                  type: integer
+                code:
+                  type: string
+                  pattern: ^[a-z][a-z0-9_]{1,62}$
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "200":
+          description: Rol actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Identity
+      operationId: adminRolesDestroy
+      summary: Eliminar rol
+      description: 409 si es rol del sistema (`system_role_protected`) o tiene usuarios asignados.
+      x-permission: identity.role.delete
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del rol.
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/roles/{role}/copy:
+    post:
+      tags:
+        - Identity
+      operationId: adminRolesCopy
+      summary: Copiar un rol con sus permisos
+      x-permission: identity.role.create
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del rol.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  pattern: ^[a-z][a-z0-9_]{1,62}$
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "201":
+          description: Rol copiado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/roles/{role}/permissions:
+    put:
+      tags:
+        - Identity
+      operationId: adminRolesPermissions
+      summary: Reemplazar los permisos de un rol
+      description: Agregar o quitar exige poseer el permiso (anti escalada). Incrementa `version`.
+      x-permission: identity.role.update
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Id del rol.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+                - permissions
+              properties:
+                version:
+                  type: integer
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    description: Código de permiso `<modulo>.<entidad>.<accion>`.
+      responses:
+        "200":
+          description: Rol actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/permissions:
+    get:
+      tags:
+        - Identity
+      operationId: adminPermissionsIndex
+      summary: Listar permisos
+      description: Sin paginación.
+      x-permission: identity.permission.view
+      parameters:
+        - name: filter
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              module:
+                type: string
+      responses:
+        "200":
+          description: Permisos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Permission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/permissions/matrix:
+    get:
+      tags:
+        - Identity
+      operationId: adminPermissionsMatrix
+      summary: Matriz de permisos por módulo y rol
+      x-permission: identity.permission.view
+      responses:
+        "200":
+          description: Matriz.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - modules
+                      - roles
+                    properties:
+                      modules:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/PermissionModule"
+                      roles:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/PermissionMatrixRole"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/settings:
+    get:
+      tags:
+        - Settings
+      operationId: adminSettingsIndex
+      summary: Catálogo de ajustes con el valor general vigente
+      description: Sin paginación; `meta.total` cuenta los ajustes.
+      x-permission: settings.setting.view
+      parameters:
+        - name: filter
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              group:
+                type: string
+              key:
+                type: string
+                description: Prefijo de clave.
+              requires_definition:
+                type: boolean
+      responses:
+        "200":
+          description: Catálogo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SettingDefinitionEffective"
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/settings/{key}:
+    get:
+      tags:
+        - Settings
+      operationId: adminSettingsShow
+      summary: Detalle de un ajuste con sus sobrescrituras
+      x-permission: settings.setting.view
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Clave con puntos, p. ej. `billing.tax.igv_rate`.
+          schema:
+            type: string
+            pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+      responses:
+        "200":
+          description: Ajuste.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SettingDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Settings
+      operationId: adminSettingsPut
+      summary: Fijar el valor de un ajuste en un nivel
+      description: "Escritura: `settings.setting.update` o `settings.dunning.update` según la clave (validado en el servicio, no en la ruta)."
+      x-permission-note: "Escritura: `settings.setting.update` o `settings.dunning.update` según la clave (validado en el servicio, no en la ruta)."
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Clave con puntos, p. ej. `billing.tax.igv_rate`.
+          schema:
+            type: string
+            pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - scope_type
+                - value
+              properties:
+                scope_type:
+                  $ref: "#/components/schemas/SettingScope"
+                scope_id:
+                  type: string
+                  description: Id del ámbito; null para `global`.
+                value:
+                  description: Valor JSON; debe cumplir el tipo del ajuste.
+                version:
+                  type: integer
+                  description: Versión vigente de la sobrescritura, para control de concurrencia.
+                reason:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "200":
+          description: Valor resuelto y id del cambio.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/SettingResolved"
+                      - type: object
+                        properties:
+                          change_id:
+                            type: string
+                            format: uuid
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Settings
+      operationId: adminSettingsDestroy
+      summary: Quitar la sobrescritura de un ajuste en un nivel
+      description: "Escritura: `settings.setting.update` o `settings.dunning.update` según la clave (validado en el servicio, no en la ruta). Los parámetros van en el cuerpo JSON."
+      x-permission-note: "Escritura: `settings.setting.update` o `settings.dunning.update` según la clave (validado en el servicio, no en la ruta)."
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Clave con puntos, p. ej. `billing.tax.igv_rate`.
+          schema:
+            type: string
+            pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - scope_type
+                - version
+              properties:
+                scope_type:
+                  $ref: "#/components/schemas/SettingScope"
+                scope_id:
+                  type: string
+                  description: Id del ámbito; null para `global`.
+                version:
+                  type: integer
+                reason:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "200":
+          description: Cambio registrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - change_id
+                    properties:
+                      change_id:
+                        type: string
+                        format: uuid
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/settings/{key}/resolve:
+    get:
+      tags:
+        - Settings
+      operationId: adminSettingsResolve
+      summary: Resolver el valor efectivo para un contexto
+      description: Se resuelve por nivel (contract, customer, product, brand, global).
+      x-permission: settings.setting.view
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Clave con puntos, p. ej. `billing.tax.igv_rate`.
+          schema:
+            type: string
+            pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+        - name: brand_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: product_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: contract_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Valor resuelto.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SettingResolved"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/setting-changes:
+    get:
+      tags:
+        - Settings
+      operationId: adminSettingChangesIndex
+      summary: Historial de cambios de ajustes
+      description: "Ordenable por: created_at."
+      x-permission: settings.setting_change.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `-created_at`."
+          schema:
+            type: string
+          example: -created_at
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              key:
+                type: string
+              scope_type:
+                $ref: "#/components/schemas/SettingScope"
+              scope_id:
+                type: string
+              created_by:
+                type: string
+      responses:
+        "200":
+          description: Página de cambios.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SettingChange"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/setting-changes/{id}/revert:
+    post:
+      tags:
+        - Settings
+      operationId: adminSettingChangesRevert
+      summary: Revertir un cambio de ajuste
+      description: Además de `settings.setting_change.view`, el servicio exige el permiso de edición de la clave.
+      x-permission: settings.setting_change.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "201":
+          description: Nuevo cambio que revierte el anterior.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SettingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/holidays:
+    get:
+      tags:
+        - Settings
+      operationId: adminHolidaysIndex
+      summary: Listar feriados
+      description: "`filter[year]` devuelve los del año más los recurrentes. Ordenable por: date, created_at."
+      x-permission: settings.holiday.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `date`."
+          schema:
+            type: string
+          example: date
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              country:
+                type: string
+                pattern: ^[A-Z]{2}$
+              recurring:
+                type: boolean
+              year:
+                type: string
+                pattern: ^[0-9]+$
+      responses:
+        "200":
+          description: Página de feriados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Holiday"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Settings
+      operationId: adminHolidaysStore
+      summary: Crear feriado
+      description: Duplicado país+fecha responde 409.
+      x-permission: settings.holiday.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolidayInput"
+      responses:
+        "201":
+          description: Feriado creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Holiday"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/holidays/{id}:
+    get:
+      tags:
+        - Settings
+      operationId: adminHolidaysShow
+      summary: Detalle de feriado
+      x-permission: settings.holiday.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Feriado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Holiday"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Settings
+      operationId: adminHolidaysUpdate
+      summary: Actualizar feriado
+      x-permission: settings.holiday.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolidayUpdate"
+      responses:
+        "200":
+          description: Feriado actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Holiday"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Settings
+      operationId: adminHolidaysDestroy
+      summary: Eliminar feriado
+      x-permission: settings.holiday.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/business-hours:
+    get:
+      tags:
+        - Settings
+      operationId: adminBusinessHoursShowDefault
+      summary: Horario semanal de un calendario
+      description: Calendario `default`.
+      x-permission: settings.business_hours.view
+      responses:
+        "200":
+          description: Horario.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BusinessHours"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      tags:
+        - Settings
+      operationId: adminBusinessHoursReplaceDefault
+      summary: Reemplazar el horario semanal completo
+      description: "`version` es la mayor de las filas actuales (0 si no hay). Si no coincide responde 409 `version_conflict`. Los intervalos de un mismo día no pueden solaparse (422). Calendario `default`."
+      x-permission: settings.business_hours.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHoursInput"
+      responses:
+        "200":
+          description: Horario reemplazado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BusinessHours"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/business-hours/{calendar}:
+    get:
+      tags:
+        - Settings
+      operationId: adminBusinessHoursShow
+      summary: Horario semanal de un calendario
+      x-permission: settings.business_hours.view
+      parameters:
+        - name: calendar
+          in: path
+          required: true
+          description: Calendario (por defecto `default` si se omite el segmento).
+          schema:
+            type: string
+            pattern: ^[a-z0-9_-]+$
+      responses:
+        "200":
+          description: Horario.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BusinessHours"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      tags:
+        - Settings
+      operationId: adminBusinessHoursReplace
+      summary: Reemplazar el horario semanal completo
+      description: "`version` es la mayor de las filas actuales (0 si no hay). Si no coincide responde 409 `version_conflict`. Los intervalos de un mismo día no pueden solaparse (422)."
+      x-permission: settings.business_hours.update
+      parameters:
+        - name: calendar
+          in: path
+          required: true
+          description: Calendario (por defecto `default` si se omite el segmento).
+          schema:
+            type: string
+            pattern: ^[a-z0-9_-]+$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHoursInput"
+      responses:
+        "200":
+          description: Horario reemplazado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BusinessHours"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/legal-entities:
+    get:
+      tags:
+        - Brands
+      operationId: adminLegalEntitiesIndex
+      summary: Listar entidades emisoras
+      description: "Ordenable por: legal_name, created_at."
+      x-permission: brands.legal_entity.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `legal_name`."
+          schema:
+            type: string
+          example: legal_name
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LegalEntity"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Brands
+      operationId: adminLegalEntitiesStore
+      summary: Crear entidad emisora
+      x-permission: brands.legal_entity.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LegalEntityInput"
+      responses:
+        "201":
+          description: Creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/LegalEntity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/legal-entities/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminLegalEntitiesShow
+      summary: Detalle de entidad emisora
+      x-permission: brands.legal_entity.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recurso.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/LegalEntity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Brands
+      operationId: adminLegalEntitiesUpdate
+      summary: Actualizar entidad emisora
+      description: Exige `version` en el cuerpo (409 `version_conflict` si no coincide).
+      x-permission: brands.legal_entity.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LegalEntityUpdate"
+      responses:
+        "200":
+          description: Actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/LegalEntity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Brands
+      operationId: adminLegalEntitiesDestroy
+      summary: Eliminar entidad emisora
+      description: 409 si está en uso por marcas, cuentas bancarias, series o facturas.
+      x-permission: brands.legal_entity.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/brands:
+    get:
+      tags:
+        - Brands
+      operationId: adminBrandsIndex
+      summary: Listar marcas
+      description: "Ordenable por: code, name, created_at."
+      x-permission: brands.brand.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `code`."
+          schema:
+            type: string
+          example: code
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum:
+                  - active
+                  - inactive
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Brand"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandsStore
+      summary: Crear marca
+      x-permission: brands.brand.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandInput"
+      responses:
+        "201":
+          description: Creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Brand"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/brands/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminBrandsShow
+      summary: Detalle de marca
+      x-permission: brands.brand.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recurso.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Brand"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Brands
+      operationId: adminBrandsUpdate
+      summary: Actualizar marca
+      description: Exige `version` en el cuerpo (409 `version_conflict` si no coincide).
+      x-permission: brands.brand.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandUpdate"
+      responses:
+        "200":
+          description: Actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Brand"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Brands
+      operationId: adminBrandsDestroy
+      summary: Eliminar marca
+      description: Borrado lógico (`deleted_at`).
+      x-permission: brands.brand.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/bank-accounts:
+    get:
+      tags:
+        - Brands
+      operationId: adminBankAccountsIndex
+      summary: Listar cuentas bancarias
+      description: "Ordenable por: bank_name, created_at."
+      x-permission: brands.bank_account.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `-created_at`."
+          schema:
+            type: string
+          example: -created_at
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              legal_entity_id:
+                type: string
+                format: uuid
+              brand_id:
+                type: string
+                format: uuid
+              currency:
+                type: string
+                enum:
+                  - PEN
+                  - USD
+              account_type:
+                type: string
+                enum:
+                  - checking
+                  - savings
+                  - detraction
+              is_active:
+                type: boolean
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BankAccount"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Brands
+      operationId: adminBankAccountsStore
+      summary: Crear cuenta bancaria
+      x-permission: brands.bank_account.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountInput"
+      responses:
+        "201":
+          description: Creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BankAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/bank-accounts/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminBankAccountsShow
+      summary: Detalle de cuenta bancaria
+      x-permission: brands.bank_account.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recurso.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BankAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Brands
+      operationId: adminBankAccountsUpdate
+      summary: Actualizar cuenta bancaria
+      description: Exige `version` en el cuerpo (409 `version_conflict` si no coincide).
+      x-permission: brands.bank_account.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountUpdate"
+      responses:
+        "200":
+          description: Actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BankAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Brands
+      operationId: adminBankAccountsDestroy
+      summary: Eliminar cuenta bancaria
+      x-permission: brands.bank_account.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/document-series:
+    get:
+      tags:
+        - Brands
+      operationId: adminDocumentSeriesIndex
+      summary: Listar series de comprobantes
+      description: "Ordenable por: series, created_at."
+      x-permission: brands.document_series.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `series`."
+          schema:
+            type: string
+          example: series
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              legal_entity_id:
+                type: string
+                format: uuid
+              document_type:
+                $ref: "#/components/schemas/DocumentType"
+              is_active:
+                type: boolean
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DocumentSeries"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Brands
+      operationId: adminDocumentSeriesStore
+      summary: Crear serie de comprobantes
+      x-permission: brands.document_series.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentSeriesInput"
+      responses:
+        "201":
+          description: Creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DocumentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/document-series/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminDocumentSeriesShow
+      summary: Detalle de serie de comprobantes
+      x-permission: brands.document_series.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recurso.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DocumentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Brands
+      operationId: adminDocumentSeriesUpdate
+      summary: Actualizar serie de comprobantes
+      description: Exige `version` en el cuerpo (409 `version_conflict` si no coincide).
+      x-permission: brands.document_series.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentSeriesUpdate"
+      responses:
+        "200":
+          description: Actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DocumentSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - Brands
+      operationId: adminDocumentSeriesDestroy
+      summary: Eliminar serie de comprobantes
+      description: 409 `series_in_use` si tiene documentos emitidos; solo se desactiva.
+      x-permission: brands.document_series.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/brand-themes:
+    get:
+      tags:
+        - Brands
+      operationId: adminBrandThemesIndex
+      summary: Listar temas de marca
+      description: "Ordenable por: name, created_at."
+      x-permission: brands.theme.view
+      parameters:
+        - name: sort
+          in: query
+          description: "Campos separados por coma; `-` delante es descendente. Por defecto: `name`."
+          schema:
+            type: string
+          example: name
+        - name: page[size]
+          in: query
+          description: Tamaño de página (25 por defecto, 100 máximo).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: page[cursor]
+          in: query
+          description: Cursor opaco devuelto en `meta.next_cursor` / `meta.prev_cursor`.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          description: Filtros `filter[campo]=valor` (deepObject).
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              brand_id:
+                type: string
+                format: uuid
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BrandTheme"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemesStore
+      summary: Crear el tema de una marca
+      description: Un tema por marca; 409 si ya existe.
+      x-permission: brands.theme.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - brand_id
+                - name
+              properties:
+                brand_id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  maxLength: 200
+      responses:
+        "201":
+          description: Tema creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandTheme"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/brand-themes/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminBrandThemesShow
+      summary: Detalle de tema con sus versiones
+      x-permission: brands.theme.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Tema.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandTheme"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/brand-themes/{id}/versions:
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemesVersionsStore
+      summary: Crear una versión borrador del tema
+      x-permission: brands.theme.create
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandThemeVersionDraft"
+      responses:
+        "201":
+          description: Versión creada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/brand-theme-versions/{id}:
+    get:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsShow
+      summary: Detalle de una versión de tema
+      x-permission: brands.theme.view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Versión.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsUpdate
+      summary: Actualizar una versión de tema
+      x-permission: brands.theme.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/BrandThemeVersionDraft"
+                - type: object
+                  required:
+                    - version
+                  properties:
+                    version:
+                      type: integer
+      responses:
+        "200":
+          description: Versión actualizada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/brand-theme-versions/{id}/check-contrast:
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsCheckContrast
+      summary: Verificar contraste de los tokens
+      x-permission: brands.theme.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Versión con el resultado del contraste.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/brand-theme-versions/{id}/preview-link:
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsPreviewLink
+      summary: Generar enlace de vista previa
+      x-permission: brands.theme.update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Enlace con token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - url
+                    properties:
+                      token:
+                        type: string
+                      url:
+                        type: string
+                        format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/brand-theme-versions/{id}/publish:
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsPublish
+      summary: Publicar una versión de tema
+      description: Solo administradores (`brands.theme.approve`).
+      x-permission: brands.theme.approve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Versión publicada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/brand-theme-versions/{id}/revert:
+    post:
+      tags:
+        - Brands
+      operationId: adminBrandThemeVersionsRevert
+      summary: Revertir a una versión anterior
+      description: Crea una nueva versión a partir de la indicada. Solo administradores (`brands.theme.approve`).
+      x-permission: brands.theme.approve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                change_note:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "201":
+          description: Nueva versión.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BrandThemeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /public/brand-themes/{brand}:
+    get:
+      tags:
+        - Brands
+      operationId: publicBrandThemesShow
+      summary: Tema publicado de una marca
+      description: "Para el portal y el carrito. `Cache-Control: public, max-age=60`."
+      x-throttle: 60 por minuto
+      security: []
+      parameters:
+        - name: brand
+          in: path
+          required: true
+          description: Código de la marca.
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_-]{1,39}$
+      responses:
+        "200":
+          description: Tema publicado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PublicBrandTheme"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /public/brand-theme-previews/{token}:
+    get:
+      tags:
+        - Brands
+      operationId: publicBrandThemePreviewsShow
+      summary: Vista previa de un tema por enlace con token
+      description: "404 si el token venció. Responde `X-Robots-Tag: noindex, nofollow` y `Cache-Control: no-store`."
+      x-throttle: 60 por minuto
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9]{48}$
+      responses:
+        "200":
+          description: Vista previa.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PublicBrandThemePreview"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: "Sanctum modo SPA: `GET /sanctum/csrf-cookie` (fuera de `/api/v1`), luego `POST /auth/login`. Cookie de sesión HttpOnly más cabecera `X-XSRF-TOKEN` (valor de la cookie `XSRF-TOKEN`) en toda petición que modifica datos."
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token personal de Sanctum.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Opcional. Una repetición con la misma clave devuelve la respuesta original (middleware `idempotency:optional`).
+      schema:
+        type: string
+        maxLength: 255
+  responses:
+    BadRequest:
+      description: 400 Petición inválida (p. ej. `page[cursor]` o `sort` no admitidos).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: 401 Sin sesión válida (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: 403 Sin permiso, tipo de usuario no permitido o MFA reciente requerido (`mfa_required`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: 404 Recurso no encontrado (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: "409 Conflicto: `version_conflict`, `conflict` (unicidad o recurso en uso), `system_role_protected`, `series_in_use`."
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    ValidationFailed:
+      description: 422 Validación fallida (`validation_failed`) con `errors` por campo.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooManyRequests:
+      description: 429 Límite de peticiones excedido (`rate_limited`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Segundos de espera.
+  schemas:
+    Problem:
+      type: object
+      description: Error `application/problem+json` (RFC 9457) con extensiones `code`, `errors` y `request_id`.
+      required:
+        - type
+        - title
+        - status
+        - code
+        - request_id
+      properties:
+        type:
+          type: string
+          format: uri
+          description: "`<HUB_PROBLEM_BASE_URI>/<code con guiones>`."
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+          description: "Código estable: bad_request, unauthenticated, forbidden, not_found, conflict, version_conflict, system_role_protected, series_in_use, validation_failed, rate_limited, csrf_token_mismatch (419), server_error, mfa_required…"
+        detail:
+          type: string
+        errors:
+          type: object
+          description: "Solo en 422: campo => lista de mensajes."
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        request_id:
+          type: string
+          description: ULID de la petición.
+      additionalProperties: true
+    CursorMeta:
+      type: object
+      required:
+        - next_cursor
+        - prev_cursor
+        - has_more
+        - page_size
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+        prev_cursor:
+          type:
+            - string
+            - "null"
+        has_more:
+          type: boolean
+        page_size:
+          type: integer
+    CursorLinks:
+      type: object
+      required:
+        - next
+        - prev
+      properties:
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        prev:
+          type:
+            - string
+            - "null"
+          format: uri
+    Health:
+      type: object
+      required:
+        - status
+        - app
+        - checks
+        - time
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        app:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - up
+            name:
+              type: string
+            env:
+              type: string
+            laravel:
+              type: string
+        checks:
+          type: object
+          properties:
+            database:
+              $ref: "#/components/schemas/HealthCheck"
+            redis:
+              $ref: "#/components/schemas/HealthCheck"
+        time:
+          type: string
+          format: date-time
+    HealthCheck:
+      type: object
+      required:
+        - status
+        - latency_ms
+      properties:
+        status:
+          type: string
+          enum:
+            - up
+            - down
+        latency_ms:
+          type: integer
+        driver:
+          type: string
+        client:
+          type: string
+        error:
+          type: string
+          description: Solo con APP_DEBUG=true.
+    LoginResult:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          oneOf:
+            - type: object
+              required:
+                - mfa_required
+                - methods
+              properties:
+                mfa_required:
+                  const: true
+                methods:
+                  type: array
+                  items:
+                    type: string
+                    description: "`mfa_method` del usuario y `recovery`."
+            - type: object
+              required:
+                - mfa_required
+                - user
+              properties:
+                mfa_required:
+                  const: false
+                user:
+                  $ref: "#/components/schemas/Me"
+    Me:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          required:
+            - permissions
+            - mfa
+            - password
+          properties:
+            permissions:
+              type: array
+              items:
+                type: string
+            mfa:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                method:
+                  type:
+                    - string
+                    - "null"
+                required:
+                  type: boolean
+                enrollment_required:
+                  type: boolean
+            password:
+              type: object
+              properties:
+                change_required:
+                  type: boolean
+    PasswordPolicy:
+      type: object
+      properties:
+        min_length:
+          type: integer
+        complexity:
+          description: Forma definida por SecurityPolicy (no inferida).
+        expiry_days:
+          type: integer
+        history_count:
+          type: integer
+    User:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - email
+        - status
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - staff
+            - customer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          description: Por ejemplo `active` o `disabled`.
+        locale:
+          type: string
+          enum:
+            - es
+            - en
+        timezone:
+          type: string
+        mfa_enabled:
+          type: boolean
+        mfa_method:
+          type:
+            - string
+            - "null"
+        must_change_password:
+          type: boolean
+        locked_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_login_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        disabled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        roles:
+          type: array
+          description: Solo si se cargaron.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              code:
+                type: string
+              name:
+                type: string
+              expires_at:
+                type:
+                  - string
+                  - "null"
+                format: date-time
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UserInput:
+      type: object
+      required:
+        - name
+        - email
+        - type
+        - password
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        type:
+          type: string
+          enum:
+            - staff
+            - customer
+        password:
+          type: string
+          maxLength: 1024
+          format: password
+          description: Según la política de contraseña.
+        locale:
+          type: string
+          enum:
+            - es
+            - en
+        timezone:
+          type: string
+          description: Zona horaria IANA.
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    UserUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        name:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        locale:
+          type: string
+          enum:
+            - es
+            - en
+        timezone:
+          type: string
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        audience:
+          type: string
+          enum:
+            - staff
+            - customer
+        is_system:
+          type: boolean
+        copied_from_role_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        permissions:
+          type: array
+          description: Códigos ordenados; solo si se cargaron.
+          items:
+            type: string
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RoleInput:
+      type: object
+      required:
+        - code
+        - name
+        - audience
+      properties:
+        code:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{1,62}$
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        audience:
+          type: string
+          enum:
+            - staff
+            - customer
+        permissions:
+          type: array
+          items:
+            type: string
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        module:
+          type: string
+        entity:
+          type: string
+        action:
+          type: string
+        description:
+          type: string
+        is_sensitive:
+          type: boolean
+    PermissionModule:
+      type: object
+      properties:
+        module:
+          type: string
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              entity:
+                type: string
+              actions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    action:
+                      type: string
+                    is_sensitive:
+                      type: boolean
+    PermissionMatrixRole:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        audience:
+          type: string
+        is_system:
+          type: boolean
+        version:
+          type: integer
+        permissions:
+          type: array
+          items:
+            type: string
+    SettingScope:
+      type: string
+      enum:
+        - global
+        - brand
+        - product
+        - customer
+        - contract
+    SettingDefinition:
+      type: object
+      properties:
+        key:
+          type: string
+        group:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        unit:
+          type:
+            - string
+            - "null"
+        enum_values:
+          type:
+            - array
+            - "null"
+          items:
+            type: string
+        default: {}
+        requires_definition:
+          type: boolean
+        levels:
+          type: array
+          items:
+            type: string
+        edit_permission:
+          type: string
+        notes:
+          type:
+            - string
+            - "null"
+    SettingDefinitionEffective:
+      allOf:
+        - $ref: "#/components/schemas/SettingDefinition"
+        - type: object
+          properties:
+            effective:
+              description: Valor general vigente.
+    SettingDetail:
+      allOf:
+        - $ref: "#/components/schemas/SettingDefinition"
+        - type: object
+          properties:
+            effective: {}
+            values:
+              type: array
+              description: Sobrescrituras por nivel (filas `settings`).
+              items:
+                $ref: "#/components/schemas/SettingValue"
+    SettingValue:
+      type: object
+      additionalProperties: true
+      description: Fila de `settings` serializada tal cual (atributos del modelo; columnas inferidas).
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        scope_type:
+          $ref: "#/components/schemas/SettingScope"
+        scope_id:
+          type:
+            - string
+            - "null"
+        value: {}
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SettingResolved:
+      description: Resultado de SettingsResolver::resolve (valor efectivo y su origen). Forma exacta no inferida del controlador.
+      type: object
+      additionalProperties: true
+    SettingChange:
+      type: object
+      additionalProperties: true
+      description: Fila de `setting_changes` serializada tal cual (columnas inferidas).
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        scope_type:
+          $ref: "#/components/schemas/SettingScope"
+        scope_id:
+          type:
+            - string
+            - "null"
+        created_by:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+    Holiday:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        country:
+          type: string
+          pattern: ^[A-Z]{2}$
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+        recurring:
+          type: boolean
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    HolidayInput:
+      type: object
+      required:
+        - date
+        - name
+      properties:
+        country:
+          type: string
+          pattern: ^[A-Z]{2}$
+          minLength: 2
+          maxLength: 2
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+          maxLength: 200
+        recurring:
+          type: boolean
+    HolidayUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        country:
+          type: string
+          pattern: ^[A-Z]{2}$
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+          maxLength: 200
+        recurring:
+          type: boolean
+    BusinessHours:
+      type: object
+      properties:
+        calendar:
+          type: string
+        timezone:
+          type:
+            - string
+            - "null"
+        version:
+          type: integer
+        intervals:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessHourInterval"
+    BusinessHourInterval:
+      type: object
+      additionalProperties: true
+      properties:
+        weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        opens_at:
+          type: string
+        closes_at:
+          type: string
+        timezone:
+          type: string
+    BusinessHoursInput:
+      type: object
+      required:
+        - version
+        - timezone
+        - intervals
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        timezone:
+          type: string
+          description: Zona horaria IANA.
+        intervals:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required:
+              - weekday
+              - opens_at
+              - closes_at
+            properties:
+              weekday:
+                type: integer
+                minimum: 1
+                maximum: 7
+                description: 1 = lunes ... 7 = domingo.
+              opens_at:
+                type: string
+                pattern: ^[0-2][0-9]:[0-5][0-9]$
+                example: 09:00
+              closes_at:
+                type: string
+                pattern: ^[0-2][0-9]:[0-5][0-9]$
+                description: Posterior a `opens_at`.
+    LegalEntity:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_name:
+          type: string
+        tax_id_type:
+          type: string
+        tax_id:
+          type: string
+        country:
+          type: string
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        fiscal_address:
+          type:
+            - string
+            - "null"
+        is_services_exporter:
+          type: boolean
+        einvoice_provider_ref:
+          type:
+            - string
+            - "null"
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    LegalEntityInput:
+      type: object
+      required:
+        - legal_name
+        - tax_id
+      properties:
+        legal_name:
+          type: string
+          maxLength: 300
+        tax_id_type:
+          type: string
+          maxLength: 20
+        tax_id:
+          type: string
+          maxLength: 20
+          pattern: ^[0-9A-Za-z-]+$
+        country:
+          type: string
+          pattern: ^[A-Z]{2}$
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        fiscal_address:
+          type: string
+          maxLength: 500
+        is_services_exporter:
+          type: boolean
+        einvoice_provider_ref:
+          type: string
+          maxLength: 200
+    Brand:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        domain:
+          type:
+            - string
+            - "null"
+        portal_domain:
+          type:
+            - string
+            - "null"
+        default_legal_entity_id:
+          type: string
+          format: uuid
+        email_from:
+          type:
+            - string
+            - "null"
+        email_from_name:
+          type:
+            - string
+            - "null"
+        support_email:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+        locale:
+          type: string
+        status_page_slug:
+          type:
+            - string
+            - "null"
+        legal_entity:
+          $ref: "#/components/schemas/LegalEntity"
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BrandInput:
+      type: object
+      required:
+        - code
+        - name
+        - default_legal_entity_id
+      properties:
+        code:
+          type: string
+          pattern: ^[a-z][a-z0-9_-]{1,39}$
+        name:
+          type: string
+          maxLength: 200
+        domain:
+          type: string
+          description: Dominio válido (se guarda en minúsculas).
+        portal_domain:
+          type: string
+          description: Único por marca.
+        default_legal_entity_id:
+          type: string
+          format: uuid
+        email_from:
+          type: string
+          format: email
+        email_from_name:
+          type: string
+          maxLength: 200
+        support_email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+        locale:
+          type: string
+          pattern: ^[a-z]{2}(-[A-Z]{2})?$
+        status_page_slug:
+          type: string
+          pattern: ^[a-z0-9-]{1,63}$
+    BankAccount:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_entity_id:
+          type: string
+          format: uuid
+        brand_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        bank_name:
+          type: string
+        account_type:
+          type: string
+          enum:
+            - checking
+            - savings
+            - detraction
+        account_number:
+          type: string
+        cci:
+          type:
+            - string
+            - "null"
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        show_on_invoice:
+          type: boolean
+        is_active:
+          type: boolean
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BankAccountInput:
+      type: object
+      required:
+        - legal_entity_id
+        - bank_name
+        - account_type
+        - account_number
+        - currency
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+        bank_name:
+          type: string
+          maxLength: 200
+        account_type:
+          type: string
+          enum:
+            - checking
+            - savings
+            - detraction
+        account_number:
+          type: string
+          maxLength: 40
+          pattern: ^[0-9-]+$
+        cci:
+          type: string
+          pattern: ^[0-9]{20}$
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        show_on_invoice:
+          type: boolean
+        is_active:
+          type: boolean
+    DocumentType:
+      type: string
+      enum:
+        - invoice
+        - receipt
+        - credit_note
+        - debit_note
+    DocumentSeries:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_entity_id:
+          type: string
+          format: uuid
+        document_type:
+          $ref: "#/components/schemas/DocumentType"
+        series:
+          type: string
+          pattern: ^[A-Z0-9]{4}$
+        next_number:
+          type: integer
+        is_active:
+          type: boolean
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DocumentSeriesInput:
+      type: object
+      required:
+        - legal_entity_id
+        - document_type
+        - series
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        document_type:
+          $ref: "#/components/schemas/DocumentType"
+        series:
+          type: string
+          pattern: ^[A-Z0-9]{4}$
+        next_number:
+          type: integer
+          minimum: 1
+          description: Solo al crear.
+        is_active:
+          type: boolean
+    DocumentSeriesUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        document_type:
+          $ref: "#/components/schemas/DocumentType"
+        is_active:
+          type: boolean
+    BrandTheme:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        versions:
+          type: array
+          description: Solo en el detalle.
+          items:
+            $ref: "#/components/schemas/BrandThemeVersion"
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BrandThemeVersion:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+        version_number:
+          type: integer
+        status:
+          type: string
+          description: Estado de la versión (borrador, publicada...); valores no inferidos.
+        tokens:
+          type: object
+          additionalProperties: true
+        surfaces:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+        change_note:
+          type:
+            - string
+            - "null"
+        version:
+          type: integer
+          description: Versión para control de concurrencia (PATCH la exige).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BrandThemeVersionDraft:
+      type: object
+      properties:
+        tokens:
+          type: object
+          additionalProperties: true
+        surfaces:
+          type: object
+          additionalProperties: true
+        change_note:
+          type: string
+          maxLength: 2000
+    PublicBrandTheme:
+      type: object
+      properties:
+        brand:
+          type: object
+          properties:
+            code:
+              type: string
+            name:
+              type: string
+            locale:
+              type: string
+        theme:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+    PublicBrandThemePreview:
+      allOf:
+        - $ref: "#/components/schemas/PublicBrandTheme"
+        - type: object
+          properties:
+            preview:
+              const: true
+            status:
+              type: string
+    LegalEntityUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        legal_name:
+          type: string
+          maxLength: 300
+        tax_id_type:
+          type: string
+          maxLength: 20
+        tax_id:
+          type: string
+          maxLength: 20
+          pattern: ^[0-9A-Za-z-]+$
+        country:
+          type: string
+          pattern: ^[A-Z]{2}$
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        fiscal_address:
+          type: string
+          maxLength: 500
+        is_services_exporter:
+          type: boolean
+        einvoice_provider_ref:
+          type: string
+          maxLength: 200
+    BrandUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        code:
+          type: string
+          pattern: ^[a-z][a-z0-9_-]{1,39}$
+        name:
+          type: string
+          maxLength: 200
+        domain:
+          type: string
+          description: Dominio válido (se guarda en minúsculas).
+        portal_domain:
+          type: string
+          description: Único por marca.
+        default_legal_entity_id:
+          type: string
+          format: uuid
+        email_from:
+          type: string
+          format: email
+        email_from_name:
+          type: string
+          maxLength: 200
+        support_email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+        locale:
+          type: string
+          pattern: ^[a-z]{2}(-[A-Z]{2})?$
+        status_page_slug:
+          type: string
+          pattern: ^[a-z0-9-]{1,63}$
+    BankAccountUpdate:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+        legal_entity_id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+        bank_name:
+          type: string
+          maxLength: 200
+        account_type:
+          type: string
+          enum:
+            - checking
+            - savings
+            - detraction
+        account_number:
+          type: string
+          maxLength: 40
+          pattern: ^[0-9-]+$
+        cci:
+          type: string
+          pattern: ^[0-9]{20}$
+        currency:
+          type: string
+          enum:
+            - PEN
+            - USD
+        show_on_invoice:
+          type: boolean
+        is_active:
+          type: boolean

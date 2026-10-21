@@ -1,0 +1,36 @@
+/* Pantalla de acceso del panel: usa los tokens de styles/panel.css. */
+.auth-wrap{min-height:100%;height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px 16px;box-sizing:border-box;
+  background:radial-gradient(1200px 500px at 50% -10%,var(--brand-soft),transparent 70%),var(--bg)}
+.auth-card{width:100%;max-width:420px;padding:24px;box-sizing:border-box;box-shadow:var(--shadow-pop);animation:fadein .25s ease}
+.auth-card form,.auth-card > div:not(.auth-brand){display:grid;gap:14px}
+.auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.auth-brand b{display:block;font-family:var(--f-head);font-size:16px}
+.auth-brand small{color:var(--muted);font-size:12.5px}
+.auth-logo{display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--topbar)}
+.auth-logo svg{width:26px;height:26px}
+.auth-ttl{margin:0;font-family:var(--f-head);font-size:20px;line-height:1.25;color:var(--text)}
+.auth-sub{margin:-8px 0 0;color:var(--muted);font-size:13px}
+.auth-submit{width:100%;height:40px}
+.auth-submit:disabled{opacity:.6;cursor:not-allowed}
+.auth-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px}
+.auth-err{background:var(--danger-bg);color:var(--danger-text);border-color:transparent}
+.auth-err svg,.auth-card .note svg{flex:none;width:16px;height:16px;margin-top:1px}
+.auth-ferr{color:var(--danger-text);font-weight:500}
+.auth-help{color:var(--faint);font-weight:500}
+.auth-pw .input{padding-right:40px}
+.auth-pw .btn{position:absolute;right:3px;top:50%;transform:translateY(-50%)}
+.auth-code{font-family:var(--f-mono);letter-spacing:.18em;font-size:16px}
+.auth-loading{display:flex;align-items:center;gap:10px;color:var(--muted);padding:12px 0}
+.auth-spin{width:16px;height:16px;border:2px solid var(--brand);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+.auth-enroll{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.auth-qr{flex:none;border-radius:8px;border:1px solid var(--border);max-width:100%;height:auto}
+.auth-secret{display:grid;gap:8px;min-width:0;flex:1 1 160px;justify-items:start}
+.auth-secret code{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;word-break:break-all;color:var(--text)}
+.auth-secret details{font-size:12px;color:var(--muted);max-width:100%}
+.auth-secret summary{cursor:pointer}
+.auth-uri{display:block;margin-top:6px;font-size:11px !important}
+.auth-codes{list-style:none;margin:0;padding:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-family:var(--f-mono);font-size:13.5px}
+.auth-check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text-2)}
+.auth-check input{accent-color:var(--brand);width:16px;height:16px}
+.auth-foot{margin:0;color:var(--faint);font-size:12px;text-align:center;max-width:420px}
+@media (prefers-reduced-motion: reduce){.auth-card{animation:none}.auth-spin{animation-duration:2s}}

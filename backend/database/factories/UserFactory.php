@@ -24,13 +24,25 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        // Columnas de la tabla canónica `users`; organization_id lo rellena BelongsToOrganization.
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'type' => 'staff',
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'password_hash' => static::$password ??= Hash::make(Str::random(32)),
         ];
+    }
+
+    /** Contraseña conocida para la prueba (nunca una fija en el código de producción). */
+    public function withPassword(string $plain): static
+    {
+        return $this->state(fn () => ['password_hash' => Hash::make($plain), 'password_changed_at' => now()]);
+    }
+
+    public function customer(): static
+    {
+        return $this->state(fn () => ['type' => 'customer']);
     }
 
     /**

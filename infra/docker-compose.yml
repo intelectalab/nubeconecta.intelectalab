@@ -1,3 +1,23 @@
+# Entorno de desarrollo de hub. Variables: copiar infra/.env.example a infra/.env
+# (Docker Compose lo lee desde este directorio). Los valores por defecto
+# ${VAR:-valor} son SOLO de desarrollo; en staging/producción se definen en infra/.env.
+
+x-laravel-env: &laravel-env
+  # Tienen prioridad sobre backend/.env dentro de los contenedores.
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_DATABASE: ${DB_DATABASE:-hub}
+  DB_USERNAME: ${DB_USERNAME:-hub_owner}
+  DB_PASSWORD: ${DB_PASSWORD:-hub_secret_password}
+  HUB_SCHEMA_PATH: /var/www/database/schema.sql
+  REDIS_CLIENT: predis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  QUEUE_CONNECTION: redis
+  CACHE_STORE: redis
+  SESSION_DRIVER: redis
+
 services:
   # Base de datos relacional canónica (PostgreSQL 16)
   postgres:
@@ -9,27 +29,29 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-hub_owner}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-hub_secret_password}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_BIND:-127.0.0.1}:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Al inicializar por primera vez, carga automáticamente el esquema de 203 tablas
+      # Carga el esquema canónico SOLO en el primer arranque del volumen. La
+      # migración base de Laravel (0000_00_00_000000_load_canonical_schema)
+      # hace lo mismo si falta y se salta si ya está: ambos caminos conviven.
       - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-hub_owner} -d ${DB_DATABASE:-hub}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - hub_net
 
-  # Motor de colas, caché y limitador de tasa
+  # Motor de colas, caché, sesiones y limitador de tasa
   redis:
     image: redis:7-alpine
     container_name: hub_redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -42,14 +64,19 @@ services:
 
   # Backend PHP 8.3 / PHP-FPM
   app:
-    build:
+    build: &php-build
       context: ..
       dockerfile: infra/docker/php/Dockerfile
+      args:
+        INSTALL_PHPREDIS: ${INSTALL_PHPREDIS:-0}
+    image: hub-php:dev
     container_name: hub_app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment: *laravel-env
     volumes:
       - ../backend:/var/www/html
+      - ../database:/var/www/database:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,7 +85,8 @@ services:
     networks:
       - hub_net
 
-  # Servidor web Nginx (API + estáticos SPA)
+  # Nginx: sirve solo el backend Laravel (API y backend/public).
+  # Las SPA corren con Vite en desarrollo (ver docker/nginx/default.conf).
   web:
     image: nginx:alpine
     container_name: hub_web
@@ -73,18 +101,21 @@ services:
     networks:
       - hub_net
 
-  # Horizon (Gestión y procesamiento de colas asíncronas)
+  # Horizon (colas de config/horizon.php)
   worker:
-    build:
-      context: ..
-      dockerfile: infra/docker/php/Dockerfile
+    build: *php-build
+    image: hub-php:dev
     container_name: hub_worker
     restart: unless-stopped
     working_dir: /var/www/html
     command: ["php", "artisan", "horizon"]
+    environment: *laravel-env
     volumes:
       - ../backend:/var/www/html
+      - ../database:/var/www/database:ro
     depends_on:
+      app:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -92,34 +123,41 @@ services:
     networks:
       - hub_net
 
-  # Scheduler (Planificador de tareas cron cada minuto)
+  # Scheduler (ejecuta las tareas programadas cada minuto)
   scheduler:
-    build:
-      context: ..
-      dockerfile: infra/docker/php/Dockerfile
+    build: *php-build
+    image: hub-php:dev
     container_name: hub_scheduler
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["sh", "-c", "while true; do php artisan schedule:run --verbose --no-interaction & sleep 60; done"]
+    command: ["php", "artisan", "schedule:work"]
+    environment: *laravel-env
     volumes:
       - ../backend:/var/www/html
+      - ../database:/var/www/database:ro
     depends_on:
-      - app
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - hub_net
 
   # ========================================================
-  # Web Pública (WordPress Multisite + Hub Connector Plugin)
+  # Web pública: WordPress (instalación simple) + plugin Hub Connector.
+  # docs prevé WordPress Multisite (T-31), pero este servicio NO lo configura:
+  # estructura y hosting de la red pendientes (D-29). La red Multisite se
+  # habilita después desde WordPress (Herramientas > Configuración de la red).
   # ========================================================
   wordpress_db:
     image: mariadb:10.11
     container_name: hub_wp_db
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wp_user
-      MYSQL_PASSWORD: wp_password
-      MYSQL_ROOT_PASSWORD: wp_root_password
+      MYSQL_DATABASE: ${WP_DB_NAME:-wordpress}
+      MYSQL_USER: ${WP_DB_USER:-wp_user}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD:-wp_password}
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD:-wp_root_password}
     volumes:
       - wp_db_data:/var/lib/mysql
     networks:
@@ -133,9 +171,9 @@ services:
       - "${WP_PORT:-8000}:80"
     environment:
       WORDPRESS_DB_HOST: wordpress_db:3306
-      WORDPRESS_DB_USER: wp_user
-      WORDPRESS_DB_PASSWORD: wp_password
-      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
     volumes:
       - wordpress_data:/var/www/html
       # Monta directamente nuestro plugin Hub Connector para que aparezca en el panel de WP
