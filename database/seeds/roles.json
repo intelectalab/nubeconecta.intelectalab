@@ -108,7 +108,8 @@
         "orders.checkout_session.approve",
         "billing.payment.validate",
         "billing.refund.authorize",
-        "billing.invoice.issue"
+        "billing.invoice.issue",
+        "customers.customer.delete"
       ],
       "restrictions": [
         { "code": "payment_created_as_reported", "description": "Un voucher registrado por ventas crea el pago en estado 'reported'; nunca lo valida." },

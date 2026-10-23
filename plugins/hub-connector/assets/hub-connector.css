@@ -1,0 +1,39 @@
+/* Hub Connector: CSS mínimo y desactivable por sitio (docs/13 §3). Hereda tipografía
+   y colores del tema; los tokens --hub-* se sobreescriben con los del tema de marca
+   cuando GET /public/wp/site los entrega, o desde el tema de WordPress. */
+.hub-connector {
+    --hub-primary: #0a3fc4;
+    --hub-primary-contrast: #ffffff;
+    --hub-surface: #ffffff;
+    --hub-border: #d9e0ec;
+    --hub-muted: #4a5568;
+    --hub-radius: 10px;
+}
+.hub-plans { list-style: none; margin: 1.5em 0; padding: 0; display: grid; gap: 1.25em; grid-template-columns: 1fr; }
+@media (min-width: 640px) {
+    .hub-plans--cols-2, .hub-plans--cols-3, .hub-plans--cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 960px) {
+    .hub-plans--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .hub-plans--cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.hub-plan { display: flex; flex-direction: column; gap: .5em; height: 100%; box-sizing: border-box; padding: 1.5em; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+.hub-plan--featured { border: 2px solid var(--hub-primary); }
+.hub-plan__badge { align-self: flex-start; margin: 0; padding: .2em .7em; font-size: .75em; font-weight: 700; color: var(--hub-primary-contrast); background: var(--hub-primary); border-radius: 999px; }
+.hub-plan__name { margin: 0; }
+.hub-plan__tagline, .hub-price__cycle, .hub-price__setup { color: var(--hub-muted); margin: 0; }
+.hub-price { margin: .25em 0; font-size: 1.6em; font-weight: 700; }
+.hub-price[hidden] { display: none; }
+.hub-price__cycle, .hub-price__setup { font-size: .55em; font-weight: 400; }
+.hub-price__setup { display: block; }
+.hub-plan__features { margin: 0 0 1em; padding-left: 1.2em; flex: 1; }
+.hub-button { display: inline-block; text-align: center; padding: .65em 1.2em; font-weight: 600; text-decoration: none; color: var(--hub-primary-contrast); background: var(--hub-primary); border-radius: calc(var(--hub-radius) - 2px); }
+.hub-button:hover, .hub-button:focus-visible { text-decoration: underline; }
+.hub-button:focus-visible, .hub-currency__option:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 2px; }
+.hub-plan .hub-button { margin-top: auto; }
+.hub-currency { display: inline-flex; gap: .25em; }
+.hub-currency__option { padding: .4em .9em; font: inherit; cursor: pointer; color: var(--hub-primary); background: transparent; border: 1px solid var(--hub-primary); border-radius: 999px; }
+.hub-currency__option[aria-pressed="true"] { color: var(--hub-primary-contrast); background: var(--hub-primary); }
+.hub-contact--lista { padding-left: 1.2em; }
+.hub-contact--enlace .hub-contact__item, .hub-contact--texto .hub-contact__item, .hub-contact--boton .hub-contact__item { display: inline-block; margin-right: 1em; }
+.hub-notice--editor { padding: .75em 1em; color: #7a3d00; background: #fff4e5; border: 1px solid #d9700b; border-radius: 6px; }

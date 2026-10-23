@@ -9,9 +9,9 @@ import type { RoleDef, RoleName, SecurityPolicy, UserAccount } from './types';
  */
 export const ROLES: Record<RoleName, string[] | null> = {
   Administrador: null,
-  Ventas: ['inicio', 'kpi', 'clientes', 'cliente', 'dominios', 'crm', 'catalogo', 'wp', 'cotizaciones', 'contratos', 'pedidos', 'tareas'],
-  Finanzas: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'cobranza', 'facturas', 'ajustes', 'reportes', 'cotizaciones', 'contratos', 'proveedores', 'pedidos'],
-  Soporte: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'dominios', 'tickets', 'infra', 'reclamos', 'monitoreo', 'correo', 'cloud', 'boveda', 'tareas', 'pedidos'],
+  Ventas: ['inicio', 'kpi', 'clientes', 'cliente', 'dominios', 'crm', 'catalogo', 'wp', 'cotizaciones', 'contratos', 'pedidos', 'servicios', 'tareas'],
+  Finanzas: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'cobranza', 'facturas', 'ajustes', 'reportes', 'cotizaciones', 'contratos', 'proveedores', 'pedidos', 'servicios'],
+  Soporte: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'dominios', 'tickets', 'infra', 'reclamos', 'monitoreo', 'correo', 'cloud', 'boveda', 'tareas', 'pedidos', 'servicios'],
 };
 Object.values(ROLES).forEach((l) => {
   if (l && l.includes('kpi') && !l.includes('kpid')) l.push('kpid');

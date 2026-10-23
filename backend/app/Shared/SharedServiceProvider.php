@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared;
 
 use App\Shared\Audit\AuditLogger;
+use App\Shared\Console\CreateAppDatabaseUserCommand;
 use App\Shared\Console\VerifyAuditChainCommand;
 use App\Shared\Organization\CurrentOrganization;
 use App\Shared\Settings\SettingsReader;
@@ -24,7 +25,7 @@ final class SharedServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([VerifyAuditChainCommand::class]);
+            $this->commands([VerifyAuditChainCommand::class, CreateAppDatabaseUserCommand::class]);
         }
     }
 }

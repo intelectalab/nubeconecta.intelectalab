@@ -8,11 +8,19 @@ import { Icon } from '../../components/Icon';
 import { Chip, ClientLink, EmptyState, PageHead, Seg, StatLine, Toolbar } from '../../components/ui';
 import { addD, EJEC, fD, fT, inBrand, ORDERS, OSTEPS, plural, TASKS, TODAY } from '../../data';
 import type { Order } from '../../data';
+import OrderList from './pedidos/OrderList';
+import type { ViewProps } from '../../app/routes';
+import { LIVE } from './clientes/shared';
 
 type OdFilter = '' | 'En curso' | 'Error' | 'Entregado';
 const LAST = OSTEPS.length - 1;
 
-export default function PedidosView() {
+/** Con backend usa la API real de M-ORD (pedidos/OrderList); con VITE_DEMO=1, el prototipo. */
+export default function PedidosView({ param }: ViewProps) {
+  return LIVE ? <OrderList param={param} /> : <PedidosDemoView />;
+}
+
+function PedidosDemoView() {
   const { brand, dataVersion, toast, refresh } = useApp();
   const [f, setF] = useViewState<OdFilter>('ped.st', '');
   const [busy, setBusy] = useState<Record<string, boolean>>({});

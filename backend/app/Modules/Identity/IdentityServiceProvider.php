@@ -31,6 +31,9 @@ final class IdentityServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Tabla canónica personal_access_tokens: organization_id obligatorio (lo fija el modelo).
+        \Laravel\Sanctum\Sanctum::usePersonalAccessTokenModel(\App\Modules\Identity\Models\PersonalAccessToken::class);
+
         RateLimiter::for('identity-login', fn (Request $request) => Limit::perMinute((int) config('hub.auth.ip_attempts_per_minute'))->by($request->ip()));
         // Códigos TOTP de un usuario ya autenticado (confirmar enrolamiento, step-up): por cuenta, no solo por IP.
         RateLimiter::for('identity-mfa', fn (Request $request) => Limit::perMinutes(

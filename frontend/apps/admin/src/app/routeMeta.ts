@@ -4,7 +4,7 @@
  * con componentes está en ./routes.tsx.
  */
 export type RouteId =
-  | 'inicio' | 'kpi' | 'kpid' | 'clientes' | 'cliente' | 'dominios' | 'pedidos' | 'tareas'
+  | 'inicio' | 'kpi' | 'kpid' | 'clientes' | 'cliente' | 'dominios' | 'pedidos' | 'servicios' | 'tareas'
   | 'crm' | 'cotizaciones' | 'contratos' | 'catalogo'
   | 'cobranza' | 'facturas' | 'reportes'
   | 'tickets' | 'reclamos'
@@ -37,6 +37,7 @@ export const ROUTE_META: Record<RouteId, RouteMeta> = {
   cliente: { t: 'Ficha del cliente', g: 'Operación', ic: 'user', parent: 'clientes', hidden: true },
   dominios: { t: 'Dominios', g: 'Operación', ic: 'globe' },
   pedidos: { t: 'Pedidos', g: 'Operación', ic: 'box' },
+  servicios: { t: 'Servicios', g: 'Operación', ic: 'layers' },
   tareas: { t: 'Tareas', g: 'Operación', ic: 'tasks' },
   crm: { t: 'CRM', g: 'Comercial', ic: 'funnel' },
   cotizaciones: { t: 'Cotizaciones', g: 'Comercial', ic: 'receipt' },

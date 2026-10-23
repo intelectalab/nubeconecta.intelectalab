@@ -1,6 +1,12 @@
 /**
- * Vista «cliente» (#cliente/<CL-id>) — ficha 360 del cliente (vCliente del prototipo l.1760).
+ * Vista «cliente» (#cliente/<id>) — ficha 360 del cliente (vCliente del prototipo l.1760).
+ *
+ * Con backend y un id UUID usa la API real de M-CUS (clientes/CustomerFicha);
+ * en modo demo (VITE_DEMO=1) o con un código de ejemplo (CL-…) sigue con mock.
  */
+import CustomerFicha, { type MockTabId } from './clientes/CustomerFicha';
+import { isUuid, LIVE } from './clientes/shared';
+import { clients } from '../../data/db';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useActions } from '../../app/actions';
 import { useApp, useMoney } from '../../app/context';
@@ -19,6 +25,28 @@ type TabId = 'resumen' | 'mapa' | 'servicios' | 'dominios' | 'facturas' | 'ticke
 const tkKind = (s: string) => (s === 'Resuelto' ? 'ok' : s === 'Nuevo' ? 'info' : s === 'Esperando cliente' ? '' : 'warn');
 
 export default function ClienteView({ param }: ViewProps) {
+  if (LIVE && isUuid(param)) return <CustomerFicha key={param} id={param} mockTab={(t) => <MockTab tab={t} />} />;
+  return <ClienteDemoView param={param} />;
+}
+
+/**
+ * TODO(modulo): pestañas de módulos que aún no existen (servicios SRV, dominios DOM,
+ * facturas BIL, tickets HLP, contratos CON y mapa SMP). Se pintan con un cliente
+ * de ejemplo hasta que esos módulos expongan su API por customer_id.
+ */
+function MockTab({ tab }: { tab: MockTabId }) {
+  const m = useMoney();
+  const c = clients[0];
+  if (!c) return <EmptyState title="Sin datos de ejemplo" />;
+  if (tab === 'mapa') return <Mapa c={c} money={m.money} />;
+  if (tab === 'servicios') return <Servicios c={c} />;
+  if (tab === 'dominios') return <div className="card">{c.domains.length ? <DomTable list={c.domains} compact /> : <EmptyState title="Sin dominios" />}</div>;
+  if (tab === 'facturas') return <Facturas c={c} />;
+  if (tab === 'tickets') return <Tickets c={c} />;
+  return <Contratos c={c} />;
+}
+
+function ClienteDemoView({ param }: Pick<ViewProps, 'param'>) {
   const cid = param || 'CL-1001';
   const c = CBY[cid];
   if (!c) {

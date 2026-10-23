@@ -15,13 +15,20 @@ import { EmptyState, PageHead, Pager, SearchBox, Select, StatLine } from '../../
 import { addD, addInv, CBY, diffD, fInv, findClient, IBY, NF0, norm, plural, sumBy, TODAY } from '../../data';
 import type { Cur, InvoiceType } from '../../data';
 import { InvTable, pageOf, PER } from './finanzas/shared';
+import InvoiceList from './facturas/InvoiceList';
+import { LIVE } from './clientes/shared';
 
 const TYPES = ['Factura', 'Boleta', 'Nota de crédito', 'Nota de débito'];
 const SUNATS = ['Aceptada', 'Pendiente', 'Rechazada', 'Observada'];
 const STATES = ['Pagada', 'Pendiente', 'Vencida', 'Aplicada'];
 const opts = (l: string, list: string[]): [string, string][] => [['', `${l}: todos`], ...list.map((o): [string, string] => [o, o])];
 
+/** Con backend usa la API real de M-BIL (facturas/InvoiceList); con VITE_DEMO=1, el prototipo. */
 export default function FacturasView({ param }: ViewProps) {
+  return LIVE ? <InvoiceList param={param} /> : <FacturasDemoView param={param} />;
+}
+
+function FacturasDemoView({ param }: Pick<ViewProps, 'param'>) {
   const { brand, dataVersion, dialogs, toast, refresh } = useApp();
   const m = useMoney();
   const act = useActions();

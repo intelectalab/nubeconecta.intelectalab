@@ -1,0 +1,160 @@
+/**
+ * Catálogo (M-CAT, franja MVP) del panel: /api/v1/admin/{product-categories,products,plans,plan-prices,product-listings}.
+ * Tipos tomados de los modelos reales (ModelResource): columnas de la tabla más relaciones cargadas.
+ * `cost_minor`/`cost_currency` solo llegan con el permiso finance.cost.view.
+ */
+import { newIdempotencyKey, toQuery, type HttpClient } from './http';
+import type { Currency, CursorPage, ListParams } from './customers';
+
+export type BillingType = 'recurring' | 'one_time';
+export type PlanCycle = 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'biennial' | 'triennial' | 'one_time';
+
+export const PLAN_CYCLES: PlanCycle[] = ['monthly', 'quarterly', 'semiannual', 'annual', 'biennial', 'triennial', 'one_time'];
+
+/** Etiquetas en español; `one_time` con `limits.billing_unit = 'hour'` se muestra "Por hora". */
+export const CYCLE_LABELS: Record<PlanCycle, string> = {
+  monthly: 'Mensual',
+  quarterly: 'Trimestral',
+  semiannual: 'Semestral',
+  annual: 'Anual',
+  biennial: 'Bienal',
+  triennial: 'Trienal',
+  one_time: 'Único',
+};
+
+export const cycleLabel = (plan: Pick<Plan, 'cycle' | 'limits'>): string =>
+  plan.cycle === 'one_time' && plan.limits?.billing_unit === 'hour' ? 'Por hora' : CYCLE_LABELS[plan.cycle];
+
+interface Audit {
+  version: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface ProductCategory extends Audit {
+  id: string;
+  parent_id: string | null;
+  code: string;
+  name: string;
+  kind: string;
+  shortcode_type: string | null;
+  is_system: boolean;
+  sort_order: number;
+}
+
+export interface PlanPrice extends Audit {
+  id: string;
+  plan_id: string;
+  currency: Currency;
+  price_minor: number;
+  setup_fee_minor: number;
+  effective_from: string;
+  effective_to: string | null;
+}
+
+export interface Plan extends Audit {
+  id: string;
+  product_id: string;
+  code: string;
+  name: string;
+  cycle: PlanCycle;
+  cost_minor?: number | null;
+  cost_currency?: string | null;
+  tax_code: string | null;
+  limits: Record<string, unknown> & { billing_unit?: 'hour' };
+  is_active: boolean;
+  prices?: PlanPrice[];
+}
+
+export interface ProductListing extends Audit {
+  id: string;
+  product_id: string;
+  brand_id: string;
+  display_name: Record<string, string>;
+  tagline: Record<string, string>;
+  highlights: unknown[];
+  sellable_online: boolean;
+  is_featured: boolean;
+  sort_order: number;
+  visible_from: string | null;
+  visible_until: string | null;
+}
+
+export interface Product extends Audit {
+  id: string;
+  code: string;
+  category_id: string;
+  brand_id: string | null;
+  name: string;
+  description: string | null;
+  billing_type: BillingType;
+  provisioning_rule: 'manual' | 'automatic';
+  requires_contract: boolean;
+  export_eligible: boolean;
+  tax_code: string | null;
+  is_active: boolean;
+  /** true: venta en línea; false: por cotización. */
+  sellable_online: boolean;
+  custom: Record<string, unknown>;
+  category?: Pick<ProductCategory, 'id' | 'code' | 'name' | 'kind'>;
+  plans?: Plan[];
+  listings?: ProductListing[];
+}
+
+export type ProductInput = Partial<Pick<Product, 'code' | 'category_id' | 'brand_id' | 'name' | 'description' | 'billing_type' | 'requires_contract' | 'export_eligible' | 'is_active' | 'sellable_online' | 'custom'>>;
+export type PlanInput = Partial<Pick<Plan, 'product_id' | 'code' | 'name' | 'cycle' | 'cost_minor' | 'cost_currency' | 'limits' | 'is_active'>>;
+export type PlanPriceInput = Partial<Pick<PlanPrice, 'plan_id' | 'currency' | 'price_minor' | 'setup_fee_minor' | 'effective_from' | 'effective_to'>>;
+export type ProductCategoryInput = Partial<Pick<ProductCategory, 'code' | 'name' | 'kind' | 'parent_id' | 'shortcode_type' | 'sort_order'>>;
+export type ProductListingInput = Partial<Pick<ProductListing, 'product_id' | 'brand_id' | 'display_name' | 'tagline' | 'sellable_online' | 'is_featured' | 'sort_order' | 'visible_from' | 'visible_until'>>;
+
+export interface ProductFilters {
+  category_id?: string;
+  brand_id?: string;
+  is_active?: boolean;
+  sellable_online?: boolean;
+  billing_type?: BillingType | '';
+}
+
+/** Precio vigente hoy de un plan en una moneda (mismo criterio que el backend). */
+export function currentPrice(plan: Plan, currency: Currency, today = new Date().toISOString().slice(0, 10)): PlanPrice | undefined {
+  return (plan.prices ?? [])
+    .filter((p) => p.currency === currency && p.effective_from <= today && (p.effective_to === null || p.effective_to > today))
+    .sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
+}
+
+interface Envelope<T> {
+  data: T;
+}
+
+const enc = encodeURIComponent;
+const bool = (v: boolean | undefined) => (v === undefined ? undefined : v ? 'true' : 'false');
+
+function crud<T, I>(http: HttpClient, path: string) {
+  const base = `/api/v1/admin/${path}`;
+  const unwrap = <R>(r: Envelope<R>) => r.data;
+  return {
+    list: (params: ListParams & { filter?: Record<string, unknown> } = {}) =>
+      http.get<CursorPage<T>>(`${base}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
+    get: (id: string) => http.get<Envelope<T>>(`${base}/${enc(id)}`).then(unwrap),
+    create: (input: I, idempotencyKey = newIdempotencyKey()) => http.post<Envelope<T>>(base, input, { idempotencyKey }).then(unwrap),
+    update: (id: string, version: number, input: I) => http.patch<Envelope<T>>(`${base}/${enc(id)}`, { ...input, version }).then(unwrap),
+    remove: (id: string) => http.delete<void>(`${base}/${enc(id)}`),
+  };
+}
+
+export function createCatalogApi(http: HttpClient) {
+  const products = crud<Product, ProductInput>(http, 'products');
+  return {
+    categories: crud<ProductCategory, ProductCategoryInput>(http, 'product-categories'),
+    products: {
+      ...products,
+      list: (params: ListParams & { filter?: ProductFilters } = {}) =>
+        products.list({ ...params, filter: { ...params.filter, is_active: bool(params.filter?.is_active), sellable_online: bool(params.filter?.sellable_online) } }),
+    },
+    plans: crud<Plan, PlanInput>(http, 'plans'),
+    prices: crud<PlanPrice, PlanPriceInput>(http, 'plan-prices'),
+    listings: crud<ProductListing, ProductListingInput>(http, 'product-listings'),
+  };
+}

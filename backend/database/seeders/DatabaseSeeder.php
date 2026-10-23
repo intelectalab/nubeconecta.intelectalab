@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Modules\Billing\Database\Seeders\BillingSeeder;
 use App\Modules\Identity\Database\Seeders\IdentitySeeder;
 use App\Modules\Settings\Database\Seeders\SettingsSeeder;
 use Illuminate\Database\Seeder;
@@ -16,6 +17,6 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([IdentitySeeder::class, SettingsSeeder::class]);
+        $this->call([IdentitySeeder::class, SettingsSeeder::class, BillingSeeder::class]);
     }
 }

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Hub Connector
  * Plugin URI: https://alojamientoplus.pe
- * Description: Conecta los sitios web WordPress de las marcas con el sistema central Hub (catálogo de hosting, dominios WHOIS, Libro de Reclamaciones y formularios).
- * Version: 1.0.0
+ * Description: Conecta los sitios web WordPress de las marcas con el sistema central Hub (catálogo, precios y contacto de la marca, con caché y avisos de invalidación firmados).
+ * Version: 1.1.0
  * Author: AlojamientoPlus Core Team
  * License: Proprietary
  * Requires at least: 6.2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HUB_CONNECTOR_VERSION', '1.0.0');
+define('HUB_CONNECTOR_VERSION', '1.1.0');
 define('HUB_CONNECTOR_PLUGIN_FILE', __FILE__);
 define('HUB_CONNECTOR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HUB_CONNECTOR_PLUGIN_URL', plugin_dir_url(__FILE__));

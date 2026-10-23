@@ -1,7 +1,12 @@
 /**
  * Vista «clientes» (#clientes) — listado de clientes (vClientes del prototipo l.1700).
+ *
+ * Con backend (por defecto) usa la API real de M-CUS (clientes/CustomerList);
+ * en modo demo (VITE_DEMO=1) sigue con los datos de ejemplo.
  */
 import { useMemo } from 'react';
+import CustomerList from './clientes/CustomerList';
+import { LIVE } from './clientes/shared';
 import { useActions } from '../../app/actions';
 import { useApp, useMoney } from '../../app/context';
 import { useViewState } from '../../app/storage';
@@ -16,6 +21,10 @@ const STATES = ['Activo', 'Moroso', 'Suspendido', 'Inactivo'] as const;
 const balOf = (c: Client) => c.invoices.filter((v) => v.status === 'Pendiente' || v.status === 'Vencida').reduce((a, v) => a + saldo(v), 0);
 
 export default function ClientesView() {
+  return LIVE ? <CustomerList /> : <ClientesDemoView />;
+}
+
+function ClientesDemoView() {
   const { brand, dataVersion, toast } = useApp();
   const m = useMoney();
   const act = useActions();

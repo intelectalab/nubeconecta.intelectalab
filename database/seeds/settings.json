@@ -3349,8 +3349,8 @@
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto de crecimiento mensual del ingreso recurrente (KPI-COM-03).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 2,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3361,15 +3361,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.churn_rate_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (máximo) de la tasa mensual de abandono de clientes (KPI-COM-07).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 3,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3380,15 +3380,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.lead_conversion_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto de la tasa de conversión de prospectos a clientes (KPI-CRM-03).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 15,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3399,15 +3399,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.days_sales_outstanding",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (máximo) de los días promedio de cobro (KPI-FIN-04).",
       "type": "integer",
-      "default": null,
-      "requires_definition": true,
+      "default": 15,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3417,15 +3417,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "days",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.gross_margin_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) del margen bruto por servicio (KPI-FIN-07).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 50,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3436,15 +3436,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.overdue_debt_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (máximo) de la deuda vencida sobre la cartera (KPI-FIN-06).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 10,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3454,15 +3454,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.promise_kept_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) de compromisos de pago cumplidos (KPI-COB-05).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 80,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3472,15 +3472,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.renewal_rate_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) de la tasa de renovación de servicios (KPI-OPE-02).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 85,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3491,15 +3491,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.backup_success_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) de respaldos exitosos (KPI-OPE-06).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 99,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3509,15 +3509,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.availability_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) de disponibilidad de los servicios monitoreados (KPI-OPE-07).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 99.9,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3527,7 +3527,7 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Debe ser coherente con el SLA de disponibilidad que se ofrezca en los contratos (docs/11)."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.node_usage_max_percent",
@@ -3570,8 +3570,8 @@
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) del cumplimiento de SLA (KPI-SOP-04).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 95,
+      "requires_definition": false,
       "levels": [
         "global"
       ],
@@ -3581,15 +3581,15 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.csat_percent",
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (mínimo) de clientes satisfechos en las encuestas (KPI-SOP-05).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 90,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3600,7 +3600,7 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "dashboard.targets.complaints_on_time_percent",
@@ -3625,8 +3625,8 @@
       "group": "Indicadores (KPI)",
       "description": "Meta por defecto (máximo) de carritos abandonados sobre carritos creados (KPI-WEB-02).",
       "type": "decimal",
-      "default": null,
-      "requires_definition": true,
+      "default": 70,
+      "requires_definition": false,
       "levels": [
         "global",
         "brand"
@@ -3637,7 +3637,7 @@
       "edit_permission": "settings.setting.update",
       "origin": "§27",
       "unit": "percent",
-      "notes": "Meta del negocio sin dato en el kit: definirla con gerencia. Mientras sea null, el indicador muestra \"sin meta\" salvo que exista una meta en kpi_targets."
+      "notes": "Propuesta inicial de práctica del sector, sin norma (D-34, docs/11a-propuesta-valores-peru.md, 2026-10-21); calibrar con gerencia tras 3 meses de datos reales."
     },
     {
       "key": "editor.html.allowed_tags",

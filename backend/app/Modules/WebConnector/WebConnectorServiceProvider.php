@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\WebConnector;
+
+use App\Modules\Brands\Events\BrandThemeVersionPublished;
+use App\Modules\Brands\Events\BrandThemeVersionReverted;
+use App\Modules\Brands\Events\BrandUpdated;
+use App\Modules\Catalog\Events\PlanChanged;
+use App\Modules\Catalog\Events\PlanPriceChanged;
+use App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite;
+use App\Modules\WebConnector\Listeners\InvalidateBrandSites;
+use App\Modules\WebConnector\Listeners\InvalidateCatalogSites;
+use App\Modules\WebConnector\Services\CacheInvalidator;
+use App\Modules\WebConnector\Services\SecretStore;
+use App\Modules\WebConnector\Services\WebhookSigner;
+use App\Modules\WebConnector\Services\WpSiteService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+
+/** Módulo WebConnector (M-WCN): sitios WordPress, tokens del plugin, avisos de invalidación y API /public/wp. */
+final class WebConnectorServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app->singleton(SecretStore::class);
+        $this->app->singleton(WebhookSigner::class);
+        $this->app->scoped(CacheInvalidator::class);
+        $this->app->scoped(WpSiteService::class);
+    }
+
+    public function boot(Router $router): void
+    {
+        $router->aliasMiddleware('wp.site', AuthenticateWpSite::class);
+
+        // Límite por token del sitio; la doc no fija el valor (config hub.web_connector).
+        RateLimiter::for('wp-plugin', fn (Request $request) => Limit::perMinute((int) config('hub.web_connector.requests_per_minute', 120))
+            ->by('wp:'.($request->attributes->get('wp_site_token_id') ?? $request->ip())));
+
+        Event::listen([BrandUpdated::class, BrandThemeVersionPublished::class, BrandThemeVersionReverted::class], InvalidateBrandSites::class);
+        Event::listen([PlanChanged::class, PlanPriceChanged::class], InvalidateCatalogSites::class);
+
+        if (! $this->app->routesAreCached()) {
+            Route::middleware('api')->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/routes/api.php');
+        }
+    }
+}

@@ -50,7 +50,9 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Tokens bearer: 8 horas por defecto, igual que security.session_duration_hours (docs/10 §5).
+    // Un expires_at más corto en el token también se respeta. Las sesiones SPA no se ven afectadas.
+    'expiration' => env('SANCTUM_EXPIRATION', 480) === null || env('SANCTUM_EXPIRATION', 480) === '' ? null : (int) env('SANCTUM_EXPIRATION', 480),
 
     /*
     |--------------------------------------------------------------------------

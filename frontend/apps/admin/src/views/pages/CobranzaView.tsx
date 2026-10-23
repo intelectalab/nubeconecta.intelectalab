@@ -13,6 +13,8 @@ import { Icon } from '../../components/Icon';
 import { Chip, ClientLink, DayChip, EmptyState, Link, Note, PageHead, Pager, SearchBox, StatLine, Tabs } from '../../components/ui';
 import { addD, CBY, commits, diffD, fD, fDs, fInv, fromIso, fT, IBY, iso, NOW, norm, plural, saldo, SEQ, sumBy, TODAY, vouchers } from '../../data';
 import type { Invoice } from '../../data';
+import { LIVE } from './clientes/shared';
+import CollectionsView from './cobranza/CollectionsView';
 import { activeCommit, cobData, InvLink, pageOf, PER, seqFor, SeqTimeline } from './finanzas/shared';
 
 type CobTab = 'pronto' | 'vencidas' | 'vouchers' | 'compromisos' | 'suspensiones';
@@ -29,7 +31,12 @@ function CliCell({ cid }: { cid: string }) {
   return CBY[cid] ? <ClientLink cid={cid} sub /> : <span className="sub">—</span>;
 }
 
+/** Con backend usa la API real de M-BIL (cobranza/CollectionsView); con VITE_DEMO=1, el prototipo. */
 export default function CobranzaView({ param }: ViewProps) {
+  return LIVE ? <CollectionsView param={param} /> : <CobranzaDemoView param={param} />;
+}
+
+function CobranzaDemoView({ param }: Pick<ViewProps, 'param'>) {
   const { brand, dataVersion, dialogs, toast, refresh } = useApp();
   const m = useMoney();
   const act = useActions();

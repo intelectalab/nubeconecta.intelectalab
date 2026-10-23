@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Http\Controllers\Admin;
 
 use App\Modules\Identity\Services\PrivilegeGuard;
+use App\Modules\Identity\Services\SystemAdminGuard;
 use App\Models\User;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\Role;
@@ -119,6 +120,7 @@ final class UserController
         DB::transaction(function () use ($user, $sessions): void {
             $before = $this->snapshot($user);
             $user->forceFill(['status' => 'disabled', 'disabled_at' => now()])->save();
+            app(SystemAdminGuard::class)->assertActiveAdminRemains();
             $revoked = $sessions->revokeAll($user);
             $this->audit->record('user.disabled', 'user', $user->id, $before, $this->snapshot($user), ['revoked_sessions' => $revoked]);
         });
@@ -145,8 +147,9 @@ final class UserController
 
         DB::transaction(function () use ($user, $sessions): void {
             $before = $this->snapshot($user);
-            $sessions->revokeAll($user);
             $user->delete();
+            app(SystemAdminGuard::class)->assertActiveAdminRemains();
+            $sessions->revokeAll($user);
             $this->audit->record('user.deleted', 'user', $user->id, $before, null);
         });
 
@@ -165,6 +168,7 @@ final class UserController
         DB::transaction(function () use ($user, $data): void {
             $before = $user->roles()->pluck('roles.code')->sort()->values()->all();
             $this->syncRoles($user, $data['roles']);
+            app(SystemAdminGuard::class)->assertActiveAdminRemains();
             $after = $user->roles()->pluck('roles.code')->sort()->values()->all();
             $this->audit->record('user.roles_updated', 'user', $user->id, ['roles' => $before], ['roles' => $after]);
         });

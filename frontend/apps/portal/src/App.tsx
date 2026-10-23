@@ -6,6 +6,7 @@ import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { AssistantChat } from './components/AssistantChat';
 import { LoginView } from './components/LoginView';
 import { DEMO_MODE, DEMO_USER, hub, initials, onUnauthenticated } from './auth/client';
+import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
 
 export default function App() {
@@ -82,7 +83,7 @@ export default function App() {
       title: 'Mi cuenta',
       items: [
         { id: 'resumen', label: 'Resumen', icon: 'home' },
-        { id: 'servicios', label: 'Mis servicios', icon: 'server', badge: SRV.filter((s) => s.st === 'warn').length },
+        { id: 'servicios', label: 'Mis servicios', icon: 'server', badge: DEMO_MODE ? SRV.filter((s) => s.st === 'warn').length : 0 },
         { id: 'dominios', label: 'Dominios', icon: 'globe' },
         { id: 'respaldos', label: 'Respaldos', icon: 'archive' },
       ],
@@ -90,7 +91,7 @@ export default function App() {
     {
       title: 'Pagos y soporte',
       items: [
-        { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: INV.filter((i) => i.st !== 'pagada').length },
+        { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: DEMO_MODE ? INV.filter((i) => i.st !== 'pagada').length : 0 },
         { id: 'soporte', label: 'Centro de soporte', icon: 'msg' },
       ],
     },
@@ -141,6 +142,10 @@ export default function App() {
 
   const user = auth.user;
   const roleName = user.roles[0]?.name ?? '';
+  /* Con backend (sin VITE_DEMO) estas pantallas usan la API real (live/LivePortal); el resto sigue con datos de ejemplo. */
+  const live = !DEMO_MODE && (LIVE_ROUTES as string[]).includes(route);
+  const perms = new Set(user.permissions ?? []);
+  const can = (perm: string) => perms.has(perm) || perms.has('*');
 
   return (
     <div className="app" id="app">
@@ -279,10 +284,10 @@ export default function App() {
             <span aria-current="page">
               {route === 'resumen' && 'Resumen'}
               {route === 'servicios' && 'Mis servicios'}
-              {route === 'servicio-detalle' && selectedService.name}
+              {route === 'servicio-detalle' && (DEMO_MODE ? selectedService.name : 'Detalle de servicio')}
               {route === 'dominios' && 'Dominios'}
               {route === 'facturas' && 'Facturas y pagos'}
-              {route === 'pagar' && 'Pagar facturas en línea'}
+              {route === 'pagar' && (DEMO_MODE ? 'Pagar facturas en línea' : 'Pagos y vouchers')}
               {route === 'soporte' && 'Centro de soporte'}
               {route === 'ticket-detalle' && selectedTicket.id}
               {route === 'respaldos' && 'Respaldos automáticos'}
@@ -293,8 +298,10 @@ export default function App() {
             </span>
           </div>
 
+          {live ? <LivePortal route={route as LiveRoute} go={(r) => setRoute(r)} can={can} /> : null}
+
           {/* VISTA 1: RESUMEN / DASHBOARD */}
-          {route === 'resumen' && (() => {
+          {!live && route === 'resumen' && (() => {
             const pendInvoices = INV.filter((i) => i.st !== 'pagada');
             const totalPend = pendInvoices.reduce((acc, curr) => acc + conv(curr.amt, curr.c), 0);
             const overdue = INV.filter((i) => i.st === 'vencida');
@@ -490,7 +497,7 @@ export default function App() {
           })()}
 
           {/* VISTA 2: MIS SERVICIOS (LISTA POR PROYECTOS) */}
-          {route === 'servicios' && (
+          {!live && route === 'servicios' && (
             <div style={{ display: 'grid', gap: 24 }}>
               <div className="phead">
                 <div>
@@ -560,7 +567,7 @@ export default function App() {
           )}
 
           {/* VISTA 3: DETALLE PROFUNDO DE UN SERVICIO */}
-          {route === 'servicio-detalle' && (() => {
+          {!live && route === 'servicio-detalle' && (() => {
             const p = PROJ.find((x) => x.id === selectedService.proj);
             const serviceTickets = ticketsList.filter((t) => t.srv.toLowerCase().includes(selectedService.name.toLowerCase()) || (selectedService.id === 'reservas' && t.id === 'TK-10482'));
 
@@ -724,7 +731,7 @@ export default function App() {
           })()}
 
           {/* VISTA 4: FACTURAS Y PAGOS */}
-          {route === 'facturas' && (() => {
+          {!live && route === 'facturas' && (() => {
             const filteredInvoices = INV.filter((i) => {
               if (invFilter === 'pend') return i.st !== 'pagada';
               if (invFilter === 'paid') return i.st === 'pagada';
@@ -879,7 +886,7 @@ export default function App() {
           })()}
 
           {/* VISTA 5: PASARELA DE PAGO EN 3 PASOS */}
-          {route === 'pagar' && (
+          {!live && route === 'pagar' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
                 <button className="btn sm ghost" onClick={() => setRoute('facturas')} style={{ paddingLeft: 0, marginBottom: 6 }}>
@@ -1679,7 +1686,7 @@ export default function App() {
           )}
 
           {/* VISTA 13: DATOS FISCALES / PERFIL */}
-          {route === 'perfil' && (
+          {!live && route === 'perfil' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
                 <div>

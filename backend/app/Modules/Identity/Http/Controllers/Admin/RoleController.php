@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Http\Controllers\Admin;
 
 use App\Modules\Identity\Services\PrivilegeGuard;
+use App\Modules\Identity\Services\SystemAdminGuard;
 use App\Modules\Identity\Http\Resources\RoleResource;
 use App\Modules\Identity\Models\Permission;
 use App\Modules\Identity\Models\Role;
@@ -155,6 +156,7 @@ final class RoleController
                 array_diff($data['permissions'], $before),
                 array_diff($before, $data['permissions']),
             ));
+            app(SystemAdminGuard::class)->assertKeepsMinimumPermissions($role, array_values(array_unique($data['permissions'])));
             $role->syncPermissionIds($ids);
             $role->touch(); // version +1: la matriz cambió
             $after = $role->permissions()->pluck('permissions.code')->sort()->values()->all();

@@ -42,6 +42,39 @@ return [
     'audit' => [
         'redact' => ['password', 'password_confirmation', 'current_password', 'new_password', 'password_hash', 'session_token_hash', 'preview_token', 'mfa_secret', 'token', 'code_hash', 'secret', 'recovery_codes'],
     ],
+    // Bóveda mínima (docs/10 §1) hasta que exista VLT: clave AES-256-GCM fuera de la
+    // base (base64 de 32 bytes). Vacía: se deriva de APP_KEY con HKDF (solo desarrollo).
+    'vault' => [
+        'key' => env('HUB_VAULT_KEY'),
+        'key_version' => (int) env('HUB_VAULT_KEY_VERSION', 1),
+    ],
+
+    // Usuario de BD restringido (php artisan hub:db:app-user): rol LOGIN que hereda de hub_app.
+    // La contraseña solo viene del entorno; nunca del repositorio.
+    'database' => [
+        'app_username' => env('HUB_DB_APP_USERNAME', 'hub_app_login'),
+        'app_password' => env('HUB_DB_APP_PASSWORD'),
+    ],
+
+    // Rol admin del sistema (SystemAdminGuard): permisos que nunca puede perder para que la
+    // organización no quede sin quien administre accesos. La doc no fija la lista: mínimo seguro.
+    'identity' => [
+        'admin_minimum_permissions' => [
+            'identity.user.view', 'identity.user.update', 'identity.role.view', 'identity.role.update', 'identity.permission.view',
+        ],
+    ],
+
+    // Llamadas salientes a URL de usuarios (SSRF): permitir destinos privados o no
+    // resolubles solo tiene efecto en APP_ENV local/testing (App\Shared\Http\OutboundUrlGuard).
+    'outbound' => [
+        'allow_private_targets' => (bool) env('HUB_OUTBOUND_ALLOW_PRIVATE', false),
+    ],
+
+    // WebConnector (M-WCN): límite de la API del plugin por token (la doc no lo fija).
+    'web_connector' => [
+        'requests_per_minute' => (int) env('HUB_WP_REQUESTS_PER_MINUTE', 120),
+    ],
+
     // Temas por marca (M-BRD). Estructura de tokens propuesta por el código, no por
     // los documentos: colores por modo en tokens.colors.<modo>.<nombre> y pares
     // texto/fondo que se miden contra brands.theme.min_contrast_ratio. Revisar con diseño.
@@ -58,6 +91,51 @@ return [
             // Pares obligatorios en cada modo para poder verificar el contraste.
             'required_pairs' => [['text', 'background']],
             'max_depth' => 5,
+        ],
+    ],
+
+    // Services (M-SRV, franja MVP): con true, el aprovisionamiento manual activa los
+    // servicios al aprobar el pedido (demostración); por defecto quedan `pending`.
+    'services' => [
+        'auto_activate' => (bool) env('HUB_SERVICES_AUTO_ACTIVATE', false),
+    ],
+
+    // Billing (M-BIL, franja MVP). auto_issue: emitir en el acto los borradores
+    // generados (pedido aprobado y renovaciones); la doc lo deja a una "regla de
+    // automatización" (D-xx pendiente). einvoice.driver: conector OSE/PSE
+    // (D-01 sin decidir); 'fake' simula la aceptación con un CDR ficticio y no
+    // funciona en producción.
+    'billing' => [
+        'auto_issue' => (bool) env('HUB_BILLING_AUTO_ISSUE', false),
+        'einvoice' => [
+            'driver' => env('HUB_EINVOICE_DRIVER', 'fake'),
+        ],
+        // Constancias de pago (vouchers y comprobantes adjuntos): disco privado,
+        // tipos verificados por contenido y tamaño máximo en KB (docs/10 §Archivos).
+        'proofs' => [
+            'disk' => env('HUB_BILLING_PROOFS_DISK', 'local'),
+            'max_kb' => (int) env('HUB_BILLING_PROOF_MAX_KB', 5120),
+            'mimes' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        ],
+        // Pasarela de tarjetas (D-18): Mercado Pago Checkout Pro. Desactivada (el
+        // portal oculta el botón) mientras falten MP_ACCESS_TOKEN o MP_WEBHOOK_SECRET.
+        // Las llaves solo viven en el entorno; nunca en logs ni auditoría.
+        'card_gateway' => [
+            'driver' => env('HUB_CARD_GATEWAY_DRIVER', 'mercadopago'),   // mercadopago | none
+            'portal_url' => env('HUB_PORTAL_URL', 'http://localhost:5173'),  // back_urls de retorno
+            'checkout_expiry_minutes' => (int) env('HUB_CARD_CHECKOUT_EXPIRY_MINUTES', 60),
+            'mercadopago' => [
+                'access_token' => env('MP_ACCESS_TOKEN'),
+                'public_key' => env('MP_PUBLIC_KEY'),
+                'webhook_secret' => env('MP_WEBHOOK_SECRET'),
+                'sandbox' => (bool) env('MP_SANDBOX', true),
+                'currencies' => env('MP_CURRENCIES', 'PEN'),
+                'notification_url' => env('MP_NOTIFICATION_URL'),   // vacío: APP_URL/api/v1/webhooks/mercadopago (solo https)
+                'statement_descriptor' => env('MP_STATEMENT_DESCRIPTOR'),
+                'webhook_tolerance_seconds' => (int) env('MP_WEBHOOK_TOLERANCE_SECONDS', 300),
+                'base_url' => 'https://api.mercadopago.com',
+                'timeout' => 15,
+            ],
         ],
     ],
 ];

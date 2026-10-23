@@ -17,6 +17,8 @@ import { BdSheet, GpSheet, HpSheet, VpSheet } from './comercial/catSheets';
 import { bundleRows, Combos, GenTable, hostingRows, HostingTable, TldTable, VpsTable, type CatHandlers } from './comercial/catTables';
 import { WizardModal } from './comercial/catWizard';
 import { PriceChangeModal, ScBox, type PriceAsk } from './comercial/shared';
+import CatalogList from './catalogo/CatalogList';
+import { LIVE } from './clientes/shared';
 
 type SheetState = { kind: 'hp' | 'vp' | 'bd' | 'gp'; id: string; cat: string } | null;
 type ModalState = { kind: 'sc'; id: string } | { kind: 'prev'; id: string } | { kind: 'wiz'; cat: string } | { kind: 'created'; id: string } | null;
@@ -30,7 +32,12 @@ function catCount(id: string, brand: BrandFilter): number {
 }
 const scCode = (g: GenProduct) => `[hub_plan id="${g.id}"${g.sale === 'cotizacion' ? ' accion="cotizar"' : ''}]`;
 
-export default function CatalogoView({ param }: ViewProps) {
+/** Con backend usa la API real de M-CAT (catalogo/CatalogList); con VITE_DEMO=1, el prototipo. */
+export default function CatalogoView(props: ViewProps) {
+  return LIVE ? <CatalogList param={props.param} /> : <CatalogoDemoView {...props} />;
+}
+
+function CatalogoDemoView({ param }: ViewProps) {
   const { brand, dataVersion, navSeq, toast, refresh } = useApp();
   const [tab, setTab] = useViewState<string>('cat.tab', 'hosting');
   const [sheet, setSheet] = useState<SheetState>(null);

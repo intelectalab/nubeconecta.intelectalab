@@ -8,4 +8,11 @@ return [
     App\Modules\Identity\IdentityServiceProvider::class,
     App\Modules\Settings\SettingsServiceProvider::class,
     App\Modules\Brands\BrandsServiceProvider::class,
+    App\Modules\WebConnector\WebConnectorServiceProvider::class,
+    App\Modules\Customers\CustomersServiceProvider::class,
+    App\Modules\Catalog\CatalogServiceProvider::class,
+    App\Modules\Orders\OrdersServiceProvider::class,
+    // Services antes que Billing: ambos escuchan OrderApproved y la factura inicial enlaza los servicios.
+    App\Modules\Services\ServicesServiceProvider::class,
+    App\Modules\Billing\BillingServiceProvider::class,
 ];
