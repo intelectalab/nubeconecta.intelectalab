@@ -26,6 +26,15 @@ const tkKind = (s: string) => (s === 'Resuelto' ? 'ok' : s === 'Nuevo' ? 'info' 
 
 export default function ClienteView({ param }: ViewProps) {
   if (LIVE && isUuid(param)) return <CustomerFicha key={param} id={param} mockTab={(t) => <MockTab tab={t} />} />;
+  if (LIVE) {
+    // Con backend, un id que no es UUID (enlaces CL-… de vistas aún de ejemplo) no debe mezclar datos ficticios con reales.
+    return (
+      <>
+        <PageHead crumbs={[['Clientes', 'clientes'], ['Cliente']]} title="Cliente no encontrado" />
+        <EmptyState title="Cliente no encontrado" text={`No existe un cliente con el identificador «${param ?? ''}». Búsquelo en el listado de clientes.`} />
+      </>
+    );
+  }
   return <ClienteDemoView param={param} />;
 }
 

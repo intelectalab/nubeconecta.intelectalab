@@ -26,7 +26,7 @@ export const servicePrice = (s: Service) => (s.price.unit_price_minor !== null &
 
 export default function ServiceList({ param, customerId }: { param?: string | null; customerId?: string }) {
   const embedded = !!customerId;
-  const ns = embedded ? 'srv.c' : 'srv.api';
+  const ns = embedded ? `srv.c.${customerId}` : 'srv.api'; // filtros por cliente: no se comparten entre fichas
   const [q, setQ] = useViewState(`${ns}.q`, '');
   const [st, setSt] = useViewState(`${ns}.st`, '');
   const [from, setFrom] = useViewState(`${ns}.from`, '');

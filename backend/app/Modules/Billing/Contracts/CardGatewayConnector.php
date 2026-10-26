@@ -29,6 +29,9 @@ interface CardGatewayConnector
      */
     public function createCheckout(string $checkoutId, array $invoiceIds, int $amountMinor, string $currency, string $idempotencyKey, array $context = []): array;
 
+    /** Enlace de pago de una sesión ya creada y vigente (para reutilizar el intento); null si la pasarela no lo da. */
+    public function checkoutUrl(string $sessionId): ?string;
+
     /** Verifica la firma del webhook con el cuerpo crudo; $headers en minúsculas, más `data.id` de la URL. */
     public function verifyWebhook(string $rawBody, array $headers): bool;
 

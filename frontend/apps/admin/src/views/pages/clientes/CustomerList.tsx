@@ -39,10 +39,9 @@ export default function CustomerList() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setQDeb((prev) => {
-        if (prev !== q.trim()) setCursor(null);
-        return q.trim();
-      });
+      // Sin efectos dentro del updater (React los exige puros): el cursor se reinicia aquí.
+      setCursor(null);
+      setQDeb(q.trim());
     }, 300);
     return () => clearTimeout(t);
   }, [q]);

@@ -52,10 +52,8 @@ export default function CatalogList({ param }: { param?: string | null }) {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setQDeb((prev) => {
-        if (prev !== q.trim()) setCursor(null);
-        return q.trim();
-      });
+      setCursor(null);
+      setQDeb(q.trim());
     }, 300);
     return () => clearTimeout(t);
   }, [q]);

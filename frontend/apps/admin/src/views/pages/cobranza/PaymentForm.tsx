@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { isProblem, newIdempotencyKey, type Currency, type Payment } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Field, Note, Select } from '../../../components/ui';
-import { errorText, fieldErrors, moneyMinor, useCan, useLoad } from '../clientes/shared';
+import { errorText, fDate, fieldErrors, moneyMinor, useCan, useLoad } from '../clientes/shared';
 import { invoiceNumber, invoicesApi } from '../facturas/shared';
 import { minorToInput, parseMinor, paymentsApi, todayIso } from './shared';
 
@@ -129,7 +129,7 @@ export default function PaymentForm({ customerId, currency, invoiceId, onDone, o
               {rows.map(({ i }, idx) => (
                 <tr key={i.id}>
                   <td className="mono">{invoiceNumber(i)}</td>
-                  <td>{i.due_date ?? '—'}</td>
+                  <td>{fDate(i.due_date)}</td>
                   <td className="r nw">{moneyMinor(i.balance_minor, i.currency)}</td>
                   <td className="r">
                     <input

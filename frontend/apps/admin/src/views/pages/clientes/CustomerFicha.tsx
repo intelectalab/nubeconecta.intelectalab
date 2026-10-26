@@ -6,8 +6,8 @@
  * (P-CUS-04), notas, servicios (M-SRV), facturas (M-BIL) e historial. Las pestañas de módulos que aún no existen las
  * pinta la vista con datos de ejemplo (`mockTab`).
  */
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AGING_LABELS, isProblem, newIdempotencyKey, CONTACT_ROLES, type AgingBucket, type AuditEvent, type Contact, type ContactInput, type ContactRole, type Customer, type CustomerNote } from '@hub/api';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { AGING_LABELS, isProblem, newIdempotencyKey, CONTACT_ROLES, type AgingBucket, type AuditEvent, type Contact, type ContactInput, type ContactRole, type Customer, type CustomerNote, type PortalRole } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
@@ -16,7 +16,7 @@ import { CustomerForm } from './CustomerForm';
 import ServiceList from '../servicios/ServiceList';
 import InvoiceList from '../facturas/InvoiceList';
 import { invoicesApi } from '../facturas/shared';
-import { countryName, customersApi, displayName, docOf, errorText, fDate, fDateTime, fieldErrors, moneyMinor, ROLE_LABEL, STATUS_LABEL, TAX_LABEL, TYPE_LABEL, useCan, useLoad, useLookups } from './shared';
+import { ACTOR_LABELS, auditActionLabel, countryName, customersApi, displayName, docOf, errorText, fDate, fDateTime, fieldErrors, moneyMinor, ROLE_LABEL, STATUS_LABEL, TAX_LABEL, TYPE_LABEL, useCan, useLoad, useLookups } from './shared';
 
 export type MockTabId = 'mapa' | 'servicios' | 'dominios' | 'facturas' | 'tickets' | 'contratos';
 type TabId = 'resumen' | 'contactos' | 'notas' | 'historial' | MockTabId;
@@ -35,15 +35,15 @@ const MOCK_TABS: { id: MockTabId; label: string; count: string }[] = [
 export default function CustomerFicha({ id, mockTab }: { id: string; mockTab: (tab: MockTabId) => ReactNode }) {
   const { navigate } = useApp();
   const ov = useLoad(() => customersApi.overview(id), [id]);
+  const e = ov.error;
+  const merged = isProblem(e) && e.code === 'customer_merged' ? (e.extensions.merged_into_id as string | undefined) : undefined;
+  // 404 por fusión: se redirige al cliente sobreviviente (P-CUS-03).
+  useEffect(() => {
+    if (merged) navigate('cliente', merged);
+  }, [merged, navigate]);
 
   if (ov.loading && !ov.data) return <PageSkeleton />;
   if (ov.error || !ov.data) {
-    const e = ov.error;
-    const merged = isProblem(e) && e.code === 'customer_merged' ? (e.extensions.merged_into_id as string | undefined) : undefined;
-    if (merged) {
-      // 404 por fusión: se redirige al cliente sobreviviente (P-CUS-03).
-      setTimeout(() => navigate('cliente', merged), 0);
-    }
     return (
       <>
         <PageHead crumbs={[['Clientes', 'clientes'], ['Cliente']]} title={merged ? 'Cliente fusionado' : 'No se pudo abrir el cliente'} />
@@ -296,6 +296,7 @@ function Contactos({ customer, billingMissing, onChange }: { customer: Customer;
   const [role, setRole] = useState<ContactRole | ''>('');
   const list = useLoad(() => customersApi.contacts.list(customer.id, { role: role || undefined, size: 100 }), [customer.id, role]);
   const [form, setForm] = useState<Contact | 'new' | null>(null);
+  const [grantRole, setGrantRole] = useState<Record<string, PortalRole>>({});
   const canUpdate = can('customers.contact.update');
 
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -402,8 +403,23 @@ function Contactos({ customer, billingMissing, onChange }: { customer: Customer;
                             </button>
                           </>
                         ) : k.email ? (
-                          <button type="button" className="btn sm" onClick={() => void run(() => customersApi.contacts.grantPortal(k.id, 'customer_user'), 'Acceso al portal concedido')}>
-                            Dar acceso
+                          <>
+                            <select className="select" aria-label="Rol en el portal" value={grantRole[k.id] ?? 'customer_user'} onChange={(e) => setGrantRole((g) => ({ ...g, [k.id]: e.target.value as PortalRole }))}>
+                              <option value="customer_user">Usuario</option>
+                              <option value="customer_admin">Administrador</option>
+                            </select>{' '}
+                            <button type="button" className="btn sm" onClick={() => void run(() => customersApi.contacts.grantPortal(k.id, grantRole[k.id] ?? 'customer_user'), 'Acceso al portal concedido')}>
+                              Dar acceso
+                            </button>
+                          </>
+                        ) : null}{' '}
+                        {k.portal_role ? (
+                          <button
+                            type="button"
+                            className="btn sm"
+                            onClick={() => void run(() => customersApi.contacts.grantPortal(k.id, k.portal_role === 'customer_admin' ? 'customer_user' : 'customer_admin'), 'Rol del portal actualizado')}
+                          >
+                            {k.portal_role === 'customer_admin' ? 'Pasar a usuario' : 'Hacer administrador'}
                           </button>
                         ) : null}{' '}
                       </>
@@ -653,10 +669,10 @@ function HistoryPage({ customerId, cursor, last, onMore }: { customerId: string;
         <li key={e.id}>
           <span className="nd now" />
           <div className="w">
-            <b>{e.action}</b>
+            <b>{auditActionLabel(e.action)}</b>
             <span>{fDateTime(e.occurred_at)}</span>
           </div>
-          <small>{e.actor_type === 'user' ? 'Usuario' : e.actor_type === 'system' ? 'Sistema' : e.actor_type}</small>
+          <small>{ACTOR_LABELS[e.actor_type] ?? e.actor_type}</small>
         </li>
       ))}
       {last && next ? (

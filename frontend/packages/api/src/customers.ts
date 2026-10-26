@@ -4,6 +4,7 @@
  * Tipos tomados de los Resources reales del backend:
  *  - CustomerResource  → columnas de `customers` + `tags` (+ derivados del listado)
  *  - ContactResource   → columnas de `contacts` + portal_role, mfa_enabled, last_login_at, consent
+ *                        (en el portal no llegan user_id, mfa_enabled ni last_login_at)
  *  - ModelResource     → notas (`customer_notes`) e historial (`audit_events`)
  */
 import { newIdempotencyKey, toQuery, type HttpClient } from './http';
@@ -112,8 +113,10 @@ export interface Contact {
   created_by?: string | null;
   updated_by?: string | null;
   portal_role: PortalRole | null;
-  mfa_enabled: boolean;
-  last_login_at: string | null;
+  /** Solo en el panel. */
+  mfa_enabled?: boolean;
+  /** Solo en el panel. */
+  last_login_at?: string | null;
   consent: ConsentSummary;
 }
 

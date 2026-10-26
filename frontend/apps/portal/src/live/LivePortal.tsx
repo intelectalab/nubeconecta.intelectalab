@@ -7,10 +7,12 @@
  *  - P-PRT-07/08 Comprobantes, detalle con pagos y envío de voucher (/portal/invoices)
  *  - P-PRT-09 Pagos y vouchers (/portal/payments)
  *  - P-PRT-14 Datos de facturación (/portal/account)
- * La pasarela de tarjetas (D-18) y PayPal en línea no están disponibles todavía.
+ * Pago con tarjeta (D-18, Mercado Pago Checkout Pro) cuando el comprobante lo
+ * ofrece (`card_payment.available`); PayPal en línea no está disponible todavía.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  CYCLE_LABELS,
   FISCAL_STATUS_LABELS,
   INVOICE_STATUS_LABELS,
   INVOICE_TYPE_LABELS,
@@ -22,6 +24,7 @@ import {
   type Invoice,
   type Payment,
   type PaymentMethodOption,
+  type PlanCycle,
   type PortalSummary,
   type Service,
 } from '@hub/api';
@@ -35,6 +38,7 @@ const MONEY: Record<string, Intl.NumberFormat> = {
   USD: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'USD' }),
 };
 const money = (minor: number, cur: string) => (MONEY[cur] ?? MONEY.PEN).format(minor / 100);
+const cycleLabel = (cycle: string | null | undefined) => (cycle ? (CYCLE_LABELS[cycle as PlanCycle] ?? cycle) : '—');
 /** Fechas YYYY-MM-DD sin desplazamiento de zona. */
 const fDate = (iso: string | null | undefined) => {
   if (!iso) return '—';
@@ -117,11 +121,23 @@ export function LivePortal({ route, go, can }: { route: LiveRoute; go: (r: LiveR
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [cardReturn, setCardReturn] = useState(readCardReturn);
+  // Al cambiar de ruta desde el menú se cierra la ficha abierta; openX marca que el cambio de ruta viene de abrir una ficha.
+  const opening = useRef(false);
+  useEffect(() => {
+    if (opening.current) {
+      opening.current = false;
+      return;
+    }
+    setInvoiceId(null);
+    setServiceId(null);
+  }, [route]);
   const openService = (id: string) => {
+    opening.current = route !== 'servicio-detalle';
     setServiceId(id);
     go('servicio-detalle');
   };
   const openInvoice = (id: string) => {
+    opening.current = route !== 'facturas';
     setInvoiceId(id);
     go('facturas');
   };
@@ -241,6 +257,7 @@ function ServicesPage({ openService }: { openService: (id: string) => void }) {
                 <tr>
                   <th>Servicio</th>
                   <th>Plan</th>
+                  <th>Ciclo</th>
                   <th>Estado</th>
                   <th>Vencimiento</th>
                   <th>Renovación</th>
@@ -255,6 +272,7 @@ function ServicesPage({ openService }: { openService: (id: string) => void }) {
                       <div className="sub mono">{s.code}</div>
                     </td>
                     <td>{s.plan?.name ?? s.product?.name ?? '—'}</td>
+                    <td>{cycleLabel(s.cycle)}</td>
                     <td>
                       <span className={`chip ${SRV_CHIP[s.status] ?? ''}`}>{SERVICE_STATUS_LABELS[s.status]}</span>
                     </td>
@@ -302,7 +320,7 @@ function ServicePage({ id, back }: { id: string; back: () => void }) {
               <dt>Código</dt>
               <dd className="mono">{s.code}</dd>
               <dt>Ciclo</dt>
-              <dd>{s.cycle ?? '—'}</dd>
+              <dd>{cycleLabel(s.cycle)}</dd>
               <dt>Precio</dt>
               <dd>{s.price.unit_price_minor !== null && s.price.currency ? `${money(s.price.unit_price_minor, s.price.currency)} × ${Number(s.price.quantity)}` : '—'}</dd>
               <dt>Inicio</dt>
@@ -610,13 +628,24 @@ const CARD_RESULT: Record<CardCheckout['status'], { title: string; text: string;
 };
 
 function CardReturnPage({ checkoutId, paymentId, close }: { checkoutId: string; paymentId: string | null; close: (invoiceId: string | null) => void }) {
-  const res = useLoad(() => hub.billing.portalConfirmCardPayment(checkoutId, paymentId), [checkoutId, paymentId]);
+  // La confirmación (POST, con límite de tasa) se envía una sola vez aunque el efecto corra dos veces (StrictMode);
+  // «Actualizar estado» consulta el intento (GET) y «Reintentar» vuelve a confirmar.
+  const confirm = useRef<Promise<CardCheckout> | null>(null);
+  const res = useLoad(() => (confirm.current ??= hub.billing.portalConfirmCardPayment(checkoutId, paymentId)), [checkoutId, paymentId]);
+  const retry = () => {
+    confirm.current = null;
+    res.reload();
+  };
+  const refresh = () => {
+    confirm.current = hub.billing.portalCardPayment(checkoutId);
+    res.reload();
+  };
   const c = res.data;
   const r = c ? CARD_RESULT[c.status] : null;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
       <Head title="Pago con tarjeta" lead="Resultado del pago en Mercado Pago" />
-      {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+      {res.error ? <Failed error={res.error} onRetry={retry} /> : null}
       {res.loading && !c ? <p className="sub">Confirmando el pago con Mercado Pago…</p> : null}
       {c && r ? (
         <section className="card">
@@ -640,7 +669,7 @@ function CardReturnPage({ checkoutId, paymentId, close }: { checkoutId: string; 
                 Ver comprobante
               </button>
               {c.status === 'pending' ? (
-                <button type="button" className="btn" onClick={res.reload}>
+                <button type="button" className="btn" onClick={refresh}>
                   Actualizar estado
                 </button>
               ) : null}
@@ -736,7 +765,7 @@ function VoucherForm({ invoice, onSent }: { invoice: Invoice; onSent: () => void
       </div>
       <form className="card-b" onSubmit={(e) => void submit(e)} noValidate>
         <p className="sub" style={{ marginTop: 0 }}>
-          Transfiera o deposite el saldo y adjunte la constancia. El pago con tarjeta en línea estará disponible próximamente.
+          Transfiera o deposite el saldo y adjunte la constancia.{invoice.card_payment?.available ? ' Si prefiere, pague con tarjeta más arriba.' : ' El pago con tarjeta en línea estará disponible próximamente.'}
         </p>
         <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
           <label className="field">

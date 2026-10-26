@@ -241,12 +241,17 @@ export class HttpClient {
     return this.request<T>('POST', path, body ?? {}, false, opts);
   }
   /** GET que devuelve un archivo (p. ej. comprobante imprimible); errores igual que request(). */
-  async getBlob(path: string, accept = 'text/html, application/json'): Promise<Blob> {
+  async getBlob(path: string, accept = 'text/html, application/json', retried = false): Promise<Blob> {
     let res: Response;
     try {
       res = await fetch(this.baseUrl + path, { method: 'GET', credentials: 'include', headers: { Accept: accept, 'Accept-Language': this.locale, 'X-Requested-With': 'XMLHttpRequest' } });
     } catch {
       throw networkError();
+    }
+    // 419: sesión regenerada → renovar CSRF y reintentar una vez (igual que request()).
+    if (res.status === 419 && !retried) {
+      await this.ensureCsrf(true);
+      return this.getBlob(path, accept, true);
     }
     if (!res.ok) {
       let json: unknown = null;
@@ -262,7 +267,7 @@ export class HttpClient {
     return res.blob();
   }
   /** POST que devuelve un archivo (p. ej. CSV); errores igual que request(). */
-  async postBlob(path: string, body: unknown = {}): Promise<Blob> {
+  async postBlob(path: string, body: unknown = {}, retried = false): Promise<Blob> {
     await this.ensureCsrf();
     const xsrf = readCookie('XSRF-TOKEN');
     let res: Response;
@@ -275,6 +280,10 @@ export class HttpClient {
       });
     } catch {
       throw networkError();
+    }
+    if (res.status === 419 && !retried) {
+      await this.ensureCsrf(true);
+      return this.postBlob(path, body, true);
     }
     if (!res.ok) {
       let json: unknown = null;

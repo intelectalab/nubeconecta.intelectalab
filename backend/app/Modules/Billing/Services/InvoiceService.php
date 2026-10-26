@@ -13,6 +13,7 @@ use App\Modules\Billing\Events\InvoiceVoided;
 use App\Modules\Billing\Jobs\SubmitEInvoice;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\InvoiceItem;
+use App\Modules\Billing\Models\PaymentAllocation;
 use App\Modules\Brands\Services\DocumentNumberAllocator;
 use App\Modules\Customers\Models\Customer;
 use App\Modules\Orders\Events\OrderApproved;
@@ -24,6 +25,7 @@ use App\Shared\Audit\AuditLogger;
 use App\Shared\Concurrency\VersionGuard;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
+use App\Shared\Settings\SettingsReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +44,7 @@ final class InvoiceService
         private readonly AuditLogger $audit,
         private readonly CurrentOrganization $organization,
         private readonly DocumentNumberAllocator $numbers,
+        private readonly SettingsReader $settings,
     ) {}
 
     /** OrderApproved → factura inicial en `draft` (M-BIL §9). Idempotente por pedido. */
@@ -203,9 +206,11 @@ final class InvoiceService
             $before = $invoice->attributesToArray();
             $number = $this->numbers->take((string) $series->id);
             $today = now()->toDateString();
+            // Sin vencimiento propio (factura inicial): emisión + billing.initial_invoice_due_days (CFG; 0 = vence el mismo día).
+            $dueDays = max(0, $this->settings->int('billing.initial_invoice_due_days', 7));
             $invoice->forceFill([
                 'document_series_id' => $series->id, 'series' => $series->series, 'number' => $number, 'issue_date' => $today,
-                'due_date' => $invoice->due_date?->toDateString() ?? $today, 'issued_at' => now(), 'issued_by' => Auth::id(),
+                'due_date' => $invoice->due_date?->toDateString() ?? now()->addDays($dueDays)->toDateString(), 'issued_at' => now(), 'issued_by' => Auth::id(),
                 'status' => 'issued', 'fiscal_status' => 'pending', 'balance_minor' => $invoice->total_minor,
             ])->save();
             $this->audit->record('invoice.issued', 'invoice', $invoice->id, $before, $invoice->refresh()->attributesToArray(), ['number' => $invoice->fullNumber()], $invoice->customer_id);
@@ -241,6 +246,9 @@ final class InvoiceService
             if ($invoice->status === 'issued' && $invoice->fiscal_status === 'pending') {
                 throw new ProblemException(409, 'einvoice_pending', 'El comprobante aún espera la respuesta de SUNAT; anúlelo cuando esté aceptado o rechazado.');
             }
+            if ($this->hasReportedPayments($invoice)) {
+                throw new ProblemException(409, 'invoice_has_pending_payments', 'Hay vouchers por validar aplicados a este comprobante: valídelos contra otro comprobante o rechácelos antes de anular.');
+            }
             $before = $invoice->attributesToArray();
             $fiscal = $invoice->fiscal_status;
             if ($invoice->fiscal_status === 'accepted') {
@@ -253,9 +261,95 @@ final class InvoiceService
             }
             $invoice->forceFill(['status' => 'void', 'fiscal_status' => $fiscal, 'voided_at' => now(), 'void_reason' => $reason, 'balance_minor' => 0])->save();
             $this->audit->record('invoice.voided', 'invoice', $invoice->id, $before, $invoice->refresh()->attributesToArray(), ['reason' => $reason], $invoice->customer_id);
+            $this->rewindRenewal($invoice);
             InvoiceVoided::dispatch($invoice->organization_id, $invoice->id, $invoice->customer_id);
 
             return $invoice;
+        });
+    }
+
+    /**
+     * Al anular una renovación, la suscripción vuelve a `next_invoice_date` =
+     * inicio del periodo anulado: el job vuelve a facturar ese periodo (la
+     * comprobación de duplicados ya ignora las anuladas). Si no, el periodo
+     * quedaría sin facturar para siempre.
+     */
+    private function rewindRenewal(Invoice $invoice): void
+    {
+        $custom = $invoice->custom ?? [];
+        if (($custom['origin'] ?? null) !== 'renewal' || empty($custom['subscription_id']) || empty($custom['period_start'])) {
+            return;
+        }
+        $sub = Subscription::query()->lockForUpdate()->find($custom['subscription_id']);
+        if ($sub !== null && $sub->next_invoice_date->toDateString() > (string) $custom['period_start']) {
+            $sub->forceFill(['next_invoice_date' => (string) $custom['period_start']])->save();
+        }
+    }
+
+    /** Pagos `reported` (vouchers por validar) con aplicación a este comprobante. */
+    private function hasReportedPayments(Invoice $invoice): bool
+    {
+        return PaymentAllocation::query()->where('invoice_id', $invoice->id)->whereHas('payment', fn ($q) => $q->where('status', 'reported'))->exists();
+    }
+
+    /**
+     * Pedido anulado (docs/03 §7, draft/approved → cancelled: "factura borrador
+     * a void"): el borrador se descarta (el esquema no admite `void` sin número)
+     * y el comprobante emitido sin pagos se anula. Con pagos (o SUNAT pendiente)
+     * se deja, se audita `invoice.cancel_skipped` y finanzas lo resuelve con nota de crédito.
+     */
+    public function cancelForOrder(string $orderId, string $reason, EInvoiceConnector $connector): void
+    {
+        $invoices = Invoice::query()->whereRaw("custom->>'order_id' = ?", [$orderId])->where('status', '<>', 'void')->get();
+        foreach ($invoices as $invoice) {
+            $this->cancelDependent($invoice, $reason, $connector);
+        }
+    }
+
+    /** Servicio cancelado: sus renovaciones abiertas sin pagos se anulan (o se descartan si son borrador). */
+    public function cancelForService(string $serviceId, string $reason, EInvoiceConnector $connector): void
+    {
+        $subscriptions = Subscription::query()->where('service_id', $serviceId)->pluck('id')->all();
+        if ($subscriptions === []) {
+            return;
+        }
+        $invoices = Invoice::query()->whereRaw("custom->>'origin' = 'renewal'")->whereIn(DB::raw("custom->>'subscription_id'"), $subscriptions)
+            ->whereIn('status', ['draft', ...PaymentService::OPEN_STATUSES])->get();
+        foreach ($invoices as $invoice) {
+            $this->cancelDependent($invoice, $reason, $connector);
+        }
+    }
+
+    private function cancelDependent(Invoice $invoice, string $reason, EInvoiceConnector $connector): void
+    {
+        try {
+            if ($invoice->status === 'draft') {
+                $this->discardDraft($invoice, $reason);
+            } elseif ($invoice->status === 'issued' && $invoice->balance_minor === $invoice->total_minor) {
+                $this->void($invoice, $reason, null, $connector);
+            } else {
+                throw new ProblemException(409, 'invoice_has_payments', "El comprobante {$invoice->fullNumber()} tiene pagos: requiere nota de crédito.");
+            }
+        } catch (ProblemException $e) {
+            // Queda abierto para que finanzas lo resuelva; se deja constancia.
+            $this->audit->record('invoice.cancel_skipped', 'invoice', $invoice->id, null, null, ['reason' => $reason, 'code' => $e->problemCode, 'detail' => $e->getMessage()], $invoice->customer_id);
+            report($e);
+        }
+    }
+
+    /** Borrador sin número: se elimina con sus líneas (auditado como `invoice.discarded`). */
+    public function discardDraft(Invoice $invoice, string $reason): void
+    {
+        DB::transaction(function () use ($invoice, $reason): void {
+            $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            if ($invoice->status !== 'draft') {
+                throw new ProblemException(409, 'invalid_transition', 'Solo se descarta un comprobante en borrador.', ['status' => $invoice->status]);
+            }
+            $before = $invoice->attributesToArray();
+            $invoice->items()->delete();
+            $invoice->delete();
+            $this->audit->record('invoice.discarded', 'invoice', $invoice->id, $before, null, ['reason' => $reason], $invoice->customer_id);
+            $this->rewindRenewal($invoice);
         });
     }
 

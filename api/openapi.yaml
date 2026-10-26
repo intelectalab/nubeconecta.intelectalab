@@ -7150,7 +7150,7 @@ paths:
       tags:
         - Billing
       operationId: voidInvoice
-      summary: "Anular comprobante emitido sin pagos (issued → void) con motivo; si SUNAT lo aceptó, comunicación de baja (fiscal_status voided). Borrador → 409 invalid_transition; con pagos → 409 invoice_has_payments; pendiente de respuesta → 409 einvoice_pending."
+      summary: "Anular comprobante emitido sin pagos (issued → void) con motivo; si SUNAT lo aceptó, comunicación de baja (fiscal_status voided). Borrador → 409 invalid_transition; con pagos → 409 invoice_has_payments; con vouchers por validar aplicados → 409 invoice_has_pending_payments; pendiente de respuesta → 409 einvoice_pending. Una renovación anulada devuelve next_invoice_date de la suscripción al inicio del periodo anulado (se vuelve a facturar)."
       x-permission: billing.invoice.void
       parameters:
         - $ref: "#/components/parameters/IdempotencyKeyRequired"
@@ -7455,7 +7455,7 @@ paths:
         - "Billing"
       operationId: "createPayment"
       summary: "Registrar pago manual (P-BIL-07): reportado, o validado con validate=true (exige billing.payment.validate), aplicado a uno o varios comprobantes"
-      description: "JSON o multipart/form-data (con `proof`). Cada aplicación: comprobante abierto del mismo cliente y moneda, importe ≤ saldo; la suma ≤ importe del pago (el excedente queda sin aplicar). Medio con pasarela → 422. Referencia (`external_id`) repetida para el mismo medio → 409 duplicate_reference."
+      description: "JSON o multipart/form-data (con `proof`). Cada aplicación: comprobante abierto del mismo cliente y moneda, importe ≤ saldo; la suma ≤ importe del pago (el excedente queda sin aplicar). Medio con pasarela → 422. Referencia (`external_id`) repetida para el mismo medio → 409 duplicate_reference (un pago rechazado o anulado libera su referencia: queda en `notes`). Validar un pago `reported` vuelve a comprobar sus aplicaciones (comprobante abierto, saldo, moneda) → 422 si ya no aplican."
       x-permission: "billing.payment.create"
       parameters:
         - $ref: "#/components/parameters/IdempotencyKeyRequired"
@@ -7950,7 +7950,7 @@ paths:
         - "Portal"
       operationId: "portalSubmitVoucher"
       summary: "Subir constancia de pago de un comprobante propio: pago reported pendiente de revisión de finanzas (RN-BIL-050)"
-      description: "Archivo obligatorio: PDF, JPG, PNG o WEBP verificado por contenido, máx. 5 MB; se guarda en disco privado con nombre aleatorio. Comprobante ajeno o borrador → 404; sin saldo → 409 invoice_not_payable."
+      description: "Archivo obligatorio: PDF, JPG, PNG o WEBP verificado por contenido, máx. 5 MB; se guarda en disco privado con nombre aleatorio. Comprobante ajeno o borrador → 404; sin saldo → 409 invoice_not_payable; referencia ya registrada por otro cliente → 422 (sin revelar su existencia)."
       x-permission: "portal.payment.create"
       parameters:
         - $ref: "#/components/parameters/IdempotencyKeyRequired"
@@ -8016,7 +8016,7 @@ paths:
         - "Portal"
       operationId: "portalStartCardPayment"
       summary: "Pagar con tarjeta (Mercado Pago Checkout Pro): crea el intento y devuelve la URL de pago"
-      description: "Solo comprobantes propios con saldo. Importe = saldo pendiente en la moneda del comprobante (más la comisión solo si billing.card_gateway.pass_to_customer = true). `redirect_url` es `sandbox_init_point` con MP_SANDBOX=true e `init_point` en producción. Sin llaves de MP → 409 card_payment_unavailable; moneda no admitida por la cuenta → 422 currency_not_supported; sin saldo → 409 invoice_not_payable; ajeno → 404."
+      description: "Solo comprobantes propios con saldo. Importe = saldo pendiente en la moneda del comprobante (más la comisión solo si billing.card_gateway.pass_to_customer = true). `redirect_url` es `sandbox_init_point` con MP_SANDBOX=true e `init_point` en producción. Sin llaves de MP → 409 card_payment_unavailable; moneda no admitida por la cuenta → 422 currency_not_supported; sin saldo → 409 invoice_not_payable; ajeno → 404. Un intento `created` vigente por el mismo importe se reutiliza (misma respuesta 201 con su enlace); límite 10/min por usuario (throttle card-start)."
       x-permission: "portal.payment.create"
       parameters:
         - $ref: "#/components/parameters/IdempotencyKeyRequired"
@@ -8085,7 +8085,7 @@ paths:
         - "Portal"
       operationId: "portalConfirmCardPayment"
       summary: "Retorno desde Mercado Pago: el backend consulta el pago a la API de MP"
-      description: "Recibe `payment_id` (o `collection_id`) de la URL de retorno y consulta GET /v1/payments/{id}; nunca confía en los demás parámetros. Aprobado con external_reference, importe y moneda coincidentes → pago validado (medio card_gateway) aplicado al comprobante. Rechazado o pendiente → solo el intento. Idempotente: el mismo pago de MP nunca se registra dos veces. Sin payment_id devuelve el estado actual. external_reference de otro intento → 404."
+      description: "Recibe `payment_id` (o `collection_id`) de la URL de retorno y consulta GET /v1/payments/{id}; nunca confía en los demás parámetros. Aprobado con external_reference, importe y moneda coincidentes → pago validado (medio card_gateway) aplicado al comprobante. Rechazado o pendiente → solo el intento. Idempotente: el mismo pago de MP nunca se registra dos veces. Sin payment_id devuelve el estado actual. external_reference de otro intento o id inexistente en MP → 404 not_found (misma respuesta en ambos casos). Límite 10/min por usuario."
       x-permission: "portal.payment.view"
       x-throttle: "30 por minuto"
       requestBody:

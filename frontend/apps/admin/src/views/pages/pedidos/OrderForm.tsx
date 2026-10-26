@@ -72,12 +72,17 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
       setErrs({ 'items.0.plan_id': 'Agregue al menos un plan.' });
       return;
     }
+    const badQty = items.filter((l) => !(Number(l.quantity.replace(',', '.')) > 0));
+    if (badQty.length) {
+      setErrs(Object.fromEntries(badQty.map((l) => [`line.${l.key}.quantity`, 'Indique una cantidad mayor que 0.'])));
+      return;
+    }
     setBusy(true);
     setErrs({});
     setMsg(null);
     try {
       const o = await ordersApi.create(
-        { customer_id: customer.id, currency, notes: notes.trim() || null, items: items.map((l) => ({ plan_id: l.plan_id, quantity: Number(l.quantity.replace(',', '.')) || 1 })) },
+        { customer_id: customer.id, currency, notes: notes.trim() || null, items: items.map((l) => ({ plan_id: l.plan_id, quantity: Number(l.quantity.replace(',', '.')) })) },
         idem.current,
       );
       onSaved(o);

@@ -46,7 +46,7 @@ Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:cus
     Route::get('invoices/{id}/document', [PortalInvoiceController::class, 'document'])->whereUuid('id')->middleware('permission:portal.invoice.view')->name('invoices.document');
     Route::post('invoices/{id}/vouchers', [PortalPaymentController::class, 'submitVoucher'])->whereUuid('id')->middleware(['permission:portal.payment.create', 'idempotency'])->name('invoices.vouchers.store');
     // Pago con tarjeta (Mercado Pago Checkout Pro): intento con Idempotency-Key, retorno que consulta a la pasarela.
-    Route::post('invoices/{id}/card-payment', [PortalCardPaymentController::class, 'store'])->whereUuid('id')->middleware(['permission:portal.payment.create', 'idempotency'])->name('invoices.card-payment.store');
+    Route::post('invoices/{id}/card-payment', [PortalCardPaymentController::class, 'store'])->whereUuid('id')->middleware(['permission:portal.payment.create', 'idempotency', 'throttle:card-start'])->name('invoices.card-payment.store');
     Route::get('card-payments/{id}', [PortalCardPaymentController::class, 'show'])->whereUuid('id')->middleware('permission:portal.payment.view')->name('card-payments.show');
     Route::post('card-payments/{id}/confirm', [PortalCardPaymentController::class, 'confirm'])->whereUuid('id')->middleware(['permission:portal.payment.view', 'throttle:card-confirm'])->name('card-payments.confirm');
 

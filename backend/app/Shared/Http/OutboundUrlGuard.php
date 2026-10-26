@@ -98,6 +98,23 @@ final class OutboundUrlGuard
         return [$host.':'.$port.':'.implode(',', array_map(fn (string $ip) => str_contains($ip, ':') ? "[{$ip}]" : $ip, $ips))];
     }
 
+    /** IPv4 embebida en ::ffff:0:0/96 (mapeada), 64:ff9b::/96 (NAT64) o 64:ff9b:1::/48 (NAT64 local), por bytes. */
+    private static function embeddedIpv4(string $ip): ?string
+    {
+        $bin = inet_pton($ip);
+        if ($bin === false || strlen($bin) !== 16) {
+            return null;
+        }
+        $hex = bin2hex($bin);
+        $prefixes = ['00000000000000000000ffff', '0064ff9b000000000000'.'0000'];
+        $embedded = str_starts_with($hex, $prefixes[0]) || str_starts_with($hex, $prefixes[1]) || str_starts_with($hex, '0064ff9b0001');
+        if (! $embedded) {
+            return null;
+        }
+
+        return implode('.', array_map('ord', str_split(substr($bin, 12), 1)));
+    }
+
     public static function isPublicIp(string $ip): bool
     {
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
@@ -106,6 +123,9 @@ final class OutboundUrlGuard
         // IPv6 que embebe IPv4 (::ffff:a.b.c.d, ::a.b.c.d, 64:ff9b::a.b.c.d): se evalúa la IPv4.
         if (str_contains($ip, ':') && preg_match('/(\d{1,3}(?:\.\d{1,3}){3})$/', $ip, $m) === 1) {
             return self::isPublicIp($m[1]);
+        }
+        if (str_contains($ip, ':') && ($embedded = self::embeddedIpv4($ip)) !== null) {
+            return self::isPublicIp($embedded); // también en notación hexadecimal (::ffff:7f00:1, 64:ff9b::7f00:1)
         }
         $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | (defined('FILTER_FLAG_GLOBAL_RANGE') ? FILTER_FLAG_GLOBAL_RANGE : 0);
         if (filter_var($ip, FILTER_VALIDATE_IP, $flags) === false) {

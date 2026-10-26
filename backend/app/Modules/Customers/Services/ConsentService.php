@@ -33,7 +33,8 @@ final class ConsentService implements CommunicationPreferences
                 'channel' => $channel, 'purpose' => $purpose, 'granted' => $granted, 'source' => $source,
                 'evidence' => $evidence, 'recorded_at' => now(),
             ])->save();
-            $this->audit->record('communication_consent.recorded', 'communication_consent', $row->id, null, $row->attributesToArray(), ['contact_id' => $contact->id], $contact->customer_id);
+            // La evidencia (IP, user-agent) se queda en communication_consents (docs/10, minimización): no va a la auditoría visible en el historial.
+            $this->audit->record('communication_consent.recorded', 'communication_consent', $row->id, null, array_diff_key($row->attributesToArray(), ['evidence' => true]), ['contact_id' => $contact->id], $contact->customer_id);
             CommunicationConsentChanged::dispatch($row->organization_id, $row->id);
 
             return $row;

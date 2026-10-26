@@ -42,7 +42,7 @@ final class PortalCardPaymentController
         ]);
         $checkout = $this->own($request, $id);
         $paymentId = $data['payment_id'] ?? $data['collection_id'] ?? null;
-        if ($paymentId !== null && $checkout->status !== 'approved') {
+        if ($paymentId !== null && $checkout->status !== 'approved' && $checkout->external_session_id !== null) {
             $checkout = $cards->confirm($paymentId, $checkout->customer_id, 'return', $checkout->id) ?? $checkout;
         }
 

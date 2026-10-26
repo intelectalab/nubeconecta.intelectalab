@@ -27,7 +27,7 @@ const FISCALS: FiscalStatus[] = ['not_applicable', 'pending', 'accepted', 'rejec
 
 export default function InvoiceList({ param, customerId }: { param?: string | null; customerId?: string }) {
   const embedded = !!customerId;
-  const ns = embedded ? 'fac.c' : 'fac.api';
+  const ns = embedded ? `fac.c.${customerId}` : 'fac.api';
   const [q, setQ] = useViewState(`${ns}.q`, '');
   const [st, setSt] = useViewState(`${ns}.st`, '');
   const [type, setType] = useViewState(`${ns}.type`, '');

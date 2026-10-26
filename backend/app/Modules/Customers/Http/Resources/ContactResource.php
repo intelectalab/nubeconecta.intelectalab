@@ -13,7 +13,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * Contacto (P-CUS-04): columnas de `contacts` más `portal_role`,
  * `mfa_enabled`, `last_login_at` y `consent` (x-derived). En el portal
- * ($portal = true) se omiten `custom`, `created_by` y `updated_by`.
+ * ($portal = true) se omiten `custom`, `created_by`, `updated_by`, `user_id`,
+ * `mfa_enabled` y `last_login_at`.
  *
  * @property Contact $resource
  */
@@ -28,13 +29,15 @@ final class ContactResource extends JsonResource
     {
         $c = $this->resource;
         $data = $c->makeHidden(['deleted_at', 'organization_id'])->toArray();
-        if ($this->portal) {
-            unset($data['custom'], $data['created_by'], $data['updated_by']);
-        }
-        $user = $c->user_id ? $c->user()->first() : null;
         $data['portal_role'] = app(PortalAccessService::class)->portalRole($c);
-        $data['mfa_enabled'] = $user?->mfa_enabled_at !== null;
-        $data['last_login_at'] = $user?->last_login_at?->toIso8601String();
+        if ($this->portal) {
+            // Un customer_admin no ve el id interno de usuario ni datos de seguridad (MFA, último acceso) de otros contactos.
+            unset($data['custom'], $data['created_by'], $data['updated_by'], $data['user_id']);
+        } else {
+            $user = $c->user_id ? $c->user()->first() : null;
+            $data['mfa_enabled'] = $user?->mfa_enabled_at !== null;
+            $data['last_login_at'] = $user?->last_login_at?->toIso8601String();
+        }
         $data['consent'] = app(ConsentService::class)->summary($c);
 
         return $data;

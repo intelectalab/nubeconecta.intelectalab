@@ -31,6 +31,24 @@
       "unit": "days"
     },
     {
+      "key": "billing.initial_invoice_due_days",
+      "group": "Facturación",
+      "description": "Días de plazo de pago de la factura inicial de un pedido, contados desde su emisión (0 = vence el mismo día). Las renovaciones vencen en la fecha de renovación.",
+      "type": "integer",
+      "default": 7,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin",
+        "finance"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "revisión 22-10 (facturas iniciales vencían el día de emisión)",
+      "unit": "days"
+    },
+    {
       "key": "billing.invoice_generation_days_by_cycle",
       "group": "Facturación",
       "description": "Días de anticipación por ciclo de facturación (clave = ciclo del plan). Un ciclo sin valor usa billing.invoice_generation_days.",

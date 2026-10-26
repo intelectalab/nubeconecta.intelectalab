@@ -204,6 +204,36 @@ final class PaymentsTest extends SalesFlowTestCase
         $this->assertProblem($send($mine['id'], UploadedFile::fake()->create('otra.pdf', 10, 'application/pdf'), 100, 'TX-3'), 409, 'invoice_not_payable');
     }
 
+    /** Revisión 22-10: un voucher pendiente no se "valida" contra un comprobante anulado ni pagado; rechazarlo libera su referencia. */
+    public function test_validate_rechecks_allocations_void_guard_and_rejected_reference_is_reusable(): void
+    {
+        $a = $this->invoice();
+        $reported = $this->pay(11210, [[$a['id'], 11210]], validate: false, ref: 'OP-77')->assertCreated()->json('data');
+        $this->assertSame('reported', $reported['status']);
+
+        // Con un voucher por validar aplicado, el comprobante no se anula.
+        $this->assertProblem($this->postJson("/api/v1/admin/invoices/{$a['id']}/void", ['reason' => 'Error'], $this->key()), 409, 'invoice_has_pending_payments');
+
+        // Otro pago lo deja pagado: validar el voucher guardado ya no puede aplicarse (422), el pago sigue `reported`.
+        $this->actAs($this->makeUser(['finance'], mfa: true));
+        $this->pay(11210, [[$a['id'], 11210]], ref: 'OP-78')->assertCreated();
+        $this->assertSame('paid', $this->invoiceRow($a['id'])->status);
+        $stale = $this->postJson("/api/v1/admin/payments/{$reported['id']}/validate", [], $this->key());
+        $this->assertProblem($stale, 422, 'validation_failed');
+        $this->assertArrayHasKey('allocations.0.invoice_id', $stale->json('errors'));
+        $this->assertSame('reported', DB::table('payments')->where('id', $reported['id'])->value('status'));
+
+        // Rechazado: la referencia queda libre (en notas) y el cliente puede reenviar la constancia con la misma operación.
+        $this->postJson("/api/v1/admin/payments/{$reported['id']}/reject", ['reason' => 'Constancia equivocada'], $this->key())->assertOk();
+        $row = DB::table('payments')->where('id', $reported['id'])->first(['external_id', 'notes']);
+        $this->assertNull($row->external_id);
+        $this->assertStringContainsString('OP-77', (string) $row->notes);
+        $this->actAs($this->admin);
+        $b = $this->invoice();
+        $this->pay(11210, [[$b['id'], 11210]], validate: false, ref: 'OP-77')->assertCreated();
+        $this->assertProblem($this->pay(100, [[$b['id'], 100]], validate: false, ref: 'OP-77'), 409, 'duplicate_reference');
+    }
+
     public function test_aging_buckets_overdue_job_and_dunning_notices(): void
     {
         foreach ([[0, 'current'], [-5, 'current'], [1, 'd1_30'], [30, 'd1_30'], [31, 'd31_60'], [60, 'd31_60'], [61, 'd61_90'], [90, 'd61_90'], [91, 'd90_plus']] as [$days, $bucket]) {

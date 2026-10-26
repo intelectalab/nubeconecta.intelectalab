@@ -161,6 +161,15 @@ final class MercadoPagoConnector implements CardGatewayConnector
         ];
     }
 
+    public function checkoutUrl(string $sessionId): ?string
+    {
+        $response = $this->send(fn () => $this->http()->get('/checkout/preferences/'.rawurlencode($sessionId)), 'preference', [404]);
+        $data = (array) $response->json();
+        $url = (string) ($this->sandbox() ? ($data['sandbox_init_point'] ?? '') : ($data['init_point'] ?? ''));
+
+        return $response->successful() && str_starts_with($url, 'https://') ? $url : null;
+    }
+
     public function refund(string $externalId, int $amountMinor, string $idempotencyKey): array
     {
         $response = $this->send(fn () => $this->http()->withHeaders(['X-Idempotency-Key' => $idempotencyKey])

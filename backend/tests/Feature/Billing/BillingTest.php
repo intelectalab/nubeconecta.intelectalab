@@ -194,6 +194,52 @@ final class BillingTest extends SalesFlowTestCase
         $this->assertNotNull($order);
     }
 
+    /** Revisión 22-10: anular una renovación devuelve el periodo al job; la inicial vence a los N días; el pedido anulado no se cobra. */
+    public function test_void_renewal_rewinds_subscription_initial_due_days_and_order_cancel_voids(): void
+    {
+        $this->setSetting('billing.initial_invoice_due_days', 7);
+        $initial = $this->issue($this->orderInvoice($this->approvedOrder(items: [['plan_id' => $this->hourly]]))['id']);
+        $this->assertSame(now()->addDays(7)->toDateString(), $initial['due_date'], 'factura inicial: emisión + plazo');
+
+        $this->approvedOrder(items: [['plan_id' => $this->monthly, 'quantity' => 1]]);
+        $serviceId = DB::table('services')->where('plan_id', $this->monthly)->value('id');
+        $this->postJson("/api/v1/admin/services/{$serviceId}/activate", [], $this->key())->assertOk();
+        $next = DB::table('subscriptions')->where('service_id', $serviceId)->value('next_invoice_date');
+        $this->travelTo(now()->parse($next)->subDays(5));
+        config(['hub.billing.auto_issue' => true]);
+        $this->artisan('hub:billing:renewals')->expectsOutputToContain('creados: 1')->assertSuccessful();
+        $renewal = DB::table('invoices')->whereRaw("custom->>'origin' = 'renewal'")->first();
+        $this->assertSame([$next, $next], [$renewal->due_date, DB::table('invoice_items')->where('invoice_id', $renewal->id)->value('period_start')], 'la renovación vence al inicio del periodo');
+        $after = \App\Modules\Services\Support\Cycle::add($next, 'monthly');
+        $this->assertSame($after, DB::table('subscriptions')->where('service_id', $serviceId)->value('next_invoice_date'));
+
+        // Anulada por error de datos: la suscripción vuelve al periodo anulado y el job lo factura de nuevo.
+        $this->postJson("/api/v1/admin/invoices/{$renewal->id}/void", ['reason' => 'Dato erróneo'], $this->key())->assertOk()->assertJsonPath('data.status', 'void');
+        $this->assertSame($next, DB::table('subscriptions')->where('service_id', $serviceId)->value('next_invoice_date'));
+        $this->artisan('hub:billing:renewals')->expectsOutputToContain('creados: 1')->assertSuccessful();
+        $again = DB::table('invoices')->whereRaw("custom->>'origin' = 'renewal'")->where('status', 'issued')->first();
+        $this->assertSame($next, DB::table('invoice_items')->where('invoice_id', $again->id)->value('period_start'));
+        $this->assertSame($after, DB::table('subscriptions')->where('service_id', $serviceId)->value('next_invoice_date'));
+
+        // Pedido aprobado por error y anulado: comprobante emitido sin pagos → void; servicios pendientes → cancelled.
+        $order = $this->approvedOrder($this->dniCustomer, [['plan_id' => $this->monthly, 'quantity' => 1]]);
+        $invoice = $this->orderInvoice($order);
+        $this->assertSame('issued', $invoice['status']);
+        $this->postJson("/api/v1/admin/orders/{$order['id']}/cancel", ['reason' => 'Aprobado por error'], $this->key())->assertOk();
+        $this->assertSame(['void', 0], [DB::table('invoices')->where('id', $invoice['id'])->value('status'), (int) DB::table('invoices')->where('id', $invoice['id'])->value('balance_minor')]);
+        $this->assertSame('cancelled', DB::table('services')->where('customer_id', $this->dniCustomer)->value('status'));
+        $this->assertTrue(DB::table('audit_events')->where('action', 'service.cancelled')->where('metadata->reason', 'Pedido anulado')->exists());
+
+        // Pedido con borrador (sin auto_issue): el borrador se descarta.
+        config(['hub.billing.auto_issue' => false]);
+        $draftOrder = $this->approvedOrder($this->dniCustomer, [['plan_id' => $this->hourly]]);
+        $draft = $this->orderInvoice($draftOrder);
+        $this->postJson("/api/v1/admin/orders/{$draftOrder['id']}/cancel", ['reason' => 'Desistió'], $this->key())->assertOk();
+        $this->assertSame(0, DB::table('invoices')->where('id', $draft['id'])->count());
+        $this->assertSame(0, DB::table('invoice_items')->where('invoice_id', $draft['id'])->count());
+        $this->assertTrue(DB::table('audit_events')->where('action', 'invoice.discarded')->where('entity_id', $draft['id'])->exists());
+    }
+
     public function test_portal_sees_only_own_issued_invoices(): void
     {
         $mine = $this->issue($this->orderInvoice($this->approvedOrder())['id']);

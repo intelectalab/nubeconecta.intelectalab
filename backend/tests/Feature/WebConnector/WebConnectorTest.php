@@ -325,7 +325,7 @@ final class WebConnectorTest extends IdentityTestCase
             $this->assertProblem($response, 422, 'validation_failed');
             $this->assertArrayHasKey('webhook_url', $response->json('errors'), $url);
         }
-        foreach (['::1', 'fe80::1', 'fd00:ec2::254', '::ffff:127.0.0.1', '::ffff:10.1.2.3'] as $ip) {
+        foreach (['::1', 'fe80::1', 'fd00:ec2::254', '::ffff:127.0.0.1', '::ffff:10.1.2.3', '::ffff:7f00:1', '64:ff9b::7f00:1', '64:ff9b::a9fe:a9fe', '64:ff9b:1::c0a8:101'] as $ip) {
             $this->assertFalse(OutboundUrlGuard::isPublicIp($ip), $ip);
         }
         $this->assertTrue(OutboundUrlGuard::isPublicIp('93.184.216.34'));

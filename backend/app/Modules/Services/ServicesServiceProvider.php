@@ -6,6 +6,10 @@ namespace App\Modules\Services;
 
 use App\Modules\Orders\Events\OrderApproved;
 use App\Modules\Services\Contracts\ServiceProvisioner;
+use App\Modules\Billing\Events\InvoicePaid;
+use App\Modules\Orders\Events\OrderCancelled;
+use App\Modules\Services\Listeners\AdvanceCommercialDueDate;
+use App\Modules\Services\Listeners\CancelPendingServicesFromOrder;
 use App\Modules\Services\Listeners\CreateServicesFromOrder;
 use App\Modules\Services\Services\ServiceLifecycle;
 use App\Modules\Services\Support\ManualProvisioner;
@@ -30,6 +34,8 @@ final class ServicesServiceProvider extends ServiceProvider
     {
         // Se registra antes que Billing (bootstrap/providers.php): la factura inicial enlaza los servicios.
         Event::listen(OrderApproved::class, CreateServicesFromOrder::class);
+        Event::listen(OrderCancelled::class, CancelPendingServicesFromOrder::class);
+        Event::listen(InvoicePaid::class, AdvanceCommercialDueDate::class);
 
         if (! $this->app->routesAreCached()) {
             Route::middleware('api')->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/routes/api.php');

@@ -56,7 +56,11 @@ final class PaymentService
                     throw ProblemException::validation(['payment_method_id' => ['El medio de pago no está disponible para registro manual.']]);
                 }
                 $external = isset($data['external_id']) && trim((string) $data['external_id']) !== '' ? trim((string) $data['external_id']) : null;
-                if ($external !== null && Payment::query()->where('payment_method_id', $method->id)->where('external_id', $external)->exists()) {
+                if ($external !== null && ($dup = Payment::query()->where('payment_method_id', $method->id)->where('external_id', $external)->first(['customer_id'])) !== null) {
+                    if ($via === 'portal' && $dup->customer_id !== $customer->id) {
+                        // Desde el portal no se confirma la existencia de referencias de otros clientes.
+                        throw ProblemException::validation(['external_id' => ['No se pudo registrar esa referencia; verifíquela o deje el campo vacío.']]);
+                    }
                     throw new ProblemException(409, 'duplicate_reference', 'Ya existe un pago con esa referencia para el mismo medio de pago.', ['external_id' => $external]);
                 }
                 if ($proof !== null) {
@@ -139,10 +143,11 @@ final class PaymentService
             if ($payment->reported_via !== 'portal' && $payment->reported_by !== null && $payment->reported_by === Auth::id()) {
                 throw new ProblemException(403, 'self_validation', 'No puede validar un pago que registró usted mismo.');
             }
-            if ($allocations !== null) {
-                $payment->allocations()->delete();
-                $this->saveAllocations($payment, $allocations);
-            }
+            // Las asignaciones guardadas al reportar se vuelven a verificar: el comprobante pudo anularse o pagarse mientras tanto.
+            $allocations ??= $payment->allocations()->get(['invoice_id', 'amount_minor'])
+                ->map(fn (PaymentAllocation $a) => ['invoice_id' => $a->invoice_id, 'amount_minor' => $a->amount_minor])->all();
+            $payment->allocations()->delete();
+            $this->saveAllocations($payment, $allocations);
             $this->applyValidation($payment);
             PaymentValidated::dispatch($payment->organization_id, $payment->id, $payment->customer_id, $payment->status);
 
@@ -155,7 +160,7 @@ final class PaymentService
         return DB::transaction(function () use ($payment, $reason, $version): Payment {
             $payment = $this->lock($payment, $version, 'reported', 'rechazar');
             $before = $payment->attributesToArray();
-            $payment->forceFill(['status' => 'rejected', 'rejection_reason' => $reason])->save();
+            $payment->forceFill(['status' => 'rejected', 'rejection_reason' => $reason] + $this->releaseReference($payment))->save();
             $this->audit->record('payment.rejected', 'payment', $payment->id, $before, $payment->refresh()->attributesToArray(), ['reason' => $reason], $payment->customer_id);
             PaymentRejected::dispatch($payment->organization_id, $payment->id, $payment->customer_id, $payment->status);
 
@@ -169,7 +174,7 @@ final class PaymentService
         return DB::transaction(function () use ($payment, $reason, $version): Payment {
             $payment = $this->lock($payment, $version, 'validated', 'anular');
             $before = $payment->attributesToArray();
-            $payment->forceFill(['status' => 'rejected', 'rejection_reason' => $reason])->save();
+            $payment->forceFill(['status' => 'rejected', 'rejection_reason' => $reason] + $this->releaseReference($payment))->save();
             $invoices = $this->lockInvoices($payment->allocations()->pluck('invoice_id')->all());
             foreach ($invoices as $invoice) {
                 $this->recalculate($invoice);
@@ -220,6 +225,23 @@ final class PaymentService
         }
 
         return false;
+    }
+
+    /**
+     * Un pago rechazado o anulado libera su número de operación (UNIQUE por medio):
+     * el cliente puede reenviar la constancia corregida con la misma referencia.
+     * La referencia queda en `notes` para trazabilidad.
+     *
+     * @return array<string, mixed>
+     */
+    private function releaseReference(Payment $payment): array
+    {
+        if ($payment->external_id === null) {
+            return [];
+        }
+        $note = "Referencia original: {$payment->external_id}";
+
+        return ['external_id' => null, 'notes' => trim(($payment->notes ? $payment->notes."\n" : '').$note)];
     }
 
     /** @param bool $byGateway validado por la pasarela: sin validador humano (el usuario en sesión puede ser el cliente del portal) */

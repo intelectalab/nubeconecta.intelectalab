@@ -111,6 +111,31 @@ final class ServicesTest extends SalesFlowTestCase
         $this->assertSame('active', $this->hostingService($order)['status']);
     }
 
+    /** Revisión 22-10: pagar la renovación mueve el vencimiento comercial; cancelar el servicio anula su renovación abierta. */
+    public function test_paid_renewal_advances_due_date_and_cancel_voids_open_renewal(): void
+    {
+        $service = $this->hostingService($this->approvedOrder(items: [['plan_id' => $this->monthly, 'quantity' => 1]]));
+        $this->postJson("/api/v1/admin/services/{$service['id']}/activate", [], $this->key())->assertOk();
+        $next = DB::table('subscriptions')->where('service_id', $service['id'])->value('next_invoice_date');
+        $this->travelTo(now()->parse($next)->subDays(5));
+        config(['hub.billing.auto_issue' => true]);
+        $this->artisan('hub:billing:renewals')->expectsOutputToContain('creados: 1')->assertSuccessful();
+        $renewal = DB::table('invoices')->whereRaw("custom->>'origin' = 'renewal'")->first();
+        $method = collect($this->getJson('/api/v1/admin/payment-methods')->json('data'))->firstWhere('code', 'bank_transfer')['id'];
+        $this->postJson('/api/v1/admin/payments', ['customer_id' => $this->rucCustomer, 'payment_method_id' => $method, 'amount_minor' => (int) $renewal->total_minor,
+            'currency' => 'PEN', 'validate' => true, 'allocations' => [['invoice_id' => $renewal->id, 'amount_minor' => (int) $renewal->total_minor]]], $this->key())->assertCreated();
+        $this->assertSame('paid', DB::table('invoices')->where('id', $renewal->id)->value('status'));
+        $this->assertSame(Cycle::add($next, 'monthly'), $this->getJson("/api/v1/admin/services/{$service['id']}")->json('data.commercial_due_date'), 'pagado hasta el fin del periodo');
+
+        // Segunda renovación emitida y sin pagar: al cancelar el servicio se anula (no entra en mora).
+        $this->travelTo(now()->parse(Cycle::add($next, 'monthly'))->subDays(5));
+        $this->artisan('hub:billing:renewals')->expectsOutputToContain('creados: 1')->assertSuccessful();
+        $open = DB::table('invoices')->whereRaw("custom->>'origin' = 'renewal'")->where('status', 'issued')->first();
+        $this->postJson("/api/v1/admin/services/{$service['id']}/cancel", ['reason' => 'Baja del cliente'], $this->key())->assertOk()->assertJsonPath('data.status', 'cancelled');
+        $this->assertSame('void', DB::table('invoices')->where('id', $open->id)->value('status'));
+        $this->assertSame('paid', DB::table('invoices')->where('id', $renewal->id)->value('status'), 'la pagada no se toca');
+    }
+
     public function test_portal_lists_only_own_services(): void
     {
         $mine = $this->hostingService($this->approvedOrder());

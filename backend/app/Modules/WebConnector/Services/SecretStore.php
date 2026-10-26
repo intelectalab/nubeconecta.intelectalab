@@ -74,6 +74,10 @@ final class SecretStore
 
             return $key;
         }
+        if (app()->environment('production')) {
+            // docs/10 §1: clave propia, distinta por entorno; derivarla de APP_KEY solo vale en desarrollo.
+            throw new RuntimeException('HUB_VAULT_KEY es obligatoria en producción (base64 de 32 bytes).');
+        }
         $appKey = (string) config('app.key');
         $material = str_starts_with($appKey, 'base64:') ? (string) base64_decode(substr($appKey, 7)) : $appKey;
         if ($material === '') {

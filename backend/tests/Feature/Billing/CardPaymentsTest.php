@@ -35,6 +35,9 @@ final class CardPaymentsTest extends SalesFlowTestCase
         $this->app->forgetScopedInstances();
         Http::preventStrayRequests();
         Http::fake(function (HttpRequest $r) {
+            if (preg_match('#/checkout/preferences/([^/?]+)$#', $r->url(), $m) === 1 && $r->method() === 'GET') {
+                return Http::response(['id' => $m[1], 'init_point' => 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id='.$m[1], 'sandbox_init_point' => 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id='.$m[1]]);
+            }
             if (str_ends_with($r->url(), '/checkout/preferences')) {
                 return Http::response(['id' => 'pref-'.(++$this->prefs), 'init_point' => 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=p', 'sandbox_init_point' => 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=p'], 201);
             }
@@ -113,7 +116,7 @@ final class CardPaymentsTest extends SalesFlowTestCase
         $this->assertSame(1, DB::table('payment_checkouts')->count());
 
         // Retorno: los parámetros de la URL no bastan; se consulta MP.
-        $this->assertProblem($this->postJson("/api/v1/portal/card-payments/{$checkout['id']}/confirm", ['payment_id' => '999']), 404, 'gateway_payment_not_found');
+        $this->assertProblem($this->postJson("/api/v1/portal/card-payments/{$checkout['id']}/confirm", ['payment_id' => '999']), 404, 'not_found');
         $this->mpPayment('1001', 'approved', $ref);
         $done = $this->postJson("/api/v1/portal/card-payments/{$checkout['id']}/confirm", ['payment_id' => '1001', 'status' => 'approved'])->assertOk()->json('data');
         $this->assertSame('approved', $done['status']);
@@ -137,6 +140,33 @@ final class CardPaymentsTest extends SalesFlowTestCase
         $this->assertProblem($this->postJson("/api/v1/portal/card-payments/{$checkout['id']}/confirm", ['payment_id' => '1001']), 404, 'not_found');
         $audit = DB::table('audit_events')->where('action', 'like', 'payment_checkout.%')->pluck('metadata')->implode(' ');
         $this->assertStringNotContainsString('TEST-token-only', $audit);
+    }
+
+    /** Revisión 22-10: dos pestañas no crean dos preferencias; un cobro que llega con la factura ya pagada queda auditado para finanzas. */
+    public function test_open_attempt_is_reused_and_unapplied_charge_is_flagged(): void
+    {
+        $mine = $this->invoice();
+        $this->actAs($this->portalUser($this->rucCustomer, 'pagos@cliente-ruc.pe'));
+        $a = $this->start($mine['id']);
+        $b = $this->start($mine['id']); // otra Idempotency-Key (segunda pestaña o reintento)
+        $this->assertSame($a['id'], $b['id']);
+        $this->assertStringContainsString('pref_id=pref-1', $b['redirect_url']);
+        $this->assertSame(1, DB::table('payment_checkouts')->count());
+        $this->assertSame(1, Http::recorded(fn (HttpRequest $r) => str_ends_with($r->url(), '/checkout/preferences') && $r->method() === 'POST')->count());
+        $this->assertTrue(DB::table('audit_events')->where('action', 'payment_checkout.reused')->exists());
+
+        // Finanzas valida una transferencia mientras tanto; el cobro con tarjeta llega después: pago validado sin aplicar + auditoría.
+        $this->actAs($this->admin);
+        $method = collect($this->getJson('/api/v1/admin/payment-methods')->json('data'))->firstWhere('code', 'bank_transfer')['id'];
+        $this->postJson('/api/v1/admin/payments', ['customer_id' => $this->rucCustomer, 'payment_method_id' => $method, 'amount_minor' => 11210, 'currency' => 'PEN',
+            'validate' => true, 'allocations' => [['invoice_id' => $mine['id'], 'amount_minor' => 11210]]], $this->key())->assertCreated();
+        $this->mpPayment('3001', 'approved', $this->reference($a['id']));
+        $this->webhook('3001')->assertOk();
+        $pay = DB::table('payments')->where('external_id', '3001')->first(['id', 'status', 'notes']);
+        $this->assertSame('validated', $pay->status);
+        $this->assertStringContainsString('REVISAR', (string) $pay->notes);
+        $this->assertSame(0, DB::table('payment_allocations')->where('payment_id', $pay->id)->count());
+        $this->assertSame(11210, (int) DB::table('audit_events')->where('action', 'payment_checkout.unapplied')->value('metadata->unapplied_minor'));
     }
 
     public function test_rejected_pending_and_manipulated_payments_do_not_touch_balance(): void

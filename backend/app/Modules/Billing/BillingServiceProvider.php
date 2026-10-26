@@ -11,6 +11,8 @@ use App\Modules\Billing\Console\GenerateRenewalsCommand;
 use App\Modules\Billing\Console\RunDunningCommand;
 use App\Modules\Billing\Contracts\CardGatewayConnector;
 use App\Modules\Billing\Contracts\EInvoiceConnector;
+use App\Modules\Billing\Listeners\CancelInvoicesFromOrder;
+use App\Modules\Billing\Listeners\CancelRenewalsFromService;
 use App\Modules\Billing\Listeners\DraftInvoiceFromOrder;
 use App\Modules\Billing\Services\CardPaymentService;
 use App\Modules\Billing\Services\CollectionsService;
@@ -18,6 +20,8 @@ use App\Modules\Billing\Services\InvoiceService;
 use App\Modules\Billing\Services\PaymentService;
 use App\Modules\Billing\Services\ProofStorage;
 use App\Modules\Orders\Events\OrderApproved;
+use App\Modules\Orders\Events\OrderCancelled;
+use App\Modules\Services\Events\ServiceCancelled;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -54,8 +58,12 @@ final class BillingServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(OrderApproved::class, DraftInvoiceFromOrder::class);
+        Event::listen(OrderCancelled::class, CancelInvoicesFromOrder::class);
+        Event::listen(ServiceCancelled::class, CancelRenewalsFromService::class);
         RateLimiter::for('card-webhooks', fn (Request $request) => Limit::perMinute(120)->by((string) $request->ip()));
-        RateLimiter::for('card-confirm', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('card-confirm', fn (Request $request) => Limit::perMinute(10)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        // Cada intento crea una preferencia en Mercado Pago con el token del comercio: se limita por usuario.
+        RateLimiter::for('card-start', fn (Request $request) => Limit::perMinute(10)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
         $this->loadViewsFrom(__DIR__.'/resources/views', 'billing');
 
         if ($this->app->runningInConsole()) {

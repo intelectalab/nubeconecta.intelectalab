@@ -53,6 +53,28 @@ const D = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' });
 export const fDateTime = (iso: string | null | undefined) => (iso ? DT.format(new Date(iso)) : '—');
 export const fDate = (iso: string | null | undefined) => (iso ? D.format(new Date(iso)) : '—');
 
+/** Etiquetas en español de las acciones de auditoría que se muestran en el historial (resto: entidad + verbo). */
+const AUDIT_ENTITY: Record<string, string> = {
+  customer: 'Cliente', contact: 'Contacto', customer_note: 'Nota', communication_consent: 'Consentimiento', order: 'Pedido', service: 'Servicio',
+  invoice: 'Comprobante', payment: 'Pago', payment_checkout: 'Pago con tarjeta', subscription: 'Suscripción',
+};
+const AUDIT_VERB: Record<string, string> = {
+  created: 'creado', updated: 'actualizado', deleted: 'eliminado', restored: 'restaurado', merged: 'fusionado', exported: 'exportado',
+  approved: 'aprobado', cancelled: 'anulado', activated: 'activado', suspended: 'suspendido', reactivated: 'reactivado', renewed: 'renovado',
+  drafted: 'en borrador', issued: 'emitido', voided: 'anulado', discarded: 'descartado', paid: 'pagado', reported: 'reportado', validated: 'validado',
+  rejected: 'rechazado', recorded: 'registrado', balance_updated: 'saldo actualizado', einvoice_accepted: 'aceptado por SUNAT', einvoice_rejected: 'rechazado por SUNAT',
+  portal_access_granted: 'acceso al portal concedido', portal_access_revoked: 'acceso al portal retirado', portal_invitation_resent: 'invitación reenviada',
+  personal_data_exported: 'datos personales exportados', personal_data_erased: 'datos personales eliminados', cancel_skipped: 'no se pudo anular',
+};
+export const auditActionLabel = (action: string) => {
+  const i = action.indexOf('.');
+  if (i < 0) return action;
+  const entity = AUDIT_ENTITY[action.slice(0, i)];
+  const verb = AUDIT_VERB[action.slice(i + 1)];
+  return entity && verb ? `${entity} ${verb}` : action;
+};
+export const ACTOR_LABELS: Record<string, string> = { user: 'Usuario', system: 'Sistema', connector: 'Conector', plugin: 'Plugin', customer: 'Cliente' };
+
 /** Mensaje legible para un error de la API (RFC 9457) o de red. */
 export function errorText(e: unknown): string {
   if (isProblem(e)) {

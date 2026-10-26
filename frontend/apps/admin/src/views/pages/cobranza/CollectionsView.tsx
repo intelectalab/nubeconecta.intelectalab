@@ -14,6 +14,9 @@ import { Chip, EmptyState, Note, PageHead, Select, Tabs, Toolbar } from '../../.
 import { displayName, downloadBlob, errorText, fDate, fDateTime, moneyMinor, useCan, useLoad } from '../clientes/shared';
 import { paymentChip, paymentsApi, VIA_LABELS } from './shared';
 
+/** Estados de dunning_events (CollectionsController). */
+const DUNNING_STATUS_LABELS: Record<string, string> = { scheduled: 'Programado', done: 'Enviado', failed: 'Falló', skipped: 'Omitido', cancelled: 'Cancelado' };
+
 type Tab = 'vouchers' | 'pagos' | 'antiguedad' | 'avisos';
 const TABS: Tab[] = ['vouchers', 'pagos', 'antiguedad', 'avisos'];
 const BUCKETS: AgingBucket[] = ['current', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'];
@@ -46,7 +49,8 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
   const can = useCan();
   const [status, setStatus] = useState<string>(fixedStatus ?? '');
   const [cursor, setCursor] = useState<string | null>(null);
-  const res = useLoad(() => paymentsApi.payments({ filter: { status: (fixedStatus ?? status) as PaymentStatus | '' }, cursor, size: 25 }), [status, cursor, fixedStatus]);
+  // «Vouchers por validar» = solo constancias subidas desde el portal; los pagos del panel sin validar están en «Pagos».
+  const res = useLoad(() => paymentsApi.payments({ filter: { status: (fixedStatus ?? status) as PaymentStatus | '', reported_via: fixedStatus ? 'portal' : undefined }, cursor, size: 25 }), [status, cursor, fixedStatus]);
   const rows = res.data?.data ?? [];
   const meta = res.data?.meta;
   const [acting, setActing] = useState<{ id: string; kind: 'reject' | 'void' } | null>(null);
@@ -272,7 +276,7 @@ function NoticesTab() {
             { key: 'i', header: 'Comprobante', className: 'mono', render: (r) => r.invoice_number ?? '—' },
             { key: 'e', header: 'Etapa', render: (r) => { const d = r.detail.offset_days ?? 0; return d === 0 ? 'Día del vencimiento' : d < 0 ? `${-d} días antes` : `${d} días después`; } },
             { key: 'd', header: 'Destinatario', render: (r) => r.detail.recipient ?? <span className="sub">Sin contacto de facturación</span> },
-            { key: 's', header: 'Estado', render: (r) => <Chip kind={r.detail.delivery === 'pending_channel' ? 'warn' : 'ok'}>{r.detail.delivery === 'pending_channel' ? 'Pendiente de envío' : r.status}</Chip> },
+            { key: 's', header: 'Estado', render: (r) => <Chip kind={r.detail.delivery === 'pending_channel' ? 'warn' : r.status === 'failed' ? 'danger' : 'ok'}>{r.detail.delivery === 'pending_channel' ? 'Pendiente de envío' : (DUNNING_STATUS_LABELS[r.status] ?? r.status)}</Chip> },
           ]}
         />
       )}

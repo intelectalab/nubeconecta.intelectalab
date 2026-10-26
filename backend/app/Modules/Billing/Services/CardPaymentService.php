@@ -78,11 +78,23 @@ final class CardPaymentService
         return max(0, (int) ceil($balance * $percent / 100) + $fixedMinor);
     }
 
+    /**
+     * Un solo intento vivo por comprobante y cliente: con la factura bloqueada,
+     * si ya hay un intento `created` vigente por el mismo importe se devuelve su
+     * enlace (dos pestañas o un reintento no cobran dos veces); si cambió el
+     * importe, el anterior se cancela antes de crear otro.
+     */
     public function start(Invoice $invoice, string $customerId, string $idempotencyKey, ?string $payerEmail = null): array
     {
         if (! $this->enabled()) {
             throw new ProblemException(409, 'card_payment_unavailable', 'El pago con tarjeta no está disponible en este momento.');
         }
+
+        return DB::transaction(fn (): array => $this->startLocked(Invoice::query()->lockForUpdate()->findOrFail($invoice->id), $customerId, $idempotencyKey, $payerEmail));
+    }
+
+    private function startLocked(Invoice $invoice, string $customerId, string $idempotencyKey, ?string $payerEmail): array
+    {
         if (! in_array($invoice->status, PaymentService::OPEN_STATUSES, true) || $invoice->balance_minor < 1) {
             throw new ProblemException(409, 'invoice_not_payable', 'El comprobante no tiene saldo pendiente.');
         }
@@ -91,11 +103,27 @@ final class CardPaymentService
             throw new ProblemException(422, 'currency_not_supported', "La cuenta de Mercado Pago no cobra en {$currency}. Pague por transferencia o consulte a finanzas.", ['currency' => $currency]);
         }
         $surcharge = $this->surcharge($invoice->balance_minor, $currency);
+        $amount = $invoice->balance_minor + $surcharge;
+        $open = PaymentCheckout::query()->where('customer_id', $customerId)->where('status', 'created')->whereNull('external_transaction_id')
+            ->whereRaw('invoice_ids[1] = ?', [$invoice->id])->where('expires_at', '>', now()->addMinutes(5))->whereNotNull('external_session_id')
+            ->orderByDesc('created_at')->get();
+        foreach ($open as $previous) {
+            if ($previous->amount_minor === $amount && trim((string) $previous->currency) === $currency) {
+                $url = $this->gateway->checkoutUrl((string) $previous->external_session_id);
+                if ($url !== null) {
+                    $this->audit->record('payment_checkout.reused', 'payment_checkout', $previous->id, null, null, ['invoice_id' => $invoice->id], $customerId);
+
+                    return ['checkout' => $previous, 'redirect_url' => $url];
+                }
+            }
+            $previous->forceFill(['status' => 'cancelled'])->save();
+            $this->audit->record('payment_checkout.superseded', 'payment_checkout', $previous->id, ['status' => 'created'], ['status' => 'cancelled'], ['invoice_id' => $invoice->id], $customerId);
+        }
         $minutes = $this->settings->get('billing.card_gateway.checkout_expiry_minutes') ?? config('hub.billing.card_gateway.checkout_expiry_minutes', 60);
         $checkout = new PaymentCheckout;
         $checkout->forceFill([
             'customer_id' => $customerId, 'payment_method_id' => $this->method()->id, 'invoice_ids' => [$invoice->id],
-            'amount_minor' => $invoice->balance_minor + $surcharge, 'surcharge_minor' => $surcharge, 'currency' => $currency,
+            'amount_minor' => $amount, 'surcharge_minor' => $surcharge, 'currency' => $currency,
             'status' => 'created', 'expires_at' => now()->addMinutes(max(5, (int) $minutes)),
         ])->save();
         $returnUrl = rtrim((string) config('hub.billing.card_gateway.portal_url'), '/').'/?card_return='.$checkout->id;
@@ -123,7 +151,15 @@ final class CardPaymentService
      */
     public function confirm(string $gatewayPaymentId, ?string $customerId, string $source, ?string $expectedCheckoutId = null): ?PaymentCheckout
     {
-        $tx = $this->gateway->getTransaction($gatewayPaymentId);
+        try {
+            $tx = $this->gateway->getTransaction($gatewayPaymentId);
+        } catch (ProblemException $e) {
+            if ($customerId !== null && $e->problemCode === 'gateway_payment_not_found') {
+                // Desde el portal, "no existe en MP" y "no es suyo" responden igual: sin oráculo de pagos del comercio.
+                throw ProblemException::notFound();
+            }
+            throw $e;
+        }
         $ref = PaymentCheckout::parseReference($tx['external_reference']);
         $foreign = static function () use ($customerId): ?PaymentCheckout {
             if ($customerId !== null) {
@@ -168,11 +204,18 @@ final class CardPaymentService
                 $invoice = Invoice::query()->find($ref[0]);
                 $applicable = $invoice !== null && in_array($invoice->status, PaymentService::OPEN_STATUSES, true)
                     ? min($checkout->amount_minor - $checkout->surcharge_minor, $invoice->balance_minor) : 0;
+                $unapplied = $checkout->amount_minor - $checkout->surcharge_minor - $applicable;
                 $payment = $this->payments->recordGatewayPayment(
                     PaymentMethod::query()->findOrFail($checkout->payment_method_id), $checkout->customer_id, $tx['amount_minor'], $tx['currency'], $mp, $tx['fee_minor'],
                     $applicable > 0 ? [['invoice_id' => $ref[0], 'amount_minor' => $applicable]] : [],
-                    'Mercado Pago '.$mp.($checkout->surcharge_minor > 0 ? " (incluye recargo {$checkout->surcharge_minor})" : ''),
+                    'Mercado Pago '.$mp.($checkout->surcharge_minor > 0 ? " (incluye recargo {$checkout->surcharge_minor})" : '')
+                        .($unapplied > 0 ? " · REVISAR: {$unapplied} sin aplicar (el comprobante ya no tenía ese saldo); evaluar reembolso" : ''),
                 );
+                if ($unapplied > 0) {
+                    // RN-BIL-059: lo que no cuadra se avisa a finanzas; mientras no haya canal, queda auditado y en la nota del pago.
+                    $this->audit->record('payment_checkout.unapplied', 'payment_checkout', $checkout->id, null, null,
+                        $meta + ['payment_id' => $payment->id, 'unapplied_minor' => $unapplied, 'invoice_id' => $ref[0]], $checkout->customer_id);
+                }
                 $checkout->forceFill(['status' => 'approved', 'external_transaction_id' => $mp, 'payment_id' => $payment->id, 'decline_reason' => null, 'completed_at' => now()])->save();
             } elseif ($tx['status'] === 'declined') {
                 $checkout->forceFill(['status' => 'declined', 'external_transaction_id' => $mp, 'decline_reason' => mb_substr($tx['raw_status'].': '.($tx['status_detail'] ?? ''), 0, 200), 'completed_at' => now()])->save();
