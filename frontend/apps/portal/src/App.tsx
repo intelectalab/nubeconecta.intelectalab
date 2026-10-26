@@ -3,17 +3,20 @@ import { Icon } from '@hub/ui';
 import { isProblem } from '@hub/api';
 import type { Me } from '@hub/api';
 import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
-import { AssistantChat } from './components/AssistantChat';
 import { LoginView } from './components/LoginView';
-import { DEMO_MODE, DEMO_USER, hub, initials, onUnauthenticated } from './auth/client';
+import { Alert, Hello, Kpi, Kpis } from './components/ui';
+import { DEMO_MODE, DEMO_USER, hub, onUnauthenticated } from './auth/client';
+import { PortalShell, type Currency } from './shell/PortalShell';
+import { navGroups, useHashRoute, type Route } from './shell/routes';
 import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
 
 export default function App() {
-  const [route, setRoute] = useState<'resumen' | 'servicios' | 'servicio-detalle' | 'dominios' | 'facturas' | 'pagar' | 'soporte' | 'ticket-detalle' | 'respaldos' | 'contratos' | 'usuarios' | 'seguridad' | 'perfil'>('resumen');
+  /* Ruta sincronizada con el hash (#facturas, #servicios…) en ambos modos. */
+  const [route, setRoute] = useHashRoute();
   const [selectedServiceId, setSelectedServiceId] = useState<string>('sitio');
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TK-10482');
-  const [cur, setCur] = useState<'PEN' | 'USD'>('PEN');
+  const [cur, setCur] = useState<Currency>('PEN');
   const [payStep, setPayStep] = useState<number>(1);
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>(['E001-4498', 'E001-4521']);
   const [payMethod, setPayMethod] = useState<'card' | 'transfer' | 'paypal'>('card');
@@ -22,7 +25,6 @@ export default function App() {
   const [ticketsList, setTicketsList] = useState(TK);
   const [invFilter, setInvFilter] = useState<'pend' | 'paid' | 'all'>('pend');
   const [tkFilter, setTkFilter] = useState<'abiertos' | 'cerrados' | 'todos'>('abiertos');
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   /* Sesión real contra /api/v1/auth (o usuario mock con VITE_DEMO=1). */
   type AuthState = { k: 'loading' } | { k: 'anon'; notice?: string | null; changeFor?: Me } | { k: 'ready'; user: Me };
@@ -39,7 +41,6 @@ export default function App() {
       setAuth({ k: 'anon', changeFor: user });
       return;
     }
-    setRoute('resumen');
     setAuth({ k: 'ready', user });
   }, []);
 
@@ -57,8 +58,21 @@ export default function App() {
     );
   }, [enter]);
 
+  /* Modo real: nombre y documento de la cuenta desde /portal/account (en demo, el cliente de ejemplo). */
+  const [account, setAccount] = useState<{ name: string; tag: string }>({ name: CLIENT.name, tag: `RUC ${CLIENT.ruc}` });
+  useEffect(() => {
+    if (DEMO_MODE || auth.k !== 'ready') return;
+    let alive = true;
+    hub.http
+      .get<{ data: { legal_name: string; tax_id_type: string | null; tax_id: string | null; code: string } }>('/api/v1/portal/account')
+      .then(({ data }) => alive && setAccount({ name: data.legal_name, tag: data.tax_id ? `${(data.tax_id_type ?? '').toUpperCase()} ${data.tax_id}` : data.code }))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [auth.k]);
+
   const logout = useCallback(async () => {
-    setUserMenuOpen(false);
     if (DEMO_MODE) return;
     try {
       await hub.auth.logout();
@@ -77,34 +91,6 @@ export default function App() {
     const val = conv(amt, from);
     return `${cur === 'PEN' ? 'S/' : 'US$'} ${val.toFixed(2)}`;
   };
-
-  const navGroups = [
-    {
-      title: 'Mi cuenta',
-      items: [
-        { id: 'resumen', label: 'Resumen', icon: 'home' },
-        { id: 'servicios', label: 'Mis servicios', icon: 'server', badge: DEMO_MODE ? SRV.filter((s) => s.st === 'warn').length : 0 },
-        { id: 'dominios', label: 'Dominios', icon: 'globe' },
-        { id: 'respaldos', label: 'Respaldos', icon: 'archive' },
-      ],
-    },
-    {
-      title: 'Pagos y soporte',
-      items: [
-        { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: DEMO_MODE ? INV.filter((i) => i.st !== 'pagada').length : 0 },
-        { id: 'soporte', label: 'Centro de soporte', icon: 'msg' },
-      ],
-    },
-    {
-      title: 'Mi empresa',
-      items: [
-        { id: 'contratos', label: 'Contratos y acuerdos', icon: 'contract' },
-        { id: 'usuarios', label: 'Usuarios del equipo', icon: 'users' },
-        { id: 'seguridad', label: 'Seguridad y 2FA', icon: 'shield' },
-        { id: 'perfil', label: 'Datos fiscales (RUC)', icon: 'building' },
-      ],
-    },
-  ];
 
   const selectedService = SRV.find((s) => s.id === selectedServiceId) || SRV[0];
   const selectedTicket = ticketsList.find((t) => t.id === selectedTicketId) || ticketsList[0];
@@ -141,164 +127,40 @@ export default function App() {
   }
 
   const user = auth.user;
-  const roleName = user.roles[0]?.name ?? '';
   /* Con backend (sin VITE_DEMO) estas pantallas usan la API real (live/LivePortal); el resto sigue con datos de ejemplo. */
   const live = !DEMO_MODE && (LIVE_ROUTES as string[]).includes(route);
   const perms = new Set(user.permissions ?? []);
   const can = (perm: string) => perms.has(perm) || perms.has('*');
 
+  /* Miga de la ruta actual (las de detalle usan el dato de ejemplo en modo demo). */
+  const crumb: string | undefined = live
+    ? route === 'pagar'
+      ? 'Pagos y vouchers'
+      : undefined
+    : route === 'servicio-detalle'
+      ? selectedService.name
+      : route === 'ticket-detalle'
+        ? selectedTicket.id
+        : undefined;
+
+  const nav = navGroups(
+    DEMO_MODE ? { servicios: SRV.filter((s) => s.st === 'warn').length, facturas: INV.filter((i) => i.st !== 'pagada').length } : {},
+  );
+
   return (
-    <div className="app" id="app">
-      {/* Topbar oficial de AlojamientoPlus */}
-      <header className="topbar" role="banner">
-        <a className="logo" href="#resumen" onClick={(e) => { e.preventDefault(); setRoute('resumen'); }}>
-          <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 42, height: 32, flex: 'none' }}>
-            <path d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z" fill="none" stroke="#5f9a32" strokeWidth="3.2" strokeLinejoin="round" />
-            <path d="M25.6 9.5 17.8 21h6l-2.2 9.5L31 17.6h-6.2l2.6-8.1z" fill="#f2b71a" stroke="#f2b71a" strokeWidth="1" strokeLinejoin="round" />
-          </svg>
-          <b>Alojamiento<span>Plus</span></b>
-          <em>Portal del cliente</em>
-        </a>
-        <span className="demo-badge">Datos en vivo</span>
-
-        <div className="tb-spacer" style={{ flex: 1 }} />
-
-        <select
-          className="tb-cur"
-          value={cur}
-          onChange={(e) => setCur(e.target.value as 'PEN' | 'USD')}
-          title="Moneda"
-        >
-          <option value="PEN">S/</option>
-          <option value="USD">US$</option>
-        </select>
-
-        <button className="tb-btn" title="Notificaciones" aria-label="Notificaciones">
-          <Icon name="bell" />
-          <span className="tb-dot" />
-        </button>
-
-        <div className="anchor">
-          <button className="tb-user" aria-label="Usuario" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-            <span className="av" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>
-              {initials(user.name)}
-            </span>
-            <span className="who" style={{ textAlign: 'left', lineHeight: 1.2 }}>
-              <strong style={{ fontSize: 13, display: 'block' }}>{user.name}</strong>
-              <small style={{ color: 'var(--topbar-muted)', fontSize: 11 }}>{CLIENT.name}</small>
-            </span>
-          </button>
-
-          {userMenuOpen && (
-            <div className="pop open umenu" style={{ display: 'block', top: 'calc(100% + 8px)', right: 0, width: 230 }}>
-              <div className="who">
-                <b>{user.name}</b>
-                <small>{user.email}</small>
-                <small>{CLIENT.name}{roleName ? ` · ${roleName}` : ''}</small>
-              </div>
-              <div className="ttl">Tu cuenta</div>
-              <button type="button" className="mi" onClick={() => { setRoute('perfil'); setUserMenuOpen(false); }}>
-                <Icon name="building" className="sm" /> Datos de facturación
-              </button>
-              <button type="button" className="mi" onClick={() => { setRoute('seguridad'); setUserMenuOpen(false); }}>
-                <Icon name="shield" className="sm" /> Seguridad y 2FA
-              </button>
-              <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
-              <button
-                type="button"
-                className="mi"
-                style={{ color: 'var(--danger-text)' }}
-                onClick={() => void logout()}
-                disabled={DEMO_MODE}
-                title={DEMO_MODE ? 'No disponible en modo demo' : undefined}
-              >
-                <Icon name="logout" className="sm" /> Cerrar sesión
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Sidebar de navegación */}
-      <nav className="sidebar" aria-label="Navegación principal">
-        <div className="acct">
-          <div className="ico"><Icon name="building" /></div>
-          <div style={{ minWidth: 0, overflow: 'hidden' }}>
-            <b style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{CLIENT.name}</b>
-            <small>RUC {CLIENT.ruc}</small>
-          </div>
-        </div>
-
-        {navGroups.map((group, gIdx) => (
-          <div key={gIdx} className="nav-group">
-            <div className="nav-title">
-              <span>{group.title}</span>
-            </div>
-            <div style={{ display: 'grid', gap: 2 }}>
-              {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id === 'servicios') setRoute('servicios');
-                    else if (item.id === 'facturas') setRoute('facturas');
-                    else if (item.id === 'soporte') setRoute('soporte');
-                    else setRoute(item.id as any);
-                  }}
-                  className={`nav-item ${route === item.id || (item.id === 'servicios' && route === 'servicio-detalle') || (item.id === 'soporte' && route === 'ticket-detalle') || (item.id === 'facturas' && route === 'pagar') ? 'active' : ''}`}
-                >
-                  <Icon name={item.icon} />
-                  <span className="lbl">{item.label}</span>
-                  {item.badge ? (
-                    <span className={`cnt ${item.id === 'facturas' ? 'hot' : ''}`}>
-                      {item.badge}
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className="nav-foot">
-          <button
-            type="button"
-            className="nav-item"
-            onClick={() => void logout()}
-            disabled={DEMO_MODE}
-            style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'var(--muted)', fontSize: 13 }}
-          >
-            <Icon name="logout" />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content Area */}
-      <main className="main" id="main">
-        <div className="page">
-          
-          {/* Breadcrumbs */}
-          <div className="crumbs">
-            <a href="#resumen" onClick={(e) => { e.preventDefault(); setRoute('resumen'); }}>Portal</a>
-            <Icon name="cr" className="sm" />
-            <span aria-current="page">
-              {route === 'resumen' && 'Resumen'}
-              {route === 'servicios' && 'Mis servicios'}
-              {route === 'servicio-detalle' && (DEMO_MODE ? selectedService.name : 'Detalle de servicio')}
-              {route === 'dominios' && 'Dominios'}
-              {route === 'facturas' && 'Facturas y pagos'}
-              {route === 'pagar' && (DEMO_MODE ? 'Pagar facturas en línea' : 'Pagos y vouchers')}
-              {route === 'soporte' && 'Centro de soporte'}
-              {route === 'ticket-detalle' && selectedTicket.id}
-              {route === 'respaldos' && 'Respaldos automáticos'}
-              {route === 'contratos' && 'Contratos y acuerdos legales'}
-              {route === 'usuarios' && 'Usuarios de la empresa'}
-              {route === 'seguridad' && 'Seguridad de la cuenta y 2FA'}
-              {route === 'perfil' && 'Datos de facturación fiscal'}
-            </span>
-          </div>
-
-          {live ? <LivePortal route={route as LiveRoute} go={(r) => setRoute(r)} can={can} /> : null}
+    <PortalShell
+      user={user}
+      account={account}
+      demo={DEMO_MODE}
+      cur={cur}
+      onCur={setCur}
+      route={route}
+      go={setRoute}
+      nav={nav}
+      crumb={crumb}
+      onLogout={() => void logout()}
+    >
+          {live ? <LivePortal route={route as LiveRoute} go={(r: Route) => setRoute(r)} can={can} userName={user.name} /> : null}
 
           {/* VISTA 1: RESUMEN / DASHBOARD */}
           {!live && route === 'resumen' && (() => {
@@ -310,103 +172,79 @@ export default function App() {
 
             return (
               <div style={{ display: 'grid', gap: 20 }}>
-                {/* Banner de Bienvenida estilo prototipo */}
-                <section className="hello">
-                  <div>
-                    <h1>Hola, {user.name.split(' ')[0]}</h1>
-                    <p>Este es el estado integral de la infraestructura de {CLIENT.name} al día de hoy.</p>
-                  </div>
-                  <div className="acts">
-                    {pendInvoices.length > 0 && (
-                      <button className="btn success" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
-                        <Icon name="card" /> Pagar pendientes ({money(totalPend, cur)})
+                {/* Banner de bienvenida (componente compartido) */}
+                <Hello
+                  title={`Hola, ${user.name.split(' ')[0]}`}
+                  text={`Este es el estado integral de la infraestructura de ${CLIENT.name} al día de hoy.`}
+                  actions={
+                    <>
+                      {pendInvoices.length > 0 && (
+                        <button className="btn primary" onClick={() => { setPayStep(1); setRoute('pagar'); }}>
+                          <Icon name="card" /> Pagar pendientes ({money(totalPend, cur)})
+                        </button>
+                      )}
+                      <button className="btn" onClick={() => setRoute('soporte')}>
+                        <Icon name="plus" /> Crear ticket
                       </button>
-                    )}
-                    <button className="btn" onClick={() => setRoute('soporte')}>
-                      <Icon name="plus" /> Crear ticket
-                    </button>
-                  </div>
-                </section>
+                    </>
+                  }
+                />
 
                 {/* Avisos prioritarios */}
                 <div style={{ display: 'grid', gap: 10 }}>
                   {overdue.map((inv) => (
-                    <div key={inv.id} className="alert danger">
-                      <span className="ico"><Icon name="receipt" /></span>
-                      <div className="tx">
-                        <b>Factura {inv.id} vencida ({money(inv.amt, inv.c)})</b>
-                        <small>{inv.desc} · venció el {inv.due}. Cancela para evitar interrupciones en el servicio.</small>
-                      </div>
-                      <button
-                        className="btn sm primary"
-                        onClick={() => { setSelectedInvoices([inv.id]); setPayStep(2); setRoute('pagar'); }}
-                      >
-                        Pagar ahora
-                      </button>
-                    </div>
+                    <Alert
+                      key={inv.id}
+                      tone="danger"
+                      icon="receipt"
+                      title={`Factura ${inv.id} vencida (${money(inv.amt, inv.c)})`}
+                      text={`${inv.desc} · venció el ${inv.due}. Cancela para evitar interrupciones en el servicio.`}
+                      action={
+                        <button className="btn sm primary" onClick={() => { setSelectedInvoices([inv.id]); setPayStep(2); setRoute('pagar'); }}>
+                          Pagar ahora
+                        </button>
+                      }
+                    />
                   ))}
-
                   {warnServices.map((s) => (
-                    <div key={s.id} className="alert warn">
-                      <span className="ico"><Icon name="tri" /></span>
-                      <div className="tx">
-                        <b>Atención requerida en {s.name}</b>
-                        <small>{s.stNote}</small>
-                      </div>
-                      <button
-                        className="btn sm"
-                        onClick={() => { setSelectedServiceId(s.id); setRoute('servicio-detalle'); }}
-                      >
-                        Ver servicio
-                      </button>
-                    </div>
+                    <Alert
+                      key={s.id}
+                      tone="warn"
+                      icon="tri"
+                      title={`Atención requerida en ${s.name}`}
+                      text={s.stNote}
+                      action={
+                        <button className="btn sm" onClick={() => { setSelectedServiceId(s.id); setRoute('servicio-detalle'); }}>
+                          Ver servicio
+                        </button>
+                      }
+                    />
                   ))}
                 </div>
 
-                {/* KPIs principales */}
-                <section className="kpis" aria-label="Indicadores clave">
-                  <div className="card kpi" onClick={() => setRoute('servicios')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" >
-                      <span className="ico ok"><Icon name="server" className="sm" /></span>
-                      Servicios activos
-                    </span>
-                    <span className="val num" >{SRV.length}</span>
-                    <span className="meta" style={{ color: warnServices.length ? 'var(--warn-text)' : 'var(--ok-text)' }}>
-                      {warnServices.length ? `${warnServices.length} requiere atención` : 'Todo operativo'}
-                    </span>
-                  </div>
-
-                  <div className="card kpi" onClick={() => setRoute('facturas')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" >
-                      <span className="ico warn"><Icon name="wallet" className="sm" /></span>
-                      Saldo por pagar
-                    </span>
-                    <span className="val num" >{money(totalPend, cur)}</span>
-                    <span className="meta" style={{ color: overdue.length ? 'var(--danger-text)' : 'var(--muted)' }}>
-                      {pendInvoices.length} facturas pendientes
-                    </span>
-                  </div>
-
-                  <div className="card kpi" onClick={() => setRoute('dominios')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" >
-                      <span className="ico"><Icon name="globe" className="sm" /></span>
-                      Dominios activos
-                    </span>
-                    <span className="val num" >{DOMS.length}</span>
-                    <span className="meta" >.pe y .com vigentes
-                    </span>
-                  </div>
-
-                  <div className="card kpi" onClick={() => setRoute('soporte')} style={{ cursor: 'pointer' }}>
-                    <span className="lbl" >
-                      <span className="ico"><Icon name="msg" className="sm" /></span>
-                      Tickets de atención
-                    </span>
-                    <span className="val num" >{openTickets.length}</span>
-                    <span className="meta" >Respuesta promedio &lt; 15 min
-                    </span>
-                  </div>
-                </section>
+                {/* KPIs principales (componente compartido) */}
+                <Kpis>
+                  <Kpi
+                    label="Servicios activos"
+                    icon="server"
+                    tone="ok"
+                    value={SRV.length}
+                    meta={warnServices.length ? `${warnServices.length} requiere atención` : 'Todo operativo'}
+                    metaColor={warnServices.length ? 'var(--warn-text)' : 'var(--ok-text)'}
+                    onClick={() => setRoute('servicios')}
+                  />
+                  <Kpi
+                    label="Saldo por pagar"
+                    icon="wallet"
+                    tone="warn"
+                    value={money(totalPend, cur)}
+                    meta={`${pendInvoices.length} facturas pendientes`}
+                    metaColor={overdue.length ? 'var(--danger-text)' : 'var(--muted)'}
+                    onClick={() => setRoute('facturas')}
+                  />
+                  <Kpi label="Dominios activos" icon="globe" value={DOMS.length} meta=".pe y .com vigentes" onClick={() => setRoute('dominios')} />
+                  <Kpi label="Tickets de atención" icon="msg" value={openTickets.length} meta="Respuesta promedio < 15 min" onClick={() => setRoute('soporte')} />
+                </Kpis>
 
                 {/* Grid a dos columnas: Proyectos y Accesos Rápidos */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 18 }}>
@@ -1728,12 +1566,6 @@ export default function App() {
               </div>
             </div>
           )}
-
-        </div>
-      </main>
-
-      {/* Widget flotante del Asistente IA */}
-      <AssistantChat />
-    </div>
+    </PortalShell>
   );
 }

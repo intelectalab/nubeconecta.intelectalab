@@ -9,8 +9,11 @@
  *  - P-PRT-14 Datos de facturación (/portal/account)
  * Pago con tarjeta (D-18, Mercado Pago Checkout Pro) cuando el comprobante lo
  * ofrece (`card_payment.available`); PayPal en línea no está disponible todavía.
+ * La presentación usa las piezas compartidas de components/ui (mismo diseño que
+ * el portal de muestra y el admin); el armazón lo pone App via shell/PortalShell.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '@hub/ui';
 import {
   CYCLE_LABELS,
   FISCAL_STATUS_LABELS,
@@ -29,6 +32,7 @@ import {
   type Service,
 } from '@hub/api';
 import { hub } from '../auth/client';
+import { Alert, Card, CardBody, CardFoot, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
 
 export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil';
 export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil'];
@@ -81,30 +85,27 @@ function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
   return { data, error, loading, reload: useCallback(() => setTick((t) => t + 1), []) };
 }
 
-const INV_CHIP: Record<string, string> = { issued: 'warn', partially_paid: 'warn', paid: 'ok', overdue: 'danger', void: '' };
-const PAY_CHIP = (p: Pick<Payment, 'status' | 'voided'>) => (p.voided ? '' : p.status === 'validated' ? 'ok' : p.status === 'reported' ? 'warn' : p.status === 'rejected' ? 'danger' : 'info');
-const SRV_CHIP: Record<string, string> = { active: 'ok', pending: 'info', suspended: 'danger', terminated: '', cancelled: '', handed_over: '' };
+const INV_CHIP: Record<string, Tone> = { issued: 'warn', partially_paid: 'warn', paid: 'ok', overdue: 'danger', void: '' };
+const PAY_CHIP = (p: Pick<Payment, 'status' | 'voided'>): Tone => (p.voided ? '' : p.status === 'validated' ? 'ok' : p.status === 'reported' ? 'warn' : p.status === 'rejected' ? 'danger' : 'info');
+const SRV_CHIP: Record<string, Tone> = { active: 'ok', pending: 'info', suspended: 'danger', terminated: '', cancelled: '', handed_over: '' };
+const SRV_ICON: Record<string, string> = { active: 'server', pending: 'clock', suspended: 'tri', terminated: 'archive', cancelled: 'archive', handed_over: 'archive' };
+
+const InvChip = ({ i }: { i: Pick<Invoice, 'status'> }) => <Chip tone={INV_CHIP[i.status] ?? ''}>{INVOICE_STATUS_LABELS[i.status]}</Chip>;
+const SrvChip = ({ s }: { s: Pick<Service, 'status'> }) => <Chip tone={SRV_CHIP[s.status] ?? ''}>{SERVICE_STATUS_LABELS[s.status]}</Chip>;
 
 function Failed({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   return (
-    <div className="alert warn" role="alert">
-      {errorText(error)}{' '}
-      <button type="button" className="btn sm" onClick={onRetry}>
-        Reintentar
-      </button>
-    </div>
-  );
-}
-
-function Head({ title, lead, actions }: { title: string; lead?: string; actions?: ReactNode }) {
-  return (
-    <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-      <div>
-        <h1>{title}</h1>
-        {lead ? <p className="lead">{lead}</p> : null}
-      </div>
-      {actions}
-    </div>
+    <Alert
+      tone="warn"
+      role="alert"
+      title="No se pudo cargar"
+      text={errorText(error)}
+      action={
+        <button type="button" className="btn sm" onClick={onRetry}>
+          Reintentar
+        </button>
+      }
+    />
   );
 }
 
@@ -117,7 +118,7 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function LivePortal({ route, go, can }: { route: LiveRoute; go: (r: LiveRoute) => void; can: (perm: string) => boolean }) {
+export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go: (r: LiveRoute) => void; can: (perm: string) => boolean; userName: string }) {
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [cardReturn, setCardReturn] = useState(readCardReturn);
@@ -150,87 +151,132 @@ export function LivePortal({ route, go, can }: { route: LiveRoute; go: (r: LiveR
     };
     return <CardReturnPage checkoutId={cardReturn.checkout} paymentId={cardReturn.paymentId} close={close} />;
   }
-  if (route === 'resumen') return <SummaryPage openInvoice={openInvoice} go={go} />;
+  if (route === 'resumen') return <SummaryPage openInvoice={openInvoice} go={go} userName={userName} />;
   if (route === 'servicios') return <ServicesPage openService={openService} />;
   if (route === 'servicio-detalle') return serviceId ? <ServicePage id={serviceId} back={() => go('servicios')} /> : <ServicesPage openService={openService} />;
   if (route === 'perfil') return <BillingProfilePage />;
-  if (route === 'pagar') return <PaymentsPage />;
+  if (route === 'pagar') return <PaymentsPage go={go} />;
   return invoiceId ? <InvoicePage id={invoiceId} back={() => setInvoiceId(null)} canPay={can('portal.payment.create')} /> : <InvoicesPage openInvoice={setInvoiceId} go={go} />;
 }
 
 /* ---------- P-PRT-02 Resumen ---------- */
-function SummaryPage({ openInvoice, go }: { openInvoice: (id: string) => void; go: (r: LiveRoute) => void }) {
+function SummaryPage({ openInvoice, go, userName }: { openInvoice: (id: string) => void; go: (r: LiveRoute) => void; userName: string }) {
   const res = useLoad(() => hub.billing.portalSummary(), []);
   const s: PortalSummary | null = res.data;
+  const debt = s?.debt ?? [];
+  const hasDebt = debt.some((d) => d.balance_minor > 0);
+  const overdue = debt.filter((d) => d.overdue_minor > 0);
+  const fmtDebt = (key: 'balance_minor' | 'overdue_minor') => debt.filter((d) => d[key] > 0).map((d) => money(d[key], d.currency)).join(' + ');
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head title="Resumen de su cuenta" lead="Servicios, próximos vencimientos y saldo pendiente." />
+      <Hello
+        title={`Hola, ${userName.split(' ')[0]}`}
+        text="Este es el estado de sus servicios, vencimientos y saldo pendiente al día de hoy."
+        actions={
+          <>
+            {hasDebt ? (
+              <button className="btn primary" onClick={() => go('facturas')}>
+                <Icon name="card" /> Pagar pendientes ({fmtDebt('balance_minor')})
+              </button>
+            ) : null}
+            <button className="btn" onClick={() => go('pagar')}>
+              <Icon name="receipt" /> Pagos y vouchers
+            </button>
+          </>
+        }
+      />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
-      {res.loading && !s ? <p className="sub">Cargando…</p> : null}
+      {res.loading && !s ? <Loading /> : null}
       {s ? (
         <>
-          <section className="kpis g-kpi" aria-label="Indicadores" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <div className="card kpi">
-              <span className="lbl">Servicios activos</span>
-              <span className="val">{s.services.active}</span>
-              <span className="meta">
-                {s.services.suspended ? `${s.services.suspended} suspendido(s)` : 'Ninguno suspendido'}
-                {s.services.pending ? ` · ${s.services.pending} en preparación` : ''}
-              </span>
-            </div>
-            <div className="card kpi">
-              <span className="lbl">Saldo pendiente</span>
-              <span className="val">{s.debt.length ? s.debt.map((d) => money(d.balance_minor, d.currency)).join(' + ') : money(0, 'PEN')}</span>
-              <span className="meta">{s.debt.some((d) => d.overdue_minor > 0) ? `Vencido: ${s.debt.filter((d) => d.overdue_minor).map((d) => money(d.overdue_minor, d.currency)).join(' + ')}` : 'Sin deuda vencida'}</span>
-            </div>
-            <div className="card kpi">
-              <span className="lbl">Vouchers en revisión</span>
-              <span className="val">{s.pending_vouchers}</span>
-              <span className="meta">Finanzas los valida contra el banco</span>
-            </div>
-          </section>
-          <section className="card">
-            <div className="card-h">
-              <h2>Próximos vencimientos</h2>
-              <button type="button" className="btn sm" onClick={() => go('facturas')}>
-                Ver comprobantes
+          {overdue.length ? (
+            <Alert
+              tone="danger"
+              icon="receipt"
+              title={`Tiene saldo vencido por ${fmtDebt('overdue_minor')}`}
+              text="Regularice el pago para evitar interrupciones en el servicio."
+              action={
+                <button className="btn sm primary" onClick={() => go('facturas')}>
+                  Pagar ahora
+                </button>
+              }
+            />
+          ) : null}
+          {s.services.suspended ? (
+            <Alert
+              tone="warn"
+              icon="tri"
+              title={`${s.services.suspended} servicio(s) suspendido(s)`}
+              text="Revise sus comprobantes pendientes o escriba a soporte para reactivarlos."
+              action={
+                <button className="btn sm" onClick={() => go('servicios')}>
+                  Ver servicios
+                </button>
+              }
+            />
+          ) : null}
+
+          <Kpis>
+            <Kpi
+              label="Servicios activos"
+              icon="server"
+              tone="ok"
+              value={s.services.active}
+              meta={`${s.services.suspended ? `${s.services.suspended} suspendido(s)` : 'Ninguno suspendido'}${s.services.pending ? ` · ${s.services.pending} en preparación` : ''}`}
+              metaColor={s.services.suspended ? 'var(--warn-text)' : 'var(--ok-text)'}
+              onClick={() => go('servicios')}
+            />
+            <Kpi
+              label="Saldo pendiente"
+              icon="wallet"
+              tone="warn"
+              value={hasDebt ? fmtDebt('balance_minor') : money(0, 'PEN')}
+              meta={overdue.length ? `Vencido: ${fmtDebt('overdue_minor')}` : 'Sin deuda vencida'}
+              metaColor={overdue.length ? 'var(--danger-text)' : 'var(--muted)'}
+              onClick={() => go('facturas')}
+            />
+            <Kpi label="Vouchers en revisión" icon="receipt" value={s.pending_vouchers} meta="Finanzas los valida contra el banco" onClick={() => go('pagar')} />
+            <Kpi label="Próximos vencimientos" icon="clock" value={s.upcoming_invoices.length} meta={s.upcoming_invoices.length ? 'Comprobantes por vencer' : 'Nada por vencer'} onClick={() => go('facturas')} />
+          </Kpis>
+
+          <Card
+            title="Próximos vencimientos"
+            icon="receipt"
+            actions={
+              <button type="button" className="btn sm ghost" onClick={() => go('facturas')}>
+                Ver comprobantes →
               </button>
-            </div>
+            }
+          >
             {s.upcoming_invoices.length ? (
-              <div className="tw">
-                <table className="t">
-                  <thead>
-                    <tr>
-                      <th>Comprobante</th>
-                      <th>Vence</th>
-                      <th>Estado</th>
-                      <th className="r">Saldo</th>
-                      <th className="r">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.upcoming_invoices.map((i) => (
-                      <tr key={i.id}>
-                        <td className="mono">{i.number}</td>
-                        <td>{fDate(i.due_date)}</td>
-                        <td>
-                          <span className={`chip ${INV_CHIP[i.status] ?? ''}`}>{INVOICE_STATUS_LABELS[i.status]}</span>
-                        </td>
-                        <td className="r num">{money(i.balance_minor, i.currency)}</td>
-                        <td className="r">
-                          <button type="button" className="btn sm primary" onClick={() => openInvoice(i.id)}>
-                            Ver y pagar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table cols={[{ label: 'Comprobante' }, { label: 'Vence' }, { label: 'Estado' }, { label: 'Saldo', right: true }, { label: 'Acción', right: true }]}>
+                {s.upcoming_invoices.map((i) => (
+                  <tr key={i.id}>
+                    <td className="nw mono" style={{ fontWeight: 700 }}>
+                      {i.number}
+                    </td>
+                    <td className="num">{fDate(i.due_date)}</td>
+                    <td>
+                      <InvChip i={i} />
+                    </td>
+                    <td className="r num" style={{ fontWeight: 700 }}>
+                      {money(i.balance_minor, i.currency)}
+                    </td>
+                    <td className="r">
+                      <button type="button" className="btn sm primary" onClick={() => openInvoice(i.id)}>
+                        Ver y pagar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </Table>
             ) : (
-              <div className="card-b empty">No tiene comprobantes pendientes. ¡Está al día!</div>
+              <Empty icon="check">
+                <b>Está al día</b>
+                No tiene comprobantes pendientes.
+              </Empty>
             )}
-          </section>
+          </Card>
         </>
       ) : null}
     </div>
@@ -241,55 +287,44 @@ function SummaryPage({ openInvoice, go }: { openInvoice: (id: string) => void; g
 function ServicesPage({ openService }: { openService: (id: string) => void }) {
   const res = useLoad(() => hub.services.portalList({ size: 100 }), []);
   const rows: Service[] = res.data?.data ?? [];
+  const alerts = rows.filter((s) => s.status === 'suspended').length;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head title="Mis servicios" lead="Lo que tiene contratado, con su estado y vencimiento." />
+      <PageHead title="Mis servicios contratados" lead={res.data ? (alerts ? `${alerts} servicio(s) requiere(n) atención.` : 'Lo que tiene contratado, con su estado y vencimiento.') : 'Lo que tiene contratado, con su estado y vencimiento.'} />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
-      <section className="card">
+      <Card title="Servicios" icon="server" sub={res.data ? `${rows.length} servicio(s)` : undefined}>
         {res.loading ? (
-          <div className="card-b sub">Cargando…</div>
+          <Loading inCard />
         ) : !rows.length ? (
-          <div className="card-b empty">Aún no hay servicios registrados en su cuenta.</div>
+          <Empty icon="server">
+            <b>Sin servicios</b>
+            Aún no hay servicios registrados en su cuenta.
+          </Empty>
         ) : (
-          <div className="tw">
-            <table className="t">
-              <thead>
-                <tr>
-                  <th>Servicio</th>
-                  <th>Plan</th>
-                  <th>Ciclo</th>
-                  <th>Estado</th>
-                  <th>Vencimiento</th>
-                  <th>Renovación</th>
-                  <th className="r">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <b>{s.label}</b>
-                      <div className="sub mono">{s.code}</div>
-                    </td>
-                    <td>{s.plan?.name ?? s.product?.name ?? '—'}</td>
-                    <td>{cycleLabel(s.cycle)}</td>
-                    <td>
-                      <span className={`chip ${SRV_CHIP[s.status] ?? ''}`}>{SERVICE_STATUS_LABELS[s.status]}</span>
-                    </td>
-                    <td>{fDate(s.commercial_due_date)}</td>
-                    <td>{s.auto_renew ? 'Automática' : 'Manual'}</td>
-                    <td className="r">
-                      <button type="button" className="btn sm" onClick={() => openService(s.id)}>
-                        Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table cols={[{ label: 'Servicio' }, { label: 'Plan' }, { label: 'Ciclo' }, { label: 'Estado' }, { label: 'Vencimiento' }, { label: 'Renovación' }, { label: 'Acción', right: true }]}>
+            {rows.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  <b style={{ display: 'block', fontSize: 13.5 }}>{s.label}</b>
+                  <small className="sub mono">{s.code}</small>
+                </td>
+                <td>{s.plan?.name ?? s.product?.name ?? '—'}</td>
+                <td>{cycleLabel(s.cycle)}</td>
+                <td>
+                  <SrvChip s={s} />
+                </td>
+                <td className="num">{fDate(s.commercial_due_date)}</td>
+                <td>{s.auto_renew ? 'Automática' : 'Manual'}</td>
+                <td className="r nw">
+                  <button type="button" className="btn sm primary" onClick={() => openService(s.id)}>
+                    Detalles
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </Table>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
@@ -299,43 +334,54 @@ function ServicePage({ id, back }: { id: string; back: () => void }) {
   const s = res.data;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head
+      <DetailHead
+        icon={s ? (SRV_ICON[s.status] ?? 'server') : 'server'}
         title={s?.label ?? 'Detalle de servicio'}
-        lead={s ? `${s.product?.name ?? ''}${s.plan ? ` · ${s.plan.name}` : ''}` : undefined}
+        text={s ? `${s.product?.name ?? ''}${s.plan ? ` · ${s.plan.name}` : ''} · ${cycleLabel(s.cycle)}` : undefined}
+        chip={s ? <SrvChip s={s} /> : undefined}
         actions={
-          <button type="button" className="btn" onClick={back}>
-            Volver a mis servicios
+          <button type="button" className="btn ghost" onClick={back}>
+            ← Volver a servicios
           </button>
         }
       />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
       {s ? (
-        <section className="card">
-          <div className="card-b">
-            <dl className="kv">
-              <dt>Estado</dt>
-              <dd>
-                <span className={`chip ${SRV_CHIP[s.status] ?? ''}`}>{SERVICE_STATUS_LABELS[s.status]}</span>
-              </dd>
-              <dt>Código</dt>
-              <dd className="mono">{s.code}</dd>
-              <dt>Ciclo</dt>
-              <dd>{cycleLabel(s.cycle)}</dd>
-              <dt>Precio</dt>
-              <dd>{s.price.unit_price_minor !== null && s.price.currency ? `${money(s.price.unit_price_minor, s.price.currency)} × ${Number(s.price.quantity)}` : '—'}</dd>
-              <dt>Inicio</dt>
-              <dd>{fDate(s.starts_on)}</dd>
-              <dt>Vencimiento comercial</dt>
-              <dd>{fDate(s.commercial_due_date)}</dd>
-              <dt>Próxima factura</dt>
-              <dd>{fDate(s.subscription?.next_invoice_date ?? null)}</dd>
-              <dt>Renovación automática</dt>
-              <dd>{s.auto_renew ? 'Sí' : 'No'}</dd>
-            </dl>
+        <div className="detail">
+          <div className="stack" style={{ display: 'grid', gap: 16 }}>
+            <Card title="Datos del servicio" icon="sliders">
+              <CardBody style={{ padding: '14px 18px' }}>
+                <Kv
+                  cols="150px 1fr"
+                  rows={[
+                    ['Estado', <SrvChip s={s} />],
+                    ['Código', <span className="mono">{s.code}</span>],
+                    ['Producto', s.product?.name ?? '—'],
+                    ['Plan', s.plan?.name ?? '—'],
+                    ['Ciclo', cycleLabel(s.cycle)],
+                  ]}
+                />
+              </CardBody>
+            </Card>
           </div>
-        </section>
+          <div className="stack" style={{ display: 'grid', gap: 16 }}>
+            <Card title="Tu plan" icon="receipt">
+              <CardBody style={{ padding: '14px 18px' }}>
+                <Kv
+                  rows={[
+                    ['Precio', <span className="num" style={{ color: 'var(--brand-text)' }}>{s.price.unit_price_minor !== null && s.price.currency ? `${money(s.price.unit_price_minor, s.price.currency)} × ${Number(s.price.quantity)}` : '—'}</span>],
+                    ['Inicio', <span className="num">{fDate(s.starts_on)}</span>],
+                    ['Vencimiento comercial', <span className="num">{fDate(s.commercial_due_date)}</span>],
+                    ['Próxima factura', <span className="num">{fDate(s.subscription?.next_invoice_date ?? null)}</span>],
+                    ['Renovación automática', s.auto_renew ? 'Sí' : 'No'],
+                  ]}
+                />
+              </CardBody>
+            </Card>
+          </div>
+        </div>
       ) : res.loading ? (
-        <p className="sub">Cargando…</p>
+        <Loading />
       ) : null}
     </div>
   );
@@ -350,89 +396,71 @@ function InvoicesPage({ openInvoice, go }: { openInvoice: (id: string) => void; 
   const meta = res.data?.meta;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head
+      <PageHead
         title="Facturas y pagos"
-        lead="Descargue sus comprobantes y envíe la constancia de su transferencia o depósito."
+        lead="Descargue sus comprobantes, pague con tarjeta o envíe la constancia de su transferencia o depósito."
         actions={
           <button type="button" className="btn" onClick={() => go('pagar')}>
-            Historial de pagos y vouchers
+            <Icon name="receipt" className="sm" /> Historial de pagos y vouchers
           </button>
         }
       />
-      <section className="card">
+      <Card>
         <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div className="seg" role="group" aria-label="Filtrar comprobantes">
-            {(['pend', 'all'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={filter === f}
-                onClick={() => {
-                  setFilter(f);
-                  setCursor(null);
-                }}
-              >
-                {f === 'pend' ? 'Por pagar' : 'Todos'}
-              </button>
-            ))}
-          </div>
+          <Seg
+            label="Filtrar comprobantes"
+            value={filter}
+            options={[
+              { id: 'pend', label: 'Por pagar' },
+              { id: 'all', label: 'Todos' },
+            ]}
+            onChange={(f) => {
+              setFilter(f);
+              setCursor(null);
+            }}
+          />
         </div>
         {res.error ? (
-          <div className="card-b">
+          <CardBody>
             <Failed error={res.error} onRetry={res.reload} />
-          </div>
+          </CardBody>
         ) : res.loading ? (
-          <div className="card-b sub">Cargando…</div>
+          <Loading inCard />
         ) : !rows.length ? (
-          <div className="card-b empty">{filter === 'pend' ? 'No tiene comprobantes pendientes.' : 'No tiene comprobantes.'}</div>
+          <Empty icon="receipt">
+            <b>{filter === 'pend' ? 'Está al día' : 'Sin comprobantes'}</b>
+            {filter === 'pend' ? 'No tiene comprobantes pendientes.' : 'No tiene comprobantes.'}
+          </Empty>
         ) : (
-          <div className="tw">
-            <table className="t">
-              <thead>
-                <tr>
-                  <th>Comprobante</th>
-                  <th>Emisión</th>
-                  <th>Vence</th>
-                  <th className="r">Total</th>
-                  <th className="r">Saldo</th>
-                  <th>Estado</th>
-                  <th className="r">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((i) => (
-                  <tr key={i.id}>
-                    <td>
-                      <span className="mono">{i.number}</span>
-                      <div className="sub">{INVOICE_TYPE_LABELS[i.type]}</div>
-                    </td>
-                    <td>{fDate(i.issue_date)}</td>
-                    <td>{fDate(i.due_date)}</td>
-                    <td className="r num">{money(i.total_minor, i.currency)}</td>
-                    <td className="r num">{money(i.balance_minor, i.currency)}</td>
-                    <td>
-                      <span className={`chip ${INV_CHIP[i.status] ?? ''}`}>{INVOICE_STATUS_LABELS[i.status]}</span>
-                    </td>
-                    <td className="r">
-                      <button type="button" className={`btn sm${i.balance_minor > 0 ? ' primary' : ''}`} onClick={() => openInvoice(i.id)}>
-                        {i.balance_minor > 0 ? 'Ver y pagar' : 'Ver'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table cols={[{ label: 'Comprobante' }, { label: 'Emisión' }, { label: 'Vence' }, { label: 'Total', right: true }, { label: 'Saldo', right: true }, { label: 'Estado' }, { label: 'Acción', right: true }]}>
+            {rows.map((i) => (
+              <tr key={i.id}>
+                <td className="nw">
+                  <span className="mono" style={{ fontWeight: 700 }}>
+                    {i.number}
+                  </span>
+                  <div className="sub">{INVOICE_TYPE_LABELS[i.type]}</div>
+                </td>
+                <td className="num">{fDate(i.issue_date)}</td>
+                <td className="num">{fDate(i.due_date)}</td>
+                <td className="r num">{money(i.total_minor, i.currency)}</td>
+                <td className="r num" style={{ fontWeight: 700 }}>
+                  {money(i.balance_minor, i.currency)}
+                </td>
+                <td>
+                  <InvChip i={i} />
+                </td>
+                <td className="r nw">
+                  <button type="button" className={`btn sm${i.balance_minor > 0 ? ' primary' : ' ghost'}`} onClick={() => openInvoice(i.id)}>
+                    {i.balance_minor > 0 ? 'Ver y pagar' : 'Ver'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </Table>
         )}
-        <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>
-            Anterior
-          </button>
-          <button type="button" className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>
-            Siguiente
-          </button>
-        </div>
-      </section>
+        <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
+      </Card>
     </div>
   );
 }
@@ -453,115 +481,99 @@ function InvoicePage({ id, back, canPay }: { id: string; back: () => void; canPa
   };
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head
+      <PageHead
+        back={{ label: 'Volver a Facturas y pagos', onClick: back }}
         title={i ? `${INVOICE_TYPE_LABELS[i.type]} ${i.number ?? ''}` : 'Comprobante'}
         lead={i ? `Emitido el ${fDate(i.issue_date)} · vence el ${fDate(i.due_date)}` : undefined}
         actions={
-          <span style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn" onClick={back}>
-              Volver
+          i ? (
+            <button type="button" className="btn" onClick={() => void doc()}>
+              <Icon name="file" className="sm" /> Descargar
             </button>
-            {i ? (
-              <button type="button" className="btn" onClick={() => void doc()}>
-                Descargar
-              </button>
-            ) : null}
-          </span>
+          ) : null
         }
       />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
-      {msg ? (
-        <div className="alert warn" role="alert">
-          {msg}
-        </div>
-      ) : null}
+      {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
       {i ? (
         <>
-          <section className="card">
-            <div className="card-b">
-              <p>
-                <span className={`chip ${INV_CHIP[i.status] ?? ''}`}>{INVOICE_STATUS_LABELS[i.status]}</span> <span className="chip outline">{FISCAL_STATUS_LABELS[i.fiscal_status]}</span>
-              </p>
-              <div className="tw">
-                <table className="t">
-                  <thead>
-                    <tr>
-                      <th>Descripción</th>
-                      <th className="r">Cant.</th>
-                      <th className="r">Total</th>
+          <div className="detail">
+            <div className="stack" style={{ display: 'grid', gap: 16 }}>
+              <Card
+                title="Detalle del comprobante"
+                icon="receipt"
+                actions={
+                  <span style={{ display: 'inline-flex', gap: 6 }}>
+                    <InvChip i={i} />
+                    <Chip outline>{FISCAL_STATUS_LABELS[i.fiscal_status]}</Chip>
+                  </span>
+                }
+              >
+                <Table cols={[{ label: 'Descripción' }, { label: 'Cant.', right: true }, { label: 'Total', right: true }]}>
+                  {(i.items ?? []).map((l) => (
+                    <tr key={l.id}>
+                      <td>
+                        {l.description}
+                        {l.period_start ? (
+                          <div className="sub">
+                            Periodo {fDate(l.period_start)} – {fDate(l.period_end)}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="r num">{Number(l.quantity).toLocaleString('es-PE')}</td>
+                      <td className="r num">{money(l.total_minor, i.currency)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(i.items ?? []).map((l) => (
-                      <tr key={l.id}>
-                        <td>
-                          {l.description}
-                          {l.period_start ? <div className="sub">Periodo {fDate(l.period_start)} – {fDate(l.period_end)}</div> : null}
-                        </td>
-                        <td className="r num">{Number(l.quantity).toLocaleString('es-PE')}</td>
-                        <td className="r num">{money(l.total_minor, i.currency)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <dl className="kv" style={{ marginTop: 12 }}>
-                <dt>Subtotal</dt>
-                <dd className="num">{money(i.subtotal_minor, i.currency)}</dd>
-                <dt>IGV</dt>
-                <dd className="num">{money(i.tax_minor, i.currency)}</dd>
-                <dt>Total</dt>
-                <dd className="num">
-                  <b>{money(i.total_minor, i.currency)}</b>
-                </dd>
-                <dt>Saldo pendiente</dt>
-                <dd className="num">
-                  <b>{money(i.balance_minor, i.currency)}</b>
-                </dd>
-              </dl>
-            </div>
-          </section>
-          <section className="card">
-            <div className="card-h">
-              <h2>Pagos de este comprobante</h2>
-            </div>
-            {i.payments?.length ? (
-              <div className="tw">
-                <table className="t">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Medio</th>
-                      <th>Operación</th>
-                      <th>Estado</th>
-                      <th className="r">Importe aplicado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  ))}
+                </Table>
+              </Card>
+              <Card title="Pagos de este comprobante" icon="wallet">
+                {i.payments?.length ? (
+                  <Table cols={[{ label: 'Fecha' }, { label: 'Medio' }, { label: 'Operación' }, { label: 'Estado' }, { label: 'Importe aplicado', right: true }]}>
                     {i.payments.map((p) => (
                       <tr key={p.payment_id}>
-                        <td>{fDate(p.received_at)}</td>
+                        <td className="num">{fDate(p.received_at)}</td>
                         <td>{p.method ?? '—'}</td>
                         <td className="mono">{p.external_id ?? '—'}</td>
                         <td>
-                          <span className={`chip ${PAY_CHIP(p)}`}>{paymentStatusLabel(p)}</span>
+                          <Chip tone={PAY_CHIP(p)}>{paymentStatusLabel(p)}</Chip>
                         </td>
                         <td className="r num">{money(p.amount_minor, i.currency)}</td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="card-b empty">Aún no hay pagos registrados para este comprobante.</div>
-            )}
-          </section>
-          {payable && canPay && i.card_payment?.available ? <CardPayBox invoice={i} /> : null}
+                  </Table>
+                ) : (
+                  <Empty>Aún no hay pagos registrados para este comprobante.</Empty>
+                )}
+              </Card>
+            </div>
+            <div className="stack" style={{ display: 'grid', gap: 16 }}>
+              <aside className="card sumbox">
+                <h2 className="sec">Resumen</h2>
+                <div className="ln">
+                  <span>Subtotal</span>
+                  <span className="num">{money(i.subtotal_minor, i.currency)}</span>
+                </div>
+                <div className="ln">
+                  <span>IGV</span>
+                  <span className="num">{money(i.tax_minor, i.currency)}</span>
+                </div>
+                <div className="ln">
+                  <span>Total</span>
+                  <span className="num">{money(i.total_minor, i.currency)}</span>
+                </div>
+                <div className="ln tot">
+                  <span>Saldo pendiente</span>
+                  <span className="num">{money(i.balance_minor, i.currency)}</span>
+                </div>
+              </aside>
+              {payable && canPay && i.card_payment?.available ? <CardPayBox invoice={i} /> : null}
+              {payable && !canPay ? <Note tone="warn">Su usuario no puede reportar pagos; pida al administrador de su cuenta que lo haga.</Note> : null}
+            </div>
+          </div>
           {payable && canPay ? <VoucherForm invoice={i} onSent={res.reload} /> : null}
-          {payable && !canPay ? <div className="note">Su usuario no puede reportar pagos; pida al administrador de su cuenta que lo haga.</div> : null}
         </>
       ) : res.loading ? (
-        <p className="sub">Cargando…</p>
+        <Loading />
       ) : null}
     </div>
   );
@@ -595,36 +607,33 @@ function CardPayBox({ invoice }: { invoice: Invoice }) {
     }
   };
   return (
-    <section className="card">
-      <div className="card-h">
-        <h2>Pagar con tarjeta</h2>
-      </div>
-      <div className="card-b" style={{ display: 'grid', gap: 12 }}>
-        <p className="sub">
-          Pague el saldo de {money(invoice.balance_minor, invoice.currency)} con tarjeta de crédito o débito en el formulario seguro de Mercado Pago. No guardamos los datos de su tarjeta.
+    <Card title="Pagar con tarjeta" icon="card">
+      <CardBody style={{ display: 'grid', gap: 12 }}>
+        <p className="sub" style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>
+          Pague el saldo de <b>{money(invoice.balance_minor, invoice.currency)}</b> con tarjeta de crédito o débito en el formulario seguro de Mercado Pago. No guardamos los datos de su tarjeta.
         </p>
-        {msg ? (
-          <div className="alert warn" role="alert">
-            {msg}
-          </div>
-        ) : null}
+        {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+        <div className="gw" style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+          <Icon name="lock" className="sm" />
+          <span>Pasarela de pago segura y cifrada.</span>
+        </div>
         <div>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void pay()}>
-            {busy ? 'Redirigiendo a Mercado Pago…' : 'Pagar con tarjeta'}
+            <Icon name="card" className="sm" /> {busy ? 'Redirigiendo a Mercado Pago…' : 'Pagar con tarjeta'}
           </button>
         </div>
-      </div>
-    </section>
+      </CardBody>
+    </Card>
   );
 }
 
-const CARD_RESULT: Record<CardCheckout['status'], { title: string; text: string; tone: string }> = {
-  approved: { title: 'Pago aprobado', text: 'Registramos su pago y el comprobante quedó actualizado.', tone: 'info' },
-  pending: { title: 'Pago en proceso', text: 'Mercado Pago aún está procesando el pago. Le avisaremos cuando se confirme; no vuelva a pagar.', tone: 'warn' },
-  declined: { title: 'Pago rechazado', text: 'El saldo del comprobante no cambió.', tone: 'danger' },
-  created: { title: 'Pago no completado', text: 'No se realizó ningún cobro. Puede intentarlo de nuevo.', tone: 'warn' },
-  expired: { title: 'Intento vencido', text: 'El enlace de pago venció. Puede generar uno nuevo desde el comprobante.', tone: 'warn' },
-  cancelled: { title: 'Pago cancelado', text: 'No se realizó ningún cobro.', tone: 'warn' },
+const CARD_RESULT: Record<CardCheckout['status'], { title: string; text: string; tone: Tone; icon: string }> = {
+  approved: { title: 'Pago aprobado', text: 'Registramos su pago y el comprobante quedó actualizado.', tone: 'info', icon: 'check' },
+  pending: { title: 'Pago en proceso', text: 'Mercado Pago aún está procesando el pago. Le avisaremos cuando se confirme; no vuelva a pagar.', tone: 'warn', icon: 'clock' },
+  declined: { title: 'Pago rechazado', text: 'El saldo del comprobante no cambió.', tone: 'danger', icon: 'oct' },
+  created: { title: 'Pago no completado', text: 'No se realizó ningún cobro. Puede intentarlo de nuevo.', tone: 'warn', icon: 'tri' },
+  expired: { title: 'Intento vencido', text: 'El enlace de pago venció. Puede generar uno nuevo desde el comprobante.', tone: 'warn', icon: 'clock' },
+  cancelled: { title: 'Pago cancelado', text: 'No se realizó ningún cobro.', tone: 'warn', icon: 'tri' },
 };
 
 function CardReturnPage({ checkoutId, paymentId, close }: { checkoutId: string; paymentId: string | null; close: (invoiceId: string | null) => void }) {
@@ -644,26 +653,14 @@ function CardReturnPage({ checkoutId, paymentId, close }: { checkoutId: string; 
   const r = c ? CARD_RESULT[c.status] : null;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head title="Pago con tarjeta" lead="Resultado del pago en Mercado Pago" />
+      <PageHead title="Pago con tarjeta" lead="Resultado del pago en Mercado Pago" />
       {res.error ? <Failed error={res.error} onRetry={retry} /> : null}
-      {res.loading && !c ? <p className="sub">Confirmando el pago con Mercado Pago…</p> : null}
+      {res.loading && !c ? <Loading text="Confirmando el pago con Mercado Pago…" /> : null}
       {c && r ? (
-        <section className="card">
-          <div className="card-b" style={{ display: 'grid', gap: 12 }}>
-            <div className={`alert ${r.tone}`} role="status">
-              <b>{r.title}.</b> {r.text}
-              {c.message ? <div>{c.message}</div> : null}
-            </div>
-            <dl className="kv">
-              <dt>Importe</dt>
-              <dd className="num">{money(c.amount_minor, c.currency)}</dd>
-              {c.surcharge_minor > 0 ? (
-                <>
-                  <dt>Incluye comisión</dt>
-                  <dd className="num">{money(c.surcharge_minor, c.currency)}</dd>
-                </>
-              ) : null}
-            </dl>
+        <Card title={r.title} icon="card">
+          <CardBody style={{ display: 'grid', gap: 12 }}>
+            <Alert tone={r.tone} icon={r.icon} title={r.title} text={`${r.text}${c.message ? ` ${c.message}` : ''}`} />
+            <Kv rows={[['Importe', <span className="num">{money(c.amount_minor, c.currency)}</span>], c.surcharge_minor > 0 ? ['Incluye comisión', <span className="num">{money(c.surcharge_minor, c.currency)}</span>] : null]} />
             <span style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="btn primary" onClick={() => close(c.invoice_id)}>
                 Ver comprobante
@@ -674,8 +671,8 @@ function CardReturnPage({ checkoutId, paymentId, close }: { checkoutId: string; 
                 </button>
               ) : null}
             </span>
-          </div>
-        </section>
+          </CardBody>
+        </Card>
       ) : null}
       {res.error ? (
         <div>
@@ -745,31 +742,27 @@ function VoucherForm({ invoice, onSent }: { invoice: Invoice; onSent: () => void
 
   if (done) {
     return (
-      <section className="card">
-        <div className="card-b">
-          <div className="alert info" role="status">
-            Recibimos su constancia. Finanzas la revisará contra el banco; verá el resultado en «Historial de pagos y vouchers».
+      <Card title="Reportar pago con constancia" icon="file">
+        <CardBody style={{ display: 'grid', gap: 10 }}>
+          <Alert tone="info" icon="check" title="Recibimos su constancia" text="Finanzas la revisará contra el banco; verá el resultado en «Pagos y vouchers»." />
+          <div>
+            <button type="button" className="btn sm" onClick={() => setDone(false)}>
+              Enviar otra constancia
+            </button>
           </div>
-          <button type="button" className="btn sm" style={{ marginTop: 8 }} onClick={() => setDone(false)}>
-            Enviar otra constancia
-          </button>
-        </div>
-      </section>
+        </CardBody>
+      </Card>
     );
   }
 
   return (
-    <section className="card">
-      <div className="card-h">
-        <h2>Reportar pago con constancia</h2>
-      </div>
+    <Card title="Reportar pago con constancia" icon="file">
       <form className="card-b" onSubmit={(e) => void submit(e)} noValidate>
-        <p className="sub" style={{ marginTop: 0 }}>
+        <p className="sub" style={{ marginTop: 0, color: 'var(--muted)', fontSize: 13 }}>
           Transfiera o deposite el saldo y adjunte la constancia.{invoice.card_payment?.available ? ' Si prefiere, pague con tarjeta más arriba.' : ' El pago con tarjeta en línea estará disponible próximamente.'}
         </p>
-        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-          <label className="field">
-            Medio de pago *
+        <FormGrid>
+          <Field label="Medio de pago *" error={errs.payment_method_id}>
             <select className="input" value={method} onChange={(e) => setMethod(e.target.value)}>
               {list.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -777,29 +770,20 @@ function VoucherForm({ invoice, onSent }: { invoice: Invoice; onSent: () => void
                 </option>
               ))}
             </select>
-            {errs.payment_method_id ? <span className="err">{errs.payment_method_id}</span> : null}
-          </label>
-          <label className="field">
-            Importe pagado ({invoice.currency}) *
+          </Field>
+          <Field label={`Importe pagado (${invoice.currency}) *`} error={errs.amount_minor}>
             <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            {errs.amount_minor ? <span className="err">{errs.amount_minor}</span> : null}
-          </label>
-          <label className="field">
-            Fecha del pago
+          </Field>
+          <Field label="Fecha del pago" error={errs.received_at}>
             <input className="input" type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} />
-            {errs.received_at ? <span className="err">{errs.received_at}</span> : null}
-          </label>
-          <label className="field">
-            N.º de operación
+          </Field>
+          <Field label="N.º de operación" error={errs.external_id}>
             <input className="input" maxLength={120} value={ref} onChange={(e) => setRef(e.target.value)} />
-            {errs.external_id ? <span className="err">{errs.external_id}</span> : null}
-          </label>
-          <label className="field" style={{ gridColumn: '1 / -1' }}>
-            Constancia (PDF, JPG, PNG o WEBP; máx. 5 MB) *
+          </Field>
+          <Field label="Constancia (PDF, JPG, PNG o WEBP; máx. 5 MB) *" error={errs.file} style={{ gridColumn: '1 / -1' }}>
             <input className="input" type="file" accept={ACCEPT} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            {errs.file ? <span className="err">{errs.file}</span> : null}
-          </label>
-        </div>
+          </Field>
+        </FormGrid>
         {msg ? (
           <div className="err" role="alert" style={{ marginTop: 8 }}>
             {msg}
@@ -812,15 +796,15 @@ function VoucherForm({ invoice, onSent }: { invoice: Invoice; onSent: () => void
           </div>
         ) : null}
         <button type="submit" className="btn primary" style={{ marginTop: 12 }} disabled={busy}>
-          {busy ? (progress !== null && progress < 1 ? `Subiendo ${Math.round(progress * 100)} %` : 'Enviando…') : 'Enviar constancia'}
+          <Icon name="file" className="sm" /> {busy ? (progress !== null && progress < 1 ? `Subiendo ${Math.round(progress * 100)} %` : 'Enviando…') : 'Enviar constancia'}
         </button>
       </form>
-    </section>
+    </Card>
   );
 }
 
 /* ---------- P-PRT-09 Pagos y vouchers ---------- */
-function PaymentsPage() {
+function PaymentsPage({ go }: { go: (r: LiveRoute) => void }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const res = useLoad(() => hub.billing.portalPayments({ cursor, size: 25 }), [cursor]);
   const rows: Payment[] = res.data?.data ?? [];
@@ -835,72 +819,52 @@ function PaymentsPage() {
   };
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head title="Pagos y vouchers" lead="Estado de los pagos y constancias que envió." />
-      {msg ? (
-        <div className="alert warn" role="alert">
-          {msg}
-        </div>
-      ) : null}
-      <section className="card">
+      <PageHead back={{ label: 'Volver a Facturas y pagos', onClick: () => go('facturas') }} title="Pagos y vouchers" lead="Estado de los pagos y constancias que envió." />
+      {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+      <Card title="Historial de pagos" icon="wallet">
         {res.error ? (
-          <div className="card-b">
+          <CardBody>
             <Failed error={res.error} onRetry={res.reload} />
-          </div>
+          </CardBody>
         ) : res.loading ? (
-          <div className="card-b sub">Cargando…</div>
+          <Loading inCard />
         ) : !rows.length ? (
-          <div className="card-b empty">Sin pagos registrados.</div>
+          <Empty icon="wallet">
+            <b>Sin pagos</b>
+            Sin pagos registrados.
+          </Empty>
         ) : (
-          <div className="tw">
-            <table className="t">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Medio</th>
-                  <th>Comprobantes</th>
-                  <th>Estado</th>
-                  <th className="r">Importe</th>
-                  <th className="r">Constancia</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => (
-                  <tr key={p.id}>
-                    <td>{fDate(p.received_at)}</td>
-                    <td>
-                      {p.payment_method?.name ?? '—'}
-                      {p.external_id ? <div className="sub mono">{p.external_id}</div> : null}
-                    </td>
-                    <td className="mono">{p.allocations.map((a) => a.invoice_number).filter(Boolean).join(', ') || '—'}</td>
-                    <td>
-                      <span className={`chip ${PAY_CHIP(p)}`}>{p.status === 'reported' ? 'Pendiente de validación' : paymentStatusLabel(p)}</span>
-                      {p.rejection_reason ? <div className="sub">Motivo: {p.rejection_reason}</div> : null}
-                    </td>
-                    <td className="r num">{money(p.amount_minor, p.currency)}</td>
-                    <td className="r">
-                      {p.has_proof ? (
-                        <button type="button" className="btn sm" onClick={() => void proof(p)}>
-                          Ver
-                        </button>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table cols={[{ label: 'Fecha' }, { label: 'Medio' }, { label: 'Comprobantes' }, { label: 'Estado' }, { label: 'Importe', right: true }, { label: 'Constancia', right: true }]}>
+            {rows.map((p) => (
+              <tr key={p.id}>
+                <td className="num">{fDate(p.received_at)}</td>
+                <td>
+                  {p.payment_method?.name ?? '—'}
+                  {p.external_id ? <div className="sub mono">{p.external_id}</div> : null}
+                </td>
+                <td className="mono">{p.allocations.map((a) => a.invoice_number).filter(Boolean).join(', ') || '—'}</td>
+                <td>
+                  <Chip tone={PAY_CHIP(p)}>{p.status === 'reported' ? 'Pendiente de validación' : paymentStatusLabel(p)}</Chip>
+                  {p.rejection_reason ? <div className="sub">Motivo: {p.rejection_reason}</div> : null}
+                </td>
+                <td className="r num" style={{ fontWeight: 700 }}>
+                  {money(p.amount_minor, p.currency)}
+                </td>
+                <td className="r nw">
+                  {p.has_proof ? (
+                    <button type="button" className="btn sm ghost" onClick={() => void proof(p)}>
+                      Ver
+                    </button>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+              </tr>
+            ))}
+          </Table>
         )}
-        <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>
-            Anterior
-          </button>
-          <button type="button" className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>
-            Siguiente
-          </button>
-        </div>
-      </section>
+        <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
+      </Card>
     </div>
   );
 }
@@ -924,34 +888,31 @@ function BillingProfilePage() {
   const a = res.data;
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <Head title="Datos de facturación" lead="Datos con los que se emiten sus comprobantes. Los cambios aplican a comprobantes futuros." />
+      <PageHead title="Datos de facturación fiscal" lead="Datos con los que se emiten sus comprobantes. Los cambios aplican a comprobantes futuros." />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
       {a ? (
-        <section className="card">
-          <div className="card-b">
-            <dl className="kv">
-              <dt>Razón social</dt>
-              <dd>{a.legal_name}</dd>
-              <dt>Nombre comercial</dt>
-              <dd>{a.trade_name ?? '—'}</dd>
-              <dt>Documento</dt>
-              <dd className="mono">{a.tax_id ? `${(a.tax_id_type ?? '').toUpperCase()} ${a.tax_id}` : '—'}</dd>
-              <dt>Dirección fiscal</dt>
-              <dd>{a.address ?? '—'}</dd>
-              <dt>Correo de facturación</dt>
-              <dd>{a.email ?? '—'}</dd>
-              <dt>Teléfono</dt>
-              <dd>{a.phone ?? '—'}</dd>
-              <dt>Moneda</dt>
-              <dd>{a.currency}</dd>
-              <dt>Código de cliente</dt>
-              <dd className="mono">{a.code}</dd>
-            </dl>
-            <p className="sub">Para corregir estos datos escriba a soporte o pida a su ejecutivo; la edición desde el portal llega en la próxima entrega.</p>
-          </div>
-        </section>
+        <Card title="Empresa titular" icon="building" actions={<Chip outline>{a.code}</Chip>}>
+          <CardBody style={{ padding: '16px 20px', display: 'grid', gap: 14 }}>
+            <Kv
+              cols="180px 1fr"
+              rows={[
+                ['Razón social', a.legal_name],
+                ['Nombre comercial', a.trade_name ?? '—'],
+                ['Documento', <span className="mono">{a.tax_id ? `${(a.tax_id_type ?? '').toUpperCase()} ${a.tax_id}` : '—'}</span>],
+                ['Dirección fiscal', a.address ?? '—'],
+                ['Correo de facturación', a.email ?? '—'],
+                ['Teléfono', a.phone ?? '—'],
+                ['Moneda', a.currency],
+                ['Código de cliente', <span className="mono">{a.code}</span>],
+              ]}
+            />
+            <CardFoot between>
+              <small style={{ color: 'var(--muted)' }}>Para corregir estos datos escriba a soporte o pida a su ejecutivo; la edición desde el portal llega en la próxima entrega.</small>
+            </CardFoot>
+          </CardBody>
+        </Card>
       ) : res.loading ? (
-        <p className="sub">Cargando…</p>
+        <Loading />
       ) : null}
     </div>
   );

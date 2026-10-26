@@ -30,32 +30,9 @@ export const AssistantChat: FC = () => {
 
   return (
     <>
-      <button
-        className="fab"
-        onClick={() => setOpen(!open)}
-        aria-label="Abrir asistente"
-        style={{
-          position: 'fixed',
-          right: '24px',
-          bottom: '24px',
-          zIndex: 90,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          height: '48px',
-          padding: '0 18px',
-          borderRadius: '999px',
-          background: 'var(--brand)',
-          color: '#fff',
-          border: 'none',
-          boxShadow: 'var(--shadow-pop)',
-          cursor: 'pointer',
-          fontWeight: 700,
-          fontSize: '13.5px',
-        }}
-      >
+      <button type="button" className="tb-btn tb-assist" onClick={() => setOpen(!open)} aria-label="Abrir asistente" aria-expanded={open} title="Asistente AlojamientoPlus">
         <Icon name="msg" />
-        <span>Asistente AlojamientoPlus</span>
+        <span>Asistente</span>
       </button>
 
       {open && (
@@ -63,8 +40,8 @@ export const AssistantChat: FC = () => {
           className="chat open"
           style={{
             position: 'fixed',
-            right: '24px',
-            bottom: '84px',
+            right: '16px',
+            top: 'calc(var(--toph) + 10px)',
             zIndex: 95,
             width: '360px',
             height: '480px',
