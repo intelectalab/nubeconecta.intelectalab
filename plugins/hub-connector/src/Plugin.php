@@ -86,8 +86,10 @@ class Plugin
 
         add_action('init', function (): void {
             load_plugin_textdomain('hub-connector', false, dirname(plugin_basename(HUB_CONNECTOR_PLUGIN_FILE)) . '/languages');
-            wp_register_style('hub-connector', HUB_CONNECTOR_PLUGIN_URL . 'assets/hub-connector.css', [], HUB_CONNECTOR_VERSION);
-            wp_register_script('hub-connector', HUB_CONNECTOR_PLUGIN_URL . 'assets/hub-connector.js', [], HUB_CONNECTOR_VERSION, ['in_footer' => true, 'strategy' => 'defer']);
+            // La versión lleva la fecha del archivo para que un cambio de CSS o JS no quede tapado por la caché del navegador.
+            $assetVersion = static fn (string $file): string => HUB_CONNECTOR_VERSION . '.' . (int) @filemtime(HUB_CONNECTOR_PLUGIN_DIR . 'assets/' . $file);
+            wp_register_style('hub-connector', HUB_CONNECTOR_PLUGIN_URL . 'assets/hub-connector.css', [], $assetVersion('hub-connector.css'));
+            wp_register_script('hub-connector', HUB_CONNECTOR_PLUGIN_URL . 'assets/hub-connector.js', [], $assetVersion('hub-connector.js'), ['in_footer' => true, 'strategy' => 'defer']);
             foreach ($this->shortcodes() as $shortcode) {
                 add_shortcode($shortcode->tag(), [$shortcode, 'handle']);
             }

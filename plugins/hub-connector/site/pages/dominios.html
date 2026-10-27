@@ -6,15 +6,12 @@
 <!-- wp:paragraph {"className":"hub-lead"} -->
 <p class="hub-lead">Tu marca en internet empieza con un buen dominio. Gestiona tus DNS, renovaciones y correos desde tu cuenta.</p>
 <!-- /wp:paragraph -->
-<!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"className":"hub-btn-primary"} -->
-<div class="wp-block-button hub-btn-primary"><a class="wp-block-button__link wp-element-button" href="{{url:cotizacion}}">Consultar disponibilidad</a></div>
-<!-- /wp:button -->
-<!-- wp:button {"className":"hub-btn-light"} -->
-<div class="wp-block-button hub-btn-light"><a class="wp-block-button__link wp-element-button" href="#precios">Ver precios</a></div>
-<!-- /wp:button -->
+<!-- wp:group {"className":"hub-domquery","layout":{"type":"default"}} -->
+<div class="wp-block-group hub-domquery"><!-- wp:shortcode -->
+[hub_precios_dominios vista="buscador" resultados="si"]
+<!-- /wp:shortcode -->
 </div>
-<!-- /wp:buttons -->
+<!-- /wp:group -->
 </div></div>
 <!-- /wp:kadence/column -->
 <!-- /wp:kadence/rowlayout -->

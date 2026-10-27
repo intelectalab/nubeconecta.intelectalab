@@ -6,34 +6,52 @@
 <!-- wp:paragraph {"className":"hub-lead"} -->
 <p class="hub-lead">Hosting, VPS, cloud, dominios .pe y correo corporativo con soporte técnico real en Perú. Precios en soles o dólares y facturación electrónica.</p>
 <!-- /wp:paragraph -->
-<!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"className":"hub-btn-primary"} -->
-<div class="wp-block-button hub-btn-primary"><a class="wp-block-button__link wp-element-button" href="{{url:hosting}}">Ver planes de hosting</a></div>
-<!-- /wp:button -->
-<!-- wp:button {"className":"hub-btn-light"} -->
-<div class="wp-block-button hub-btn-light"><a class="wp-block-button__link wp-element-button" href="{{url:cotizacion}}">Solicitar cotización</a></div>
+<!-- wp:group {"className":"hub-hero-links","layout":{"type":"default"}} -->
+<div class="wp-block-group hub-hero-links"><!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button {"className":"hub-btn-light"} -->
+<div class="wp-block-button hub-btn-light"><a class="wp-block-button__link wp-element-button" href="{{url:hosting}}">Comparar planes de hosting</a></div>
 <!-- /wp:button -->
 </div>
 <!-- /wp:buttons -->
-</div></div>
-<!-- /wp:kadence/column -->
-<!-- wp:kadence/column {"uniqueID":"hubin-hero-c2","kbVersion":2} -->
-<div class="wp-block-kadence-column kadence-columnhubin-hero-c2"><div class="kt-inside-inner-col"><!-- wp:group {"className":"hub-hero-domains","layout":{"type":"default"}} -->
-<div class="wp-block-group hub-hero-domains"><!-- wp:shortcode -->
-[hub_precios_dominios vista="franja" extensiones=".pe,.com.pe,.com,.net,.org,.co" max="6" titulo="Registra tu dominio: precio por año"]
-<!-- /wp:shortcode -->
-<!-- wp:paragraph {"className":"hub-hero-domains__more"} -->
-<p class="hub-hero-domains__more"><a href="{{url:dominios}}">Ver todas las extensiones</a></p>
+<!-- wp:paragraph {"className":"hub-hero-quote"} -->
+<p class="hub-hero-quote"><a href="{{url:cotizacion}}">Solicitar cotización</a></p>
 <!-- /wp:paragraph -->
 </div>
 <!-- /wp:group -->
 </div></div>
 <!-- /wp:kadence/column -->
+<!-- wp:kadence/column {"uniqueID":"hubin-hero-c2","kbVersion":2} -->
+<div class="wp-block-kadence-column kadence-columnhubin-hero-c2"><div class="kt-inside-inner-col"><!-- wp:group {"className":"hub-hero-plan","layout":{"type":"default"}} -->
+<div class="wp-block-group hub-hero-plan"><!-- wp:shortcode -->
+[hub_planes vista="hero" tipos="hosting,vps,correo" etiquetas="Hosting,VPS,Correo"]
+<!-- /wp:shortcode -->
+</div>
+<!-- /wp:group -->
+</div></div>
+<!-- /wp:kadence/column -->
 <!-- /wp:kadence/rowlayout -->
-<!-- wp:group {"className":"hub-included","layout":{"type":"default"}} -->
-<div class="wp-block-group hub-included"><!-- wp:paragraph -->
-<p>Todos los planes de hosting incluyen certificado SSL, cPanel, copias de seguridad diarias, migración gratuita y soporte por ticket, chat y teléfono.</p>
-<!-- /wp:paragraph -->
+<!-- wp:group {"className":"hub-findbar","layout":{"type":"default"}} -->
+<div class="wp-block-group hub-findbar"><!-- wp:group {"className":"hub-findbar__in","layout":{"type":"default"}} -->
+<div class="wp-block-group hub-findbar__in"><!-- wp:shortcode -->
+[hub_precios_dominios vista="buscador" extensiones=".pe,.com.pe,.com,.net" max="4"]
+<!-- /wp:shortcode -->
+<!-- wp:list {"className":"hub-trust"} -->
+<ul class="wp-block-list hub-trust"><!-- wp:list-item {"className":"hub-trust--mig"} -->
+<li class="hub-trust--mig">Migración gratuita de tu web</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item {"className":"hub-trust--sop"} -->
+<li class="hub-trust--sop">Soporte en español desde Lima</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item {"className":"hub-trust--fac"} -->
+<li class="hub-trust--fac">Factura o boleta electrónica</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item {"className":"hub-trust--pay"} -->
+<li class="hub-trust--pay">Pago en soles o dólares</li>
+<!-- /wp:list-item -->
+</ul>
+<!-- /wp:list -->
+</div>
+<!-- /wp:group -->
 </div>
 <!-- /wp:group -->
 <!-- wp:kadence/rowlayout {"uniqueID":"hubin-cat","kbVersion":2,"columns":1,"colLayout":"equal","align":"full","className":"hub-sec"} -->

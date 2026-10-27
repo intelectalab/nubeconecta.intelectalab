@@ -101,3 +101,42 @@
 .hub-domstrip .hub-price { font-size: 1em; font-weight: 600; }
 .hub-domstrip .hub-price[hidden] { display: none; }
 @media (max-width: 420px) { .hub-domstrip__list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* [hub_planes vista="hero"]: tarjeta con pestañas por tipo y plan de entrada */
+.hub-hplans { background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+.hub-hplans__tabs { display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--hub-border); }
+.hub-hplans__tabs::-webkit-scrollbar { display: none; }
+.hub-hplans__tab { flex: none; font: inherit; font-weight: 600; color: var(--hub-muted); background: none; border: 0; border-bottom: 3px solid transparent; margin: 0 0 -1px; padding: .9em 1.1em; cursor: pointer; }
+.hub-hplans__tab[aria-selected="true"] { color: inherit; border-bottom-color: var(--hub-primary); }
+.hub-hplans__tab:hover { color: inherit; }
+.hub-hplans__tab:focus-visible, .hub-hplans__panel:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: -3px; }
+.hub-hplans__panel { display: flex; flex-direction: column; gap: .35em; padding: 1.5em; }
+.hub-hplans__panel[hidden] { display: none; }
+.hub-hplans__name { margin: 0; font-weight: 600; }
+.hub-hplans__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35em; margin: 0; font-size: 1em; font-weight: 500; }
+.hub-hplans__figure { font-size: 2.6em; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hub-hplans__from, .hub-hplans__price .hub-price__cycle, .hub-hplans__year { color: var(--hub-muted); }
+.hub-hplans__year { margin: 0; font-size: .95em; font-weight: 500; }
+.hub-hplans__features { list-style: none; display: grid; gap: .5em; margin: .9em 0 .6em; padding: 1em 0 0; border-top: 2px dashed var(--hub-border); }
+.hub-hplans__features li { position: relative; margin: 0; padding-left: 1.7em; }
+.hub-hplans__features li::before { content: ""; position: absolute; left: .2em; top: .38em; width: .8em; height: .42em; border-left: 2px solid var(--hub-primary); border-bottom: 2px solid var(--hub-primary); transform: rotate(-45deg); }
+.hub-hplans__cta { display: block; margin-top: .4em; }
+
+/* [hub_precios_dominios vista="buscador"] */
+.hub-dsearch__label { display: block; margin-bottom: .45em; font-weight: 600; }
+.hub-dsearch__row { display: flex; gap: .5em; }
+.hub-dsearch__input { flex: 1; min-width: 0; font: inherit; color: inherit; background: var(--hub-surface); padding: .7em .9em; border: 1px solid #8a96ab; border-radius: calc(var(--hub-radius) - 2px); }
+.hub-dsearch__input:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 1px; }
+.hub-dsearch__submit { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+.hub-dsearch__chips { list-style: none; display: flex; flex-wrap: wrap; gap: .5em; margin: .9em 0 0; padding: 0; }
+.hub-dsearch__chip { margin: 0; padding: .3em .85em; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: 999px; white-space: nowrap; }
+.hub-dsearch__tld { font-weight: 700; }
+.hub-dsearch__cycle { color: var(--hub-muted); font-weight: 400; }
+.hub-dsearch__results { margin-top: 1.75em; }
+.hub-dsearch__title { margin: 0 0 .3em; overflow-wrap: anywhere; }
+.hub-dsearch__note { margin: 0; color: var(--hub-muted); }
+.hub-dsearch__list { list-style: none; margin: 1em 0 1.25em; padding: 0; border-top: 1px solid var(--hub-border); }
+.hub-dsearch__list li { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; margin: 0; padding: .75em 0; border-bottom: 1px solid var(--hub-border); }
+.hub-dsearch__domain { overflow-wrap: anywhere; }
+.hub-dsearch__error { margin: 0; color: #9b1c1c; font-weight: 600; }
+.hub-hplans__price .hub-price__cycle { font-size: 1em; font-weight: 500; }

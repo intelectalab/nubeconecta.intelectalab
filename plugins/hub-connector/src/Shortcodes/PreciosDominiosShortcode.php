@@ -9,6 +9,9 @@ use HubConnector\Plugin;
  * [hub_precios_dominios extensiones=".pe,.com.pe,.com" moneda="" titulo="" vista="tabla|franja" max=""] (wpListDomainPrices).
  * vista="franja" pinta una línea compacta con el precio de registro por año de cada extensión
  * (p. ej. en el hero de Inicio) y max limita cuántas extensiones se muestran.
+ * vista="buscador" pinta un buscador (GET a /dominios/?q=) con las extensiones como chips; con
+ * resultados="si" lee ?q= y muestra el nombre buscado con el precio de cada extensión y un
+ * botón a /cotizacion/?dominio= (aún no hay consulta de disponibilidad, D-35).
  * También responde como [hub_dominios] (nombre de docs/13 §8). Tabla de registro,
  * renovación y transferencia por extensión, en todas las monedas de la marca.
  */
@@ -26,7 +29,7 @@ class PreciosDominiosShortcode extends AbstractShortcode
 
     protected function defaults(): array
     {
-        return ['extensiones' => '', 'moneda' => '', 'titulo' => '', 'vista' => 'tabla', 'max' => ''];
+        return ['extensiones' => '', 'moneda' => '', 'titulo' => '', 'vista' => 'tabla', 'max' => '', 'resultados' => 'no'];
     }
 
     protected function render(array $atts): string
@@ -43,7 +46,8 @@ class PreciosDominiosShortcode extends AbstractShortcode
             $tlds[] = $tld;
         }
         $currencies = $this->currencies($atts['moneda']);
-        $view = $this->oneOf('vista', $atts['vista'], ['tabla', 'franja']);
+        $view = $this->oneOf('vista', $atts['vista'], ['tabla', 'franja', 'buscador']);
+        $withResults = $this->oneOf('resultados', $atts['resultados'], ['si', 'no']) === 'si';
         if ($atts['max'] !== '' && !preg_match('/^[1-9][0-9]?$/', $atts['max'])) {
             throw new InvalidAttribute(sprintf(__('Valor no válido en el atributo %1$s: "%2$s".', 'hub-connector'), 'max', $atts['max']));
         }
@@ -76,8 +80,23 @@ class PreciosDominiosShortcode extends AbstractShortcode
             $order = array_flip(array_map('strtolower', $tlds));
             uksort($rows, static fn ($a, $b) => ($order[strtolower((string) $a)] ?? PHP_INT_MAX) <=> ($order[strtolower((string) $b)] ?? PHP_INT_MAX));
         }
+        $all = array_values($rows);
         if ($max > 0) {
             $rows = array_slice($rows, 0, $max, true);
+        }
+        if ($view === 'buscador') {
+            $raw = $withResults && isset($_GET['q']) && is_string($_GET['q']) ? (function_exists('wp_unslash') ? wp_unslash($_GET['q']) : $_GET['q']) : '';
+            $name = self::domainName($raw);
+
+            return $this->plugin->templates()->render('domain-search', [
+                'action' => home_url('/dominios/'),
+                'query' => $name,
+                'searched' => $withResults && trim($raw) !== '',
+                'quote_url' => $name === '' ? '' : add_query_arg(['dominio' => rawurlencode($name)], home_url('/cotizacion/')),
+                'chips' => $max > 0 && !($withResults && trim($raw) !== '') ? array_values($rows) : [],
+                'rows' => $all,
+                'visible_currency' => $this->visibleCurrency($currencies),
+            ]);
         }
         if ($view === 'franja') {
             return $this->plugin->templates()->render('domain-strip', [
@@ -93,6 +112,25 @@ class PreciosDominiosShortcode extends AbstractShortcode
             'currencies' => $currencies,
             'visible_currency' => $this->visibleCurrency($currencies),
         ]);
+    }
+
+    /**
+     * Nombre de dominio buscado («Mi Empresa.pe», «https://www.miempresa.com») → «miempresa»:
+     * minúsculas, sin acentos, solo letras, números y guiones, sin la extensión.
+     */
+    public static function domainName(string $raw): string
+    {
+        $q = strtolower(trim($raw));
+        if (function_exists('remove_accents')) {
+            $q = remove_accents($q);
+        }
+        $q = (string) preg_replace('#^[a-z]+://#', '', $q);
+        $q = (string) preg_replace('#^www\.#', '', $q);
+        $q = explode('.', explode('/', $q)[0])[0];
+        $q = (string) preg_replace('/[^a-z0-9-]/', '', $q);
+        $q = trim(substr($q, 0, 63), '-');
+
+        return $q;
     }
 
     /** @return array{amount:string, symbol:string, currency_text:string}|null */
