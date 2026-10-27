@@ -41,6 +41,24 @@ Estos shortcodes ya están registrados, pero no pintan nada hasta que el sistema
 - Para sobreescribir una plantilla, cópiala de `templates/` a `<tema>/hub-connector/<nombre>.php`: `plans`, `plan`, `plan-card`, `buy-button`, `contact`, `currency-switcher`, `unavailable`. También existe el filtro `hub_connector_template_path`.
 - El CSS mínimo (`assets/hub-connector.css`) se puede desactivar en cada sitio y usa los tokens `--hub-*`. Si `GET /public/wp/site` entrega `theme.tokens`, se aplican; solo se aceptan colores y medidas válidos.
 
+## Web comercial (Kadence Blocks + Yoast SEO)
+Requiere los plugins `kadence-blocks`, `wordpress-seo`, `post-expirator` (PublishPress Future) y `publishpress`, y un tema de bloques (probado con Twenty Twenty-Five).
+
+```
+wp hub-connector install-site [--portal-url=<url>] [--force]
+```
+
+- Fuente reproducible en `site/`: `site.json` (páginas, SEO por página, menús, paleta, tipografías y opciones de Yoast), `pages/*.html` (marcado de bloques `kadence/rowlayout` + `kadence/column` con bloques core y shortcodes), `parts/header.html`, `parts/footer.html`, `templates/page.html` y `templates/404.html` (a partir de `prototipo/404-alojamientoplus.html`). Marcadores: `{{url:slug}}`, `{{nav:principal|pie}}`, `{{portal_url}}`, `{{year}}`.
+- Crea o actualiza páginas, menús (`wp_navigation`), cabecera, pie y plantillas del tema activo. Cada contenido guarda `_hub_site_version` y `_hub_site_hash`: si alguien lo editó en WordPress, el instalador lo omite y lo informa (`--force` lo reemplaza). Las páginas del arranque anterior (`PublicSite`, ya no cargado) se reemplazan.
+- Solo la primera vez (opción `hub_site_installed`): título y descripción del sitio, estilos globales del tema (paleta y tipografía Poppins / Plus Jakarta Sans), paleta de Kadence Blocks (`kadence_blocks_colors`, prefijo `hub-`) y Yoast (separador `|`, nombre del sitio, organización, Open Graph, mapa del sitio). El título SEO y la meta descripción de cada página se fijan solo si están vacíos.
+- Botón «Portal del cliente»: `--portal-url`, si no `HUB_PORTAL_URL`, si no `/portal/` (D-19 abierta). Se guarda en `hub_connector_portal_url`.
+- Estilos en `assets/site.css` (se cargan cuando la web está instalada, también en el editor).
+- Textos legales y Libro de Reclamaciones: borradores marcados «[Texto pendiente de asesoría legal]» (D-27). Los testimonios de Inicio están marcados como ejemplo.
+
+### Promociones y flujo editorial
+- `promociones` es una promoción de ejemplo con caducidad a 30 días (PublishPress Future): al vencer pasa a borrador. En el editor se cambia en el panel «Acciones futuras».
+- `promocion-borrador` queda en «Pendiente de revisión». Flujo: el redactor crea la promoción y la envía a revisión («Pendiente de revisión»); un editor la revisa en PublishPress (Calendario / Resumen de contenido), programa su caducidad y la publica. El instalador respeta el estado de una página que no esté publicada.
+
 ## Pendiente
 - `central_urls.cart` y `quote` (D-19/D-20): hoy el sistema solo entrega `portal`, así que los botones de contratar no se muestran hasta que existan.
 - Tokens del tema de marca en `/public/wp/site`.

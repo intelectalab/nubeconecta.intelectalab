@@ -3861,6 +3861,279 @@ paths:
           $ref: "#/components/responses/WpUpgradeRequired"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /public/wp/catalog/compare:
+    get:
+      tags:
+        - WebConnector
+      operationId: wpComparePlans
+      summary: Comparador de planes de una categoría o tipo
+      description: "Mismos planes y precios que wpListPlans para `type`, con las características comparables: las claves de `limits` en el orden en que aparecen, o las de `features`. Sin costos ni datos internos."
+      x-throttle: 120 por minuto y token
+      security:
+        - wpSiteToken: []
+      parameters:
+        - $ref: "#/components/parameters/HubPluginVersion"
+        - $ref: "#/components/parameters/IfNoneMatch"
+        - name: type
+          in: query
+          required: true
+          description: "`shortcode_type` o código de la categoría."
+          schema:
+            type: string
+        - name: ids
+          in: query
+          description: Ids o códigos de plan separados por coma.
+          schema:
+            type: string
+        - name: features
+          in: query
+          description: "Claves de `limits` separadas por coma (^[a-z0-9_]+$)."
+          schema:
+            type: string
+        - name: cycle
+          in: query
+          schema:
+            type: string
+            enum: [monthly, quarterly, semiannual, annual, biennial, triennial, one_time]
+        - $ref: "#/components/parameters/WpCurrency"
+        - $ref: "#/components/parameters/WpLang"
+      responses:
+        "200":
+          description: Comparación.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/WpCacheControl"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WpPlanComparison"
+        "304":
+          description: Sin cambios.
+        "401":
+          $ref: "#/components/responses/WpUnauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "426":
+          $ref: "#/components/responses/WpUpgradeRequired"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /public/wp/catalog/domain-prices:
+    get:
+      tags:
+        - WebConnector
+      operationId: wpListDomainPrices
+      summary: Precios de dominios por extensión
+      description: "Extensiones activas y vendibles en línea (`domain_extensions`) con el precio vigente a 1 año del registrador por defecto (`domain_tld_prices`) para registro, renovación y transferencia. Una extensión sin precio de registro en la moneda pedida no aparece. Nunca costos ni registrador."
+      x-throttle: 120 por minuto y token
+      security:
+        - wpSiteToken: []
+      parameters:
+        - $ref: "#/components/parameters/HubPluginVersion"
+        - $ref: "#/components/parameters/IfNoneMatch"
+        - name: tlds
+          in: query
+          description: "Extensiones separadas por coma, con o sin punto inicial (`.pe,com.pe`)."
+          schema:
+            type: string
+        - $ref: "#/components/parameters/WpCurrency"
+      responses:
+        "200":
+          description: Precios por extensión.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/WpCacheControl"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WpDomainPrice"
+        "304":
+          description: Sin cambios.
+        "401":
+          $ref: "#/components/responses/WpUnauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "426":
+          $ref: "#/components/responses/WpUpgradeRequired"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /public/wp/legal-documents/{slug}:
+    get:
+      tags:
+        - WebConnector
+      operationId: wpGetLegalDocument
+      summary: Documento legal vigente de la marca
+      description: "Versión publicada del documento de la marca del token, por `slug` o por tipo (`terms`, `privacy`, `refunds`, `sla`, `acceptable-use`, `legal-notice`: generales, sin categoría). Nunca borradores ni datos de la revisión legal. El cuerpo es HTML saneado."
+      x-throttle: 120 por minuto y token
+      security:
+        - wpSiteToken: []
+      parameters:
+        - $ref: "#/components/parameters/HubPluginVersion"
+        - $ref: "#/components/parameters/IfNoneMatch"
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9]+([_-][a-z0-9]+)*$"
+        - $ref: "#/components/parameters/WpLang"
+      responses:
+        "200":
+          description: Documento vigente.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/WpCacheControl"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WpLegalDocument"
+        "304":
+          description: Sin cambios.
+        "401":
+          $ref: "#/components/responses/WpUnauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "426":
+          $ref: "#/components/responses/WpUpgradeRequired"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /public/wp/forms/{code}:
+    get:
+      tags:
+        - WebConnector
+      operationId: wpGetWebForm
+      summary: Definición pública de un formulario activo de la marca
+      description: "Campos del constructor (`web_form_fields`), consentimiento, captcha (sin proveedor mientras D-24 siga abierta: `provider` null), mensaje de confirmación y redirección."
+      x-throttle: 120 por minuto y token
+      security:
+        - wpSiteToken: []
+      parameters:
+        - $ref: "#/components/parameters/HubPluginVersion"
+        - $ref: "#/components/parameters/IfNoneMatch"
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+        - $ref: "#/components/parameters/WpLang"
+      responses:
+        "200":
+          description: Formulario.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/WpCacheControl"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WpWebForm"
+        "304":
+          description: Sin cambios.
+        "401":
+          $ref: "#/components/responses/WpUnauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "426":
+          $ref: "#/components/responses/WpUpgradeRequired"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /public/wp/forms/{code}/submissions:
+    post:
+      tags:
+        - WebConnector
+      operationId: wpSubmitWebForm
+      summary: Enviar un formulario de contacto o cotización (modo reenvío del plugin)
+      description: "El plugin reenvía desde el servidor de WordPress lo que escribió el visitante, sin guardarlo (docs/13 §9, modo `relay`). Límite por IP del visitante (`X-Hub-Visitor-Ip`, se guarda solo su HMAC) según `web_connector.forms.submissions_per_ip_per_hour`; misma `Idempotency-Key` devuelve el mismo envío. Con el campo trampa `website` lleno se guarda como `spam` y responde igual. Emite `WebFormSubmitted` (no en spam). Captcha: gancho sin proveedor (D-24)."
+      x-throttle: 120 por minuto y token; web_connector.forms.submissions_per_ip_per_hour por IP del visitante
+      security:
+        - wpSiteToken: []
+      parameters:
+        - $ref: "#/components/parameters/HubPluginVersion"
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+        - name: Idempotency-Key
+          in: header
+          description: Generada en el navegador por intento de envío; sin ella el sistema genera una.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_.:-]{8,200}$"
+        - name: X-Hub-Visitor-Ip
+          in: header
+          description: IP del visitante; si falta o no es válida se usa la del servidor de WordPress.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WpWebFormSubmissionInput"
+      responses:
+        "202":
+          description: Envío recibido.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [received]
+                      message:
+                        type: [string, 'null']
+                      redirect_url:
+                        type: [string, 'null']
+        "401":
+          $ref: "#/components/responses/WpUnauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "426":
+          $ref: "#/components/responses/WpUpgradeRequired"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /admin/customers:
     get:
       tags:
@@ -9975,6 +10248,174 @@ components:
               type: integer
             setup_fee_minor:
               type: integer
+    WpPlanComparison:
+      type: object
+      properties:
+        type:
+          type: string
+        features:
+          type: array
+          description: Claves de `limits` comparables, en orden.
+          items:
+            type: string
+        plans:
+          type: array
+          items:
+            $ref: "#/components/schemas/WpPlan"
+    WpDomainPrice:
+      type: object
+      properties:
+        tld:
+          type: string
+          example: com.pe
+        name:
+          type: string
+          example: .com.pe
+        featured:
+          type: boolean
+        allows_transfer_in:
+          type: boolean
+        currency:
+          type: string
+          enum: [PEN, USD]
+        register_minor:
+          type: integer
+        renew_minor:
+          type: [integer, 'null']
+        transfer_minor:
+          type: [integer, 'null']
+    WpLegalDocument:
+      type: object
+      properties:
+        slug:
+          type: string
+        kind:
+          type: string
+          enum: [terms, privacy, refunds, sla, acceptable_use, legal_notice]
+        locale:
+          type: string
+        title:
+          type: string
+        version_label:
+          type: string
+        effective_at:
+          type: [string, 'null']
+          format: date-time
+        published_at:
+          type: [string, 'null']
+          format: date-time
+        body:
+          type: string
+          description: HTML saneado.
+    WpWebForm:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              label:
+                type: [string, 'null']
+              help_text:
+                type: [string, 'null']
+              type:
+                type: string
+                enum: [text, textarea, email, phone, select, checkboxes, file]
+              required:
+                type: boolean
+              maps_to:
+                type: [string, 'null']
+              options:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    label:
+                      type: [string, 'null']
+              validation:
+                type: object
+        consent:
+          type: object
+          properties:
+            required:
+              type: boolean
+            purpose:
+              type: [string, 'null']
+            text:
+              type: [string, 'null']
+        captcha:
+          type: object
+          properties:
+            required:
+              type: boolean
+            provider:
+              type: [string, 'null']
+        success_message:
+          type: [string, 'null']
+        redirect_url:
+          type: [string, 'null']
+    WpWebFormSubmissionInput:
+      type: object
+      required:
+        - name
+        - email
+        - message
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 190
+        phone:
+          type: [string, 'null']
+          pattern: "^[0-9+()\\s.-]{6,30}$"
+        company:
+          type: [string, 'null']
+          maxLength: 160
+        message:
+          type: string
+          minLength: 10
+          maxLength: 5000
+        source:
+          type: [string, 'null']
+          description: Origen (por ejemplo contacto, cotizacion o la página).
+          pattern: "^[a-z0-9_-]+$"
+        consent:
+          type: boolean
+          description: Obligatorio en true si el formulario exige consentimiento.
+        website:
+          type: [string, 'null']
+          description: Campo trampa; debe llegar vacío.
+        page_url:
+          type: [string, 'null']
+          maxLength: 2000
+        utm:
+          type: object
+          properties:
+            source:
+              type: string
+            medium:
+              type: string
+            campaign:
+              type: string
+            term:
+              type: string
+            content:
+              type: string
+        captcha_token:
+          type: [string, 'null']
     WpContactPoint:
       type: object
       properties:

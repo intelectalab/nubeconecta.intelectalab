@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "front_page": "inicio",
+  "site": {
+    "blogname": "AlojamientoPlus",
+    "blogdescription": "Hosting, servidores, dominios y correo corporativo en Perú"
+  },
+  "pages": [
+    {"slug": "inicio", "title": "Inicio", "order": 0, "seo_title": "Hosting en Perú, VPS, dominios .pe y correo %%sep%% %%sitename%%", "seo_description": "Hosting web, VPS, cloud gestionado, dominios .pe y correo corporativo con soporte en español desde Perú. Precios en soles o dólares y factura electrónica."},
+    {"slug": "hosting", "title": "Hosting", "order": 10, "seo_title": "Hosting web y WordPress en Perú %%sep%% %%sitename%%", "seo_description": "Planes de hosting con cPanel, SSL gratis, copias diarias y migración sin costo. Compara planes y precios en soles o dólares."},
+    {"slug": "servidores-vps", "title": "VPS y servidores", "order": 20, "seo_title": "Servidores VPS y dedicados %%sep%% %%sitename%%", "seo_description": "VPS con recursos garantizados y acceso root, y servidores dedicados en Lima. Administrados o no administrados, con soporte en español."},
+    {"slug": "cloud", "title": "Cloud", "order": 30, "seo_title": "Cloud gestionado AWS, Azure y Google Cloud %%sep%% %%sitename%%", "seo_description": "Diseñamos, migramos y operamos tu infraestructura en AWS, Azure, Google Cloud o IBM Cloud con monitoreo y soporte continuo."},
+    {"slug": "dominios", "title": "Dominios", "order": 40, "seo_title": "Registro de dominios .pe, .com.pe y .com %%sep%% %%sitename%%", "seo_description": "Precios de registro, renovación y transferencia de dominios .pe, .com.pe, .com, .net, .org y más. Gestión de DNS incluida."},
+    {"slug": "correo", "title": "Correo", "order": 50, "seo_title": "Correo corporativo con tu dominio %%sep%% %%sitename%%", "seo_description": "Correo profesional con cPanel, Google Workspace o Microsoft 365. Configuración y migración asistida de tus buzones."},
+    {"slug": "web-y-tiendas", "title": "Web y tiendas", "order": 60, "seo_title": "Diseño web y tiendas online WooCommerce %%sep%% %%sitename%%", "seo_description": "Webs corporativas con WordPress y tiendas WooCommerce con pasarelas de pago peruanas, listas para vender."},
+    {"slug": "moodle-y-sistemas", "title": "Moodle y sistemas", "order": 70, "seo_title": "Hosting Moodle y aulas virtuales %%sep%% %%sitename%%", "seo_description": "Hosting optimizado para Moodle, implementación de aulas virtuales, desarrollo a medida e integración de facturación electrónica."},
+    {"slug": "soporte", "title": "Soporte", "order": 80, "seo_title": "Soporte técnico y tiempos de atención %%sep%% %%sitename%%", "seo_description": "Soporte en español por ticket, correo y teléfono. Conoce nuestros tiempos de atención y planes de mantenimiento."},
+    {"slug": "contacto", "title": "Contacto", "order": 90, "seo_title": "Contacto %%sep%% %%sitename%%", "seo_description": "Escríbenos o llámanos: te respondemos en un día hábil como máximo. GRUPO DE SOLUCIONES CREATIVAS, RUC 20607431117."},
+    {"slug": "cotizacion", "title": "Cotización", "order": 100, "seo_title": "Solicita tu cotización %%sep%% %%sitename%%", "seo_description": "Pide una propuesta a medida de hosting, servidores, dominios, correo, web o Moodle, en soles o dólares."},
+    {"slug": "terminos-y-condiciones", "title": "Términos y condiciones", "order": 200, "seo_title": "Términos y condiciones %%sep%% %%sitename%%", "seo_description": "Términos y condiciones de los servicios de AlojamientoPlus (texto pendiente de asesoría legal)."},
+    {"slug": "politica-de-privacidad", "title": "Política de privacidad", "order": 210, "seo_title": "Política de privacidad %%sep%% %%sitename%%", "seo_description": "Cómo tratamos tus datos personales en AlojamientoPlus (texto pendiente de asesoría legal)."},
+    {"slug": "reembolsos-y-cancelaciones", "title": "Reembolsos y cancelaciones", "order": 220, "seo_title": "Reembolsos y cancelaciones %%sep%% %%sitename%%", "seo_description": "Condiciones de reembolso y cancelación de servicios (texto pendiente de asesoría legal)."},
+    {"slug": "libro-de-reclamaciones", "title": "Libro de Reclamaciones", "order": 230, "seo_title": "Libro de Reclamaciones %%sep%% %%sitename%%", "seo_description": "Libro de Reclamaciones de GRUPO DE SOLUCIONES CREATIVAS (RUC 20607431117), marca AlojamientoPlus."},
+    {"slug": "promociones", "title": "Promociones", "order": 300, "expire_days": 30, "seo_title": "Promoción de hosting anual %%sep%% %%sitename%%", "seo_description": "Promoción de ejemplo: hosting anual con 20 % de descuento el primer año. Vigencia de 30 días."},
+    {"slug": "promocion-borrador", "title": "Promoción en revisión (ejemplo)", "order": 310, "status": "pending", "seo_title": "Dominio .pe con correo incluido %%sep%% %%sitename%%", "seo_description": "Promoción de ejemplo pendiente de revisión editorial."}
+  ],
+  "menus": {
+    "principal": {"title": "Menú principal", "items": [
+      {"label": "Hosting", "page": "hosting"},
+      {"label": "Servidores", "page": "servidores-vps", "children": [
+        {"label": "VPS y dedicados", "page": "servidores-vps"},
+        {"label": "Cloud gestionado", "page": "cloud"}
+      ]},
+      {"label": "Dominios", "page": "dominios"},
+      {"label": "Soluciones", "page": "web-y-tiendas", "children": [
+        {"label": "Correo corporativo", "page": "correo"},
+        {"label": "Web y tiendas", "page": "web-y-tiendas"},
+        {"label": "Moodle y sistemas", "page": "moodle-y-sistemas"}
+      ]},
+      {"label": "Soporte", "page": "soporte"},
+      {"label": "Contacto", "page": "contacto"}
+    ]},
+    "pie": {"title": "Menú de pie", "items": [
+      {"label": "Hosting", "page": "hosting"},
+      {"label": "VPS y dedicados", "page": "servidores-vps"},
+      {"label": "Cloud", "page": "cloud"},
+      {"label": "Dominios", "page": "dominios"},
+      {"label": "Correo", "page": "correo"},
+      {"label": "Web y tiendas", "page": "web-y-tiendas"},
+      {"label": "Moodle y sistemas", "page": "moodle-y-sistemas"}
+    ]}
+  },
+  "template_parts": {
+    "header": {"title": "Cabecera AlojamientoPlus", "area": "header", "file": "parts/header.html"},
+    "footer": {"title": "Pie AlojamientoPlus", "area": "footer", "file": "parts/footer.html"}
+  },
+  "templates": {
+    "page": {"title": "Página AlojamientoPlus", "description": "Página a todo el ancho con cabecera y pie de la marca.", "file": "templates/page.html"},
+    "404": {"title": "Página no encontrada", "description": "404 de la marca (prototipo/404-alojamientoplus.html).", "file": "templates/404.html"}
+  },
+  "styles": {
+    "palette": [
+      {"slug": "navy", "name": "Azul noche", "color": "#08142e"},
+      {"slug": "navy-2", "name": "Azul noche claro", "color": "#0d1d40"},
+      {"slug": "blue", "name": "Azul marca", "color": "#0a3fc4"},
+      {"slug": "blue-600", "name": "Azul marca oscuro", "color": "#0835a6"},
+      {"slug": "green", "name": "Verde marca", "color": "#5f9a32"},
+      {"slug": "green-600", "name": "Verde marca oscuro", "color": "#4e8228"},
+      {"slug": "yellow", "name": "Amarillo rayo", "color": "#f2b71a"},
+      {"slug": "bg", "name": "Fondo claro", "color": "#f4f7fc"},
+      {"slug": "ink", "name": "Texto", "color": "#0f1a33"},
+      {"slug": "muted", "name": "Texto secundario", "color": "#52607a"},
+      {"slug": "line", "name": "Borde", "color": "#dbe3f2"},
+      {"slug": "white", "name": "Blanco", "color": "#ffffff"}
+    ],
+    "fonts": [
+      {"slug": "poppins", "name": "Poppins", "fontFamily": "Poppins, 'Segoe UI', system-ui, sans-serif"},
+      {"slug": "jakarta", "name": "Plus Jakarta Sans", "fontFamily": "'Plus Jakarta Sans', Inter, 'Segoe UI', system-ui, sans-serif"},
+      {"slug": "mono", "name": "JetBrains Mono", "fontFamily": "'JetBrains Mono', ui-monospace, Consolas, monospace"}
+    ],
+    "global": {
+      "color": {"background": "var(--wp--preset--color--white)", "text": "var(--wp--preset--color--ink)"},
+      "typography": {"fontFamily": "var(--wp--preset--font-family--jakarta)", "fontSize": "1rem", "lineHeight": "1.6"},
+      "elements": {
+        "heading": {"typography": {"fontFamily": "var(--wp--preset--font-family--poppins)", "fontWeight": "700", "letterSpacing": "-0.01em", "lineHeight": "1.15"}},
+        "link": {"color": {"text": "var(--wp--preset--color--blue)"}},
+        "button": {"color": {"background": "var(--wp--preset--color--blue)", "text": "#ffffff"}, "border": {"radius": "999px"}, "typography": {"fontWeight": "600", "fontSize": "0.95rem"}}
+      }
+    }
+  },
+  "seo": {
+    "wpseo": {"enable_xml_sitemap": true},
+    "wpseo_titles": {"separator": "sc-pipe", "website_name": "AlojamientoPlus", "alternate_website_name": "GRUPO DE SOLUCIONES CREATIVAS", "company_or_person": "company", "company_name": "AlojamientoPlus", "title-page": "%%title%% %%sep%% %%sitename%%", "title-404-wpseo": "Página no encontrada %%sep%% %%sitename%%", "title-search-wpseo": "Resultados de %%searchphrase%% %%sep%% %%sitename%%", "metadesc-page": ""},
+    "wpseo_social": {"opengraph": true}
+  }
+}

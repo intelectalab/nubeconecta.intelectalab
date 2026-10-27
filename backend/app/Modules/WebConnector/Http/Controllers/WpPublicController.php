@@ -8,6 +8,7 @@ use App\Modules\Settings\Services\SettingsResolver;
 use App\Modules\WebConnector\Models\WpSite;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Settings\SettingsReader;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -109,6 +110,172 @@ final class WpPublicController
             ->map(fn ($r) => ['kind' => $r->kind, 'label' => json_decode((string) $r->label, true) ?: (object) [], 'value' => $r->value, 'is_primary' => (bool) $r->is_primary, 'position' => (int) $r->position]);
 
         return $this->cached($request, $rows->all());
+    }
+
+    /**
+     * Comparador de una categoría o tipo (wpComparePlans): los mismos planes de
+     * wpListPlans y las características comparables (claves de `limits`, en el
+     * orden en que aparecen, o las pedidas en `features`).
+     */
+    public function compare(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'type' => ['required', 'string', 'max:60'],
+            'ids' => ['sometimes', 'string', 'max:2000'],
+            'features' => ['sometimes', 'string', 'max:1000', 'regex:/^[a-z0-9_]+(,[a-z0-9_]+)*$/'],
+            'cycle' => ['sometimes', 'in:monthly,quarterly,semiannual,annual,biennial,triennial,one_time'],
+            'currency' => ['sometimes', 'in:PEN,USD'],
+            'lang' => ['sometimes', 'string', 'max:10'],
+        ]);
+        $query = $this->planQuery($request, $filters)
+            ->where(fn (Builder $q) => $q->where('c.shortcode_type', $filters['type'])->orWhere('c.code', $filters['type']));
+        if (isset($filters['ids'])) {
+            $ids = array_values(array_filter(array_map('trim', explode(',', $filters['ids']))));
+            $query->where(fn (Builder $q) => $q->whereIn('pl.code', $ids)->orWhereIn(DB::raw('pl.id::text'), $ids));
+        }
+        if (isset($filters['cycle'])) {
+            $query->where('pl.cycle', $filters['cycle']);
+        }
+        $plans = $query->get()->map(fn ($row) => $this->presentPlan($row, $filters['lang'] ?? null))->all();
+
+        $features = isset($filters['features']) ? explode(',', $filters['features']) : [];
+        if ($features === []) {
+            foreach ($plans as $plan) {
+                foreach (array_keys((array) $plan['limits']) as $key) {
+                    if (is_string($key) && ! in_array($key, $features, true)) {
+                        $features[] = $key;
+                    }
+                }
+            }
+        }
+
+        return $this->cached($request, ['type' => $filters['type'], 'features' => array_slice($features, 0, 40), 'plans' => $plans]);
+    }
+
+    /**
+     * Precios de dominios por extensión (wpListDomainPrices): extensiones activas y
+     * vendibles en línea, precio vigente a 1 año del registrador por defecto para
+     * registro, renovación y transferencia. Nunca costos ni registrador.
+     */
+    public function domainPrices(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'tlds' => ['sometimes', 'string', 'max:500', 'regex:/^\.?[a-z0-9-]+(\.[a-z0-9-]+)*(,\.?[a-z0-9-]+(\.[a-z0-9-]+)*)*$/'],
+            'currency' => ['sometimes', 'in:PEN,USD'],
+        ]);
+        $org = $this->org($request);
+        $currency = $filters['currency'] ?? 'PEN';
+        $today = now()->toDateString();
+        $tlds = isset($filters['tlds']) ? array_values(array_unique(array_map(fn ($t) => ltrim(trim($t), '.'), explode(',', $filters['tlds'])))) : null;
+
+        $extensions = DB::table('domain_extensions')->where('organization_id', $org)
+            ->where('is_active', true)->where('sellable_online', true)
+            ->when($tlds !== null, fn (Builder $q) => $q->whereIn('tld', $tlds))
+            ->orderBy('sort_order')->orderBy('tld')
+            ->get(['tld', 'default_registrar_id', 'is_featured', 'allows_transfer_in']);
+        $prices = DB::table('domain_tld_prices')->where('organization_id', $org)
+            ->whereIn('tld', $extensions->pluck('tld')->all())
+            ->where('currency', $currency)->where('years', 1)
+            ->whereIn('operation', ['register', 'renew', 'transfer'])
+            ->where('effective_from', '<=', $today)
+            ->where(fn (Builder $q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', $today))
+            ->orderByDesc('effective_from')
+            ->get(['tld', 'provider_id', 'operation', 'price_minor']);
+
+        $data = [];
+        foreach ($extensions as $ext) {
+            $byOperation = [];
+            foreach ($prices as $price) {
+                if ($price->tld === $ext->tld && $price->provider_id === $ext->default_registrar_id) {
+                    $byOperation[$price->operation] ??= (int) $price->price_minor;
+                }
+            }
+            if (! isset($byOperation['register'])) {
+                continue;
+            }
+            $data[] = [
+                'tld' => $ext->tld,
+                'name' => '.'.$ext->tld,
+                'featured' => (bool) $ext->is_featured,
+                'allows_transfer_in' => (bool) $ext->allows_transfer_in,
+                'currency' => $currency,
+                'register_minor' => $byOperation['register'],
+                'renew_minor' => $byOperation['renew'] ?? null,
+                'transfer_minor' => $ext->allows_transfer_in ? ($byOperation['transfer'] ?? null) : null,
+            ];
+        }
+
+        return $this->cached($request, $data);
+    }
+
+    /**
+     * Documento legal vigente de la marca (wpGetLegalDocument) por slug o por tipo
+     * (`terms`, `privacy`, ...): solo la versión publicada; nunca borradores ni
+     * quién la revisó.
+     */
+    public function legalDocument(Request $request, string $slug): JsonResponse
+    {
+        $filters = $request->validate(['lang' => ['sometimes', 'string', 'max:10']]);
+        $site = $this->wpSite($request);
+        $lang = strtolower(substr($filters['lang'] ?? 'es', 0, 2));
+        $row = DB::table('legal_documents as d')
+            ->join('legal_document_versions as v', fn ($j) => $j->on('v.id', '=', 'd.published_version_id')->where('v.status', 'published'))
+            ->where('d.organization_id', $site->organization_id)->where('d.brand_id', $site->brand_id)
+            ->whereNull('d.deleted_at')
+            ->where(fn (Builder $q) => $q->where('d.slug', $slug)->orWhere(fn (Builder $k) => $k->where('d.kind', str_replace('-', '_', $slug))->whereNull('d.product_category_id')))
+            ->whereIn('d.locale', array_values(array_unique([$lang, 'es'])))
+            ->orderByRaw('d.locale = ? desc', [$lang])->orderByRaw('d.slug = ? desc', [$slug])
+            ->first(['d.slug', 'd.kind', 'd.locale', 'd.title', 'v.version_label', 'v.effective_at', 'v.published_at', 'v.body'])
+            ?? throw ProblemException::notFound();
+
+        return $this->cached($request, [
+            'slug' => $row->slug,
+            'kind' => $row->kind,
+            'locale' => $row->locale,
+            'title' => $row->title,
+            'version_label' => $row->version_label,
+            'effective_at' => $row->effective_at ? CarbonImmutable::parse($row->effective_at)->toIso8601String() : null,
+            'published_at' => $row->published_at ? CarbonImmutable::parse($row->published_at)->toIso8601String() : null,
+            'body' => $row->body,
+        ]);
+    }
+
+    /** Definición pública de un formulario activo de la marca (wpGetWebForm). */
+    public function form(Request $request, string $code): JsonResponse
+    {
+        $filters = $request->validate(['lang' => ['sometimes', 'string', 'max:10']]);
+        $lang = strtolower(substr($filters['lang'] ?? 'es', 0, 2));
+        $site = $this->wpSite($request);
+        $form = DB::table('web_forms')->where('organization_id', $site->organization_id)->where('brand_id', $site->brand_id)
+            ->where('code', $code)->where('status', 'active')->whereNull('deleted_at')->first() ?? throw ProblemException::notFound();
+        $pick = function (mixed $json) use ($lang): ?string {
+            $value = json_decode((string) $json, true);
+            if (! is_array($value) || $value === []) {
+                return null;
+            }
+            $text = $value[$lang] ?? $value['es'] ?? reset($value);
+
+            return is_string($text) ? $text : null;
+        };
+        $fields = DB::table('web_form_fields')->where('web_form_id', $form->id)->orderBy('position')
+            ->get(['key', 'label', 'help_text', 'field_type', 'is_required', 'options', 'validation', 'maps_to'])
+            ->map(fn ($f) => [
+                'key' => $f->key, 'label' => $pick($f->label), 'help_text' => $pick($f->help_text), 'type' => $f->field_type,
+                'required' => (bool) $f->is_required, 'maps_to' => $f->maps_to,
+                'options' => array_map(fn ($o) => ['value' => (string) ($o['value'] ?? ''), 'label' => $pick(json_encode($o['label'] ?? []))], json_decode((string) $f->options, true) ?: []),
+                'validation' => json_decode((string) $f->validation, true) ?: (object) [],
+            ]);
+
+        return $this->cached($request, [
+            'code' => $form->code,
+            'name' => $form->name,
+            'fields' => $fields->all(),
+            'consent' => ['required' => (bool) $form->consent_required, 'purpose' => $form->consent_purpose, 'text' => $pick($form->consent_text)],
+            // D-24: sin proveedor de captcha todavía; el gancho es Contracts\CaptchaVerifier.
+            'captcha' => ['required' => (bool) $form->captcha_required, 'provider' => null],
+            'success_message' => $pick($form->success_message),
+            'redirect_url' => $form->redirect_url,
+        ]);
     }
 
     /** Planes vendibles de la marca con el precio vigente en la moneda pedida (sin costos). */

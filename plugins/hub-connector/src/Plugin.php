@@ -8,15 +8,20 @@ use HubConnector\Api\HubClient;
 use HubConnector\Cache\CacheStore;
 use HubConnector\Cache\PageCachePurger;
 use HubConnector\Render\Templates;
+use HubConnector\Rest\FormRelayController;
 use HubConnector\Rest\InvalidateController;
 use HubConnector\Security\SecretBox;
 use HubConnector\Security\SignatureVerifier;
 use HubConnector\Shortcodes\AbstractShortcode;
 use HubConnector\Shortcodes\BotonContratarShortcode;
+use HubConnector\Shortcodes\ComparadorShortcode;
 use HubConnector\Shortcodes\ContactoShortcode;
+use HubConnector\Shortcodes\FormularioShortcode;
+use HubConnector\Shortcodes\LegalShortcode;
 use HubConnector\Shortcodes\PendingShortcode;
 use HubConnector\Shortcodes\PlanesShortcode;
 use HubConnector\Shortcodes\PlanShortcode;
+use HubConnector\Shortcodes\PreciosDominiosShortcode;
 use HubConnector\Shortcodes\SelectorMonedaShortcode;
 
 /** Registra servicios y hooks (docs/13 §3). */
@@ -27,6 +32,7 @@ class Plugin
     private Settings $settings;
     private CacheStore $cache;
     private Templates $templates;
+    private HubClient $client;
 
     public static function getInstance(): Plugin
     {
@@ -43,10 +49,11 @@ class Plugin
         self::$instance = $plugin;
     }
 
-    public function __construct(?Settings $settings = null, ?CacheStore $cache = null, ?Templates $templates = null)
+    public function __construct(?Settings $settings = null, ?CacheStore $cache = null, ?Templates $templates = null, ?HubClient $client = null)
     {
         $this->settings = $settings ?? new Settings(SecretBox::fromWordPress());
-        $this->cache = $cache ?? new CacheStore(new HubClient($this->settings), $this->settings);
+        $this->client = $client ?? new HubClient($this->settings);
+        $this->cache = $cache ?? new CacheStore($this->client, $this->settings);
         $this->templates = $templates ?? new Templates(HUB_CONNECTOR_PLUGIN_DIR . 'templates/');
     }
 
@@ -65,8 +72,18 @@ class Plugin
         return $this->templates;
     }
 
+    public function client(): HubClient
+    {
+        return $this->client;
+    }
+
     public function boot(): void
     {
+        SiteInstaller::registerFrontend();
+        if (defined('WP_CLI') && WP_CLI && class_exists('WP_CLI')) {
+            \WP_CLI::add_command('hub-connector', Cli\SiteCommand::class);
+        }
+
         add_action('init', function (): void {
             load_plugin_textdomain('hub-connector', false, dirname(plugin_basename(HUB_CONNECTOR_PLUGIN_FILE)) . '/languages');
             wp_register_style('hub-connector', HUB_CONNECTOR_PLUGIN_URL . 'assets/hub-connector.css', [], HUB_CONNECTOR_VERSION);
@@ -82,6 +99,12 @@ class Plugin
                 'methods' => 'POST',
                 'callback' => [$controller, 'handle'],
                 'permission_callback' => '__return_true', // la autenticación es la firma X-Hub-Signature
+            ]);
+            // Reenvío de [hub_formulario]: público con nonce (lo verifica el controlador); no guarda nada.
+            register_rest_route('hub-connector/v1', '/relay/form/(?P<code>[a-z0-9]+(?:-[a-z0-9]+)*)', [
+                'methods' => 'POST',
+                'callback' => [new FormRelayController($this->client), 'handle'],
+                'permission_callback' => '__return_true',
             ]);
         });
 
@@ -101,6 +124,12 @@ class Plugin
             new BotonContratarShortcode($this),
             new ContactoShortcode($this),
             new SelectorMonedaShortcode($this),
+            new ComparadorShortcode($this),
+            new PreciosDominiosShortcode($this),
+            new PreciosDominiosShortcode($this, 'hub_dominios'),
+            new FormularioShortcode($this),
+            new LegalShortcode($this),
+            new LegalShortcode($this, 'hub_documento_legal'),
         ];
         foreach (PendingShortcode::TAGS as $tag) {
             $list[] = new PendingShortcode($this, $tag);

@@ -200,6 +200,32 @@ final class DemoCatalogCommand extends Command
             $this->plan($product, "{$id}-a", "Dominio {$tld} anual", 'annual', ['tld' => $tld, 'operation' => 'register'], ['PEN' => $pen, 'USD' => $usd]);
             $this->listing($product, "Dominio {$tld}", 'Registro anual', $online, false);
         }
+        $this->domainExtensions();
+    }
+
+    /**
+     * Extensiones y precios por extensión (domain_extensions / domain_tld_prices) que
+     * publica GET /public/wp/catalog/domain-prices. Registrador `demo-registrador` y
+     * costo 0: datos de demostración, no tarifas reales. Renovación y transferencia
+     * al mismo precio que el registro del prototipo.
+     */
+    private function domainExtensions(): void
+    {
+        $registrar = $this->upsert('providers', ['code' => 'demo-registrador'], ['name' => 'Registrador (demostración)', 'type' => 'registrar', 'cost_currency' => 'USD', 'notes_internal' => self::NOTE]);
+        foreach (self::TLDS as $i => [$tld, $pen, $usd, $online]) {
+            $code = ltrim($tld, '.');
+            $ext = $this->upsert('domain_extensions', ['tld' => $code], [
+                'default_registrar_id' => $registrar, 'sellable_online' => $online, 'allows_transfer_in' => $code !== 'cl',
+                'is_featured' => in_array($code, ['pe', 'com.pe', 'com'], true), 'sort_order' => $i * 10, 'is_active' => true,
+            ]);
+            foreach (['register', 'renew', 'transfer'] as $operation) {
+                foreach (['PEN' => $pen, 'USD' => $usd] as $currency => $amount) {
+                    $this->upsert('domain_tld_prices', ['tld' => $code, 'provider_id' => $registrar, 'operation' => $operation, 'years' => 1, 'currency' => $currency, 'effective_from' => self::FROM], [
+                        'cost_minor' => 0, 'cost_currency' => $currency, 'price_minor' => self::minor($amount), 'domain_extension_id' => $ext,
+                    ]);
+                }
+            }
+        }
     }
 
     private function bundles(): void

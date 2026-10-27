@@ -37,3 +37,46 @@
 .hub-contact--lista { padding-left: 1.2em; }
 .hub-contact--enlace .hub-contact__item, .hub-contact--texto .hub-contact__item, .hub-contact--boton .hub-contact__item { display: inline-block; margin-right: 1em; }
 .hub-notice--editor { padding: .75em 1em; color: #7a3d00; background: #fff4e5; border: 1px solid #d9700b; border-radius: 6px; }
+/* Comparador y precios de dominios: tablas desplazables en móvil. */
+.hub-compare, .hub-domains { overflow-x: auto; margin: 1.5em 0; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+.hub-compare:focus-visible, .hub-domains:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 2px; }
+.hub-compare__table, .hub-domains__table { width: 100%; min-width: 560px; border-collapse: collapse; margin: 0; }
+.hub-compare__table th, .hub-compare__table td, .hub-domains__table th, .hub-domains__table td { padding: .75em 1em; text-align: center; border-bottom: 1px solid var(--hub-border); vertical-align: middle; }
+.hub-compare__table tbody th, .hub-domains__table tbody th { text-align: left; font-weight: 600; }
+.hub-compare__table tbody tr:nth-child(even), .hub-domains__table tbody tr:nth-child(even) { background: rgba(10, 63, 196, .04); }
+.hub-compare__plan { vertical-align: top; }
+.hub-compare__plan--featured { box-shadow: inset 0 3px 0 var(--hub-primary); }
+.hub-compare__name { display: block; font-size: 1.1em; margin: .25em 0; }
+.hub-compare .hub-price { font-size: 1.25em; display: block; }
+.hub-compare .hub-price[hidden], .hub-domains .hub-price[hidden] { display: none; }
+.hub-compare tfoot td { border-bottom: 0; }
+.hub-domains__table caption { caption-side: top; text-align: left; padding: .75em 1em 0; font-weight: 700; }
+.hub-domains__row--featured th::after { content: " ★"; color: var(--hub-primary); }
+.hub-price--inline { font-size: 1em; font-weight: 600; margin: 0; }
+.hub-compare .hub-price, .hub-price--inline { white-space: nowrap; }
+/* Documento legal. */
+.hub-legal__meta { display: flex; flex-wrap: wrap; gap: .5em 1.5em; color: var(--hub-muted); font-size: .9em; }
+.hub-legal__body { line-height: 1.65; }
+/* Formulario de contacto y cotización. */
+.hub-form { display: grid; gap: .75em; max-width: 720px; }
+.hub-form__grid { display: grid; gap: .75em; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .hub-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.hub-form__field { display: flex; flex-direction: column; gap: .3em; margin: 0; }
+.hub-form__field label { font-weight: 600; }
+.hub-form input[type="text"], .hub-form input[type="email"], .hub-form input[type="tel"], .hub-form textarea { box-sizing: border-box; width: 100%; padding: .65em .8em; font: inherit; color: inherit; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: calc(var(--hub-radius) - 4px); }
+.hub-form input:focus-visible, .hub-form textarea:focus-visible, .hub-form button:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 1px; }
+.hub-form [aria-invalid="true"] { border-color: #b42318; }
+.hub-form__error { color: #b42318; font-size: .875em; min-height: 0; }
+.hub-form__consent { flex-direction: row; align-items: flex-start; flex-wrap: wrap; }
+.hub-form__consent label { font-weight: 400; flex: 1; }
+.hub-form__consent input { margin-top: .3em; }
+.hub-form__consent .hub-form__error { flex-basis: 100%; }
+.hub-form__summary { padding: .75em 1em; color: #7a1d14; background: #fdecea; border: 1px solid #f5b5ae; border-radius: 6px; }
+.hub-form__trap { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.hub-form__actions { margin: 0; }
+.hub-form button.hub-button { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+.hub-form button[disabled] { opacity: .7; cursor: progress; }
+.hub-form__status { margin: 0; min-height: 1.2em; }
+.hub-form__status--ok { color: #1a7f37; font-weight: 600; }
+.hub-form__status--error { color: #b42318; }
+.screen-reader-text { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

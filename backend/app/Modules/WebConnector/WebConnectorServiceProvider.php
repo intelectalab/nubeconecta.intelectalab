@@ -9,10 +9,13 @@ use App\Modules\Brands\Events\BrandThemeVersionReverted;
 use App\Modules\Brands\Events\BrandUpdated;
 use App\Modules\Catalog\Events\PlanChanged;
 use App\Modules\Catalog\Events\PlanPriceChanged;
+use App\Modules\WebConnector\Console\DemoWebCommand;
+use App\Modules\WebConnector\Contracts\CaptchaVerifier;
 use App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite;
 use App\Modules\WebConnector\Listeners\InvalidateBrandSites;
 use App\Modules\WebConnector\Listeners\InvalidateCatalogSites;
 use App\Modules\WebConnector\Services\CacheInvalidator;
+use App\Modules\WebConnector\Services\NullCaptchaVerifier;
 use App\Modules\WebConnector\Services\SecretStore;
 use App\Modules\WebConnector\Services\WebhookSigner;
 use App\Modules\WebConnector\Services\WpSiteService;
@@ -33,6 +36,8 @@ final class WebConnectorServiceProvider extends ServiceProvider
         $this->app->singleton(WebhookSigner::class);
         $this->app->scoped(CacheInvalidator::class);
         $this->app->scoped(WpSiteService::class);
+        // D-24: proveedor de captcha sin decidir; este enlace se reemplaza cuando se elija.
+        $this->app->singleton(CaptchaVerifier::class, NullCaptchaVerifier::class);
     }
 
     public function boot(Router $router): void
@@ -45,6 +50,10 @@ final class WebConnectorServiceProvider extends ServiceProvider
 
         Event::listen([BrandUpdated::class, BrandThemeVersionPublished::class, BrandThemeVersionReverted::class], InvalidateBrandSites::class);
         Event::listen([PlanChanged::class, PlanPriceChanged::class], InvalidateCatalogSites::class);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([DemoWebCommand::class]);
+        }
 
         if (! $this->app->routesAreCached()) {
             Route::middleware('api')->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/routes/api.php');

@@ -116,6 +116,11 @@ class PlanesShortcode extends AbstractShortcode
      * @param array<string, array<string, mixed>> $plans
      * @return list<array<string, mixed>>
      */
+    public static function pickCycleFor(array $plans, string $cycle): array
+    {
+        return self::pickCycle($plans, $cycle);
+    }
+
     protected static function pickCycle(array $plans, string $cycle): array
     {
         $byProduct = [];

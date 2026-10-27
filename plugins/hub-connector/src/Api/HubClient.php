@@ -70,7 +70,57 @@ class HubClient
             return ['status' => 200, 'data' => $json['data'], 'etag' => (string) wp_remote_retrieve_header($response, 'etag')];
         }
 
+        return $this->failure($status, $json, $response);
+    }
+
+    /**
+     * Envío (formularios en modo reenvío, docs/13 §9): mismo token y cabeceras que las
+     * lecturas, más Idempotency-Key y X-Hub-Visitor-Ip. No guarda nada ni reintenta.
+     *
+     * @param array<string, mixed> $body
+     * @param array<string, string> $headers
+     * @return array{status:int, data?:mixed, errors?:array, error?:string, retry_after?:int}
+     */
+    public function post(string $path, array $body, array $headers = []): array
+    {
+        $base = $this->settings->apiBase();
+        $token = $this->settings->token();
+        if ($base === '' || $token === '') {
+            return ['status' => 0, 'error' => 'not_configured'];
+        }
+        $response = wp_remote_post($base . $path, [
+            'timeout' => (float) apply_filters('hub_connector_http_timeout', 8),
+            'redirection' => 0,
+            'sslverify' => true,
+            'headers' => $headers + [
+                'Authorization' => 'Bearer ' . $token,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Accept-Language' => $this->settings->lang(),
+                'X-Hub-Plugin-Version' => HUB_CONNECTOR_VERSION,
+            ],
+            'body' => (string) wp_json_encode($body),
+            'user-agent' => sprintf('HubConnector/%s; WordPress/%s; %s', HUB_CONNECTOR_VERSION, get_bloginfo('version'), home_url('/')),
+        ]);
+        if (is_wp_error($response)) {
+            return ['status' => 0, 'error' => 'unreachable'];
+        }
+        $status = (int) wp_remote_retrieve_response_code($response);
+        $json = json_decode((string) wp_remote_retrieve_body($response), true);
+        if ($status >= 200 && $status < 300) {
+            return ['status' => $status, 'data' => is_array($json) ? ($json['data'] ?? null) : null];
+        }
+
+        return $this->failure($status, $json, $response);
+    }
+
+    /** @param mixed $response */
+    private function failure(int $status, mixed $json, $response): array
+    {
         $result = ['status' => $status, 'error' => is_array($json) && is_string($json['code'] ?? null) ? $json['code'] : 'http_' . $status];
+        if (is_array($json) && is_array($json['errors'] ?? null)) {
+            $result['errors'] = $json['errors'];
+        }
         $retry = wp_remote_retrieve_header($response, 'retry-after');
         if (is_numeric($retry)) {
             $result['retry_after'] = max(1, (int) $retry);

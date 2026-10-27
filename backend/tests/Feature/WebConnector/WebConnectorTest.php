@@ -6,6 +6,7 @@ namespace Tests\Feature\WebConnector;
 
 use App\Models\User;
 use App\Shared\Http\OutboundUrlGuard;
+use App\Modules\WebConnector\Events\WebFormSubmitted;
 use App\Modules\WebConnector\Events\WpCacheInvalidationFailed;
 use App\Modules\WebConnector\Jobs\SendWpCacheInvalidations;
 use App\Modules\WebConnector\Models\WpCacheInvalidation;
@@ -376,5 +377,167 @@ final class WebConnectorTest extends IdentityTestCase
         $shared = $this->postJson('/api/v1/admin/products', ['code' => 'DOM', 'category_id' => $category, 'name' => 'Dominio', 'billing_type' => 'recurring'])->assertCreated()->json('data.id');
         $this->postJson('/api/v1/admin/plans', ['product_id' => $shared, 'code' => 'dominio-pe', 'name' => '.pe', 'cycle' => 'annual'])->assertCreated();
         $this->assertTrue(DB::table('wp_cache_invalidations')->where('wp_site_id', $otherSite)->where('scope', 'plan')->where('trigger_event', 'PlanChanged')->exists());
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @param  array<string, string>  $headers
+     */
+    private function pluginPost(string $uri, ?string $token, array $body, array $headers = []): \Illuminate\Testing\TestResponse
+    {
+        $this->app['auth']->forgetGuards();
+
+        return $this->postJson($uri, $body, array_filter($headers + ['Authorization' => $token ? "Bearer {$token}" : null, 'X-Hub-Plugin-Version' => '1.3.0'], fn ($v) => $v !== null && $v !== ''));
+    }
+
+    public function test_plugin_api_compare_domain_prices_and_legal_documents_by_brand(): void
+    {
+        $brandA = $this->brand('marca-a');
+        $brandB = $this->brand('marca-b');
+        ['token' => $token] = $this->activeSite($brandA);
+        $org = DB::table('organizations')->value('id');
+        $basic = $this->catalogPlan($brandA, 'hosting-basico', 1990);
+        $pro = $this->catalogPlan($brandA, 'hosting-pro', 3990);
+        $this->catalogPlan($brandB, 'plan-marca-b', 2990);
+        DB::table('plans')->where('id', $basic)->update(['limits' => json_encode(['disk_gb' => 10, 'websites' => 1])]);
+        DB::table('plans')->where('id', $pro)->update(['limits' => json_encode(['disk_gb' => 50, 'ssl' => true])]);
+
+        // Comparador: solo planes de la marca del token y características en orden de aparición.
+        $compare = $this->plugin('/api/v1/public/wp/catalog/compare?type=hosting&currency=PEN', $token)->assertOk()->assertHeader('ETag')
+            ->assertJsonCount(2, 'data.plans')->assertJsonPath('data.features', ['disk_gb', 'websites', 'ssl']);
+        $this->assertStringNotContainsString('plan-marca-b', $compare->getContent());
+        $this->assertStringNotContainsString('cost_minor', $compare->getContent());
+        $this->plugin('/api/v1/public/wp/catalog/compare?type=hosting&features=disk_gb', $token)->assertOk()->assertJsonPath('data.features', ['disk_gb']);
+        $this->assertProblem($this->plugin('/api/v1/public/wp/catalog/compare', $token), 422, 'validation_failed');
+        $this->assertProblem($this->plugin('/api/v1/public/wp/catalog/compare?type=hosting&features=a;b', $token), 422, 'validation_failed');
+
+        // Precios de dominios: vendibles en línea, registrador por defecto, nunca costos.
+        $registrar = (string) Str::uuid();
+        $other = (string) Str::uuid();
+        DB::table('providers')->insert([['id' => $registrar, 'organization_id' => $org, 'code' => 'reg', 'name' => 'Registrador X', 'type' => 'registrar'], ['id' => $other, 'organization_id' => $org, 'code' => 'reg2', 'name' => 'Otro', 'type' => 'registrar']]);
+        foreach ([['com.pe', true, true], ['com', true, false], ['cl', false, true]] as $i => [$tld, $online, $transfer]) {
+            DB::table('domain_extensions')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'tld' => $tld, 'default_registrar_id' => $registrar, 'sellable_online' => $online, 'allows_transfer_in' => $transfer, 'sort_order' => $i]);
+            foreach (['register' => 11900, 'renew' => 12900, 'transfer' => 9900] as $op => $price) {
+                DB::table('domain_tld_prices')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'tld' => $tld, 'provider_id' => $registrar, 'operation' => $op, 'cost_minor' => 4321, 'cost_currency' => 'USD', 'price_minor' => $price, 'currency' => 'PEN', 'effective_from' => now()->subMonth()->toDateString()]);
+            }
+        }
+        DB::table('domain_tld_prices')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'tld' => 'com.pe', 'provider_id' => $other, 'operation' => 'register', 'cost_minor' => 1, 'cost_currency' => 'USD', 'price_minor' => 1, 'currency' => 'PEN', 'effective_from' => now()->toDateString()]);
+        $domains = $this->plugin('/api/v1/public/wp/catalog/domain-prices?currency=PEN', $token)->assertOk()->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.name', '.com.pe')->assertJsonPath('data.0.register_minor', 11900)->assertJsonPath('data.0.renew_minor', 12900)
+            ->assertJsonPath('data.0.transfer_minor', 9900)->assertJsonPath('data.1.tld', 'com')->assertJsonPath('data.1.transfer_minor', null);
+        foreach (['cost', '4321', 'Registrador', $registrar] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $domains->getContent());
+        }
+        $this->plugin('/api/v1/public/wp/catalog/domain-prices?tlds=.com,cl&currency=PEN', $token)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.tld', 'com');
+        $this->plugin('/api/v1/public/wp/catalog/domain-prices?currency=USD', $token)->assertOk()->assertJsonCount(0, 'data');
+        $this->assertProblem($this->plugin('/api/v1/public/wp/catalog/domain-prices?tlds=<x>', $token), 422, 'validation_failed');
+
+        // Documentos legales: solo la versión publicada de la marca del token.
+        $legal = function (string $brand, string $slug, string $kind, string $body, bool $published) use ($org): void {
+            $doc = (string) Str::uuid();
+            DB::table('legal_documents')->insert(['id' => $doc, 'organization_id' => $org, 'brand_id' => $brand, 'kind' => $kind, 'title' => "Doc {$slug}", 'slug' => $slug]);
+            $version = (string) Str::uuid();
+            DB::table('legal_document_versions')->insert(['id' => $version, 'organization_id' => $org, 'legal_document_id' => $doc, 'version_number' => 1, 'version_label' => '2026-10', 'body' => $body]
+                + ($published ? ['status' => 'published', 'legal_reviewed_by' => 'Asesoría', 'legal_reviewed_at' => now(), 'effective_at' => now(), 'published_at' => now(), 'published_by' => $this->admin->id] : []));
+            if ($published) {
+                DB::table('legal_documents')->where('id', $doc)->update(['published_version_id' => $version]);
+            }
+        };
+        $legal($brandA, 'politica-de-privacidad', 'privacy', '<p>Privacidad A</p>', true);
+        $legal($brandB, 'politica-de-privacidad', 'privacy', '<p>Privacidad B</p>', true);
+        $legal($brandA, 'terminos', 'terms', '<p>Borrador</p>', false);
+        $doc = $this->plugin('/api/v1/public/wp/legal-documents/politica-de-privacidad', $token)->assertOk()
+            ->assertJsonPath('data.body', '<p>Privacidad A</p>')->assertJsonPath('data.version_label', '2026-10')->assertJsonPath('data.kind', 'privacy');
+        $this->assertStringNotContainsString('Asesor', $doc->getContent());
+        $this->plugin('/api/v1/public/wp/legal-documents/privacy', $token)->assertOk()->assertJsonPath('data.slug', 'politica-de-privacidad');
+        $this->assertProblem($this->plugin('/api/v1/public/wp/legal-documents/terminos', $token), 404, 'not_found');
+        $this->assertProblem($this->plugin('/api/v1/public/wp/legal-documents/no-existe', $token), 404, 'not_found');
+        $this->assertProblem($this->plugin('/api/v1/public/wp/legal-documents/politica-de-privacidad', null), 401, 'unauthenticated');
+    }
+
+    public function test_plugin_form_definition_submission_validation_idempotency_spam_and_ip_limit(): void
+    {
+        Event::fake([WebFormSubmitted::class]);
+        $brandA = $this->brand('marca-a');
+        $brandB = $this->brand('marca-b');
+        ['site' => $site, 'token' => $token] = $this->activeSite($brandA);
+        $org = DB::table('organizations')->value('id');
+        $form = function (string $brand, string $code) use ($org): string {
+            $id = (string) Str::uuid();
+            DB::table('web_forms')->insert(['id' => $id, 'organization_id' => $org, 'brand_id' => $brand, 'code' => $code, 'name' => $code, 'status' => 'active', 'destination' => 'email',
+                'notify_email' => 'ventas@marca.test', 'consent_required' => true, 'consent_purpose' => 'privacy', 'consent_text' => json_encode(['es' => 'Acepto la política']),
+                'captcha_required' => true, 'success_message' => json_encode(['es' => '¡Gracias!'])]);
+
+            return $id;
+        };
+        $contact = $form($brandA, 'contacto');
+        $form($brandB, 'solo-b');
+
+        $this->plugin('/api/v1/public/wp/forms/contacto', $token)->assertOk()->assertJsonPath('data.code', 'contacto')
+            ->assertJsonPath('data.consent.required', true)->assertJsonPath('data.consent.text', 'Acepto la política')
+            ->assertJsonPath('data.success_message', '¡Gracias!')->assertJsonPath('data.captcha.provider', null);
+        $this->assertProblem($this->plugin('/api/v1/public/wp/forms/solo-b', $token), 404, 'not_found');
+
+        $valid = ['name' => 'Ana Pérez', 'email' => 'ana@cliente.pe', 'phone' => '+51 999 888 777', 'company' => 'ACME SAC', 'message' => 'Necesito una cotización de hosting.', 'source' => 'cotizacion', 'consent' => true, 'page_url' => 'https://www.marca-a.test/contacto/', 'utm' => ['source' => 'google']];
+        $ip = ['X-Hub-Visitor-Ip' => '203.0.113.10', 'Idempotency-Key' => 'k-0001-abcdef'];
+        $first = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, $valid, $ip)->assertStatus(202)
+            ->assertJsonPath('data.status', 'received')->assertJsonPath('data.message', '¡Gracias!');
+        $row = DB::table('web_form_submissions')->where('id', $first->json('data.id'))->first();
+        $this->assertSame('received', $row->status);
+        $this->assertSame($contact, $row->web_form_id);
+        $this->assertSame($site, $row->wp_site_id);
+        $this->assertTrue((bool) $row->consent_given);
+        $this->assertSame('Acepto la política', $row->consent_text);
+        $this->assertNull($row->captcha_verified_at);
+        $this->assertSame(hash_hmac('sha256', '203.0.113.10', (string) config('app.key')), $row->ip_hash);
+        $this->assertSame('ACME SAC', json_decode((string) $row->payload, true)['company']);
+        Event::assertDispatched(WebFormSubmitted::class, fn (WebFormSubmitted $e) => $e->id === $row->id && $e->brandId === $brandA);
+
+        // Doble clic: misma clave → mismo envío.
+        $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, $valid, $ip)->assertStatus(202)->assertJsonPath('data.id', $row->id);
+        $this->assertSame(1, DB::table('web_form_submissions')->count());
+
+        // Validación: consentimiento, correo, mensaje corto y origen.
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['consent' => false] + $valid, $ip), 422, 'validation_failed');
+        $bad = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['email' => 'no-es-correo', 'message' => 'corto', 'source' => 'A B'] + $valid, $ip);
+        $this->assertProblem($bad, 422, 'validation_failed');
+        $this->assertEqualsCanonicalizing(['email', 'message', 'source'], array_keys((array) $bad->json('errors')));
+
+        // Campo trampa: misma respuesta, guardado como spam y sin evento.
+        $spam = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['website' => 'http://spam.test'] + $valid, ['X-Hub-Visitor-Ip' => '203.0.113.10'])->assertStatus(202)->assertJsonPath('data.status', 'received');
+        $this->assertSame('spam', DB::table('web_form_submissions')->where('id', $spam->json('data.id'))->value('status'));
+        Event::assertDispatchedTimes(WebFormSubmitted::class, 1);
+
+        // Aislamiento por marca y token.
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/forms/solo-b/submissions', $token, $valid), 404, 'not_found');
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', null, $valid), 401, 'unauthenticated');
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', 'hubwp_'.str_repeat('y', 48), $valid), 401, 'unauthenticated');
+
+        // Límite por IP del visitante (web_connector.forms.submissions_per_ip_per_hour = 10).
+        for ($i = 0; $i < 10; $i++) {
+            $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['email' => 'x'] + $valid, ['X-Hub-Visitor-Ip' => '198.51.100.7'])->assertStatus(422);
+        }
+        $limited = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, $valid, ['X-Hub-Visitor-Ip' => '198.51.100.7']);
+        $this->assertProblem($limited, 429, 'rate_limited');
+        $this->assertNotNull($limited->headers->get('Retry-After'));
+        $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, $valid, ['X-Hub-Visitor-Ip' => '198.51.100.8'])->assertStatus(202);
+    }
+
+    public function test_demo_web_content_and_domain_extensions(): void
+    {
+        $this->artisan('hub:demo:catalog')->assertSuccessful();
+        $this->artisan('hub:demo:web')->assertSuccessful();
+        $this->artisan('hub:demo:web')->assertSuccessful();
+        $brand = (string) DB::table('brands')->where('code', 'alojamientoplus')->value('id');
+        ['token' => $token] = $this->activeSite($brand, 'www.alojamientoplus.test');
+        $this->assertSame(2, DB::table('web_forms')->where('brand_id', $brand)->where('status', 'active')->count());
+        $this->assertSame(1, DB::table('legal_document_versions as v')->join('legal_documents as d', 'd.id', '=', 'v.legal_document_id')->where('d.slug', 'politica-de-privacidad')->count());
+        $this->assertStringContainsString('[Texto pendiente de asesoría legal]', (string) $this->plugin('/api/v1/public/wp/legal-documents/politica-de-privacidad', $token)->assertOk()->json('data.body'));
+        $this->plugin('/api/v1/public/wp/forms/cotizacion', $token)->assertOk();
+        $prices = $this->plugin('/api/v1/public/wp/catalog/domain-prices?currency=USD', $token)->assertOk()->json('data');
+        $this->assertContains('com.pe', array_column($prices, 'tld'));
+        $this->assertNotContains('cl', array_column($prices, 'tld')); // .cl no se vende en línea en el prototipo
+        $this->assertSame(1900, collect($prices)->firstWhere('tld', 'com')['register_minor']);
+        $this->assertGreaterThanOrEqual(7, DB::table('domain_extensions')->count());
     }
 }
