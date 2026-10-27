@@ -4,8 +4,8 @@
     --hub-navy: #08142e; --hub-navy-2: #0d1d40; --hub-navy-line: #1d2f5c;
     --hub-blue: #0a3fc4; --hub-blue-600: #0835a6; --hub-blue-50: #eaf0ff;
     --hub-green: #5f9a32; --hub-green-600: #4e8228; --hub-yellow: #f2b71a;
-    --hub-bg: #f4f7fc; --hub-ink: #0f1a33; --hub-muted-ink: #52607a; --hub-line: #dbe3f2;
-    --hub-on-dark: #eef3ff; --hub-on-dark-muted: #a9b8d8;
+    --hub-bg: #f4f7fc; --hub-ink: #0f1a33; --hub-muted-ink: #44516b; --hub-line: #dbe3f2;
+    --hub-on-dark: #eef3ff; --hub-on-dark-muted: #b8c5e0;
     --hub-display: Poppins, "Segoe UI", system-ui, sans-serif;
     --hub-body: "Plus Jakarta Sans", Inter, "Segoe UI", system-ui, sans-serif;
     --hub-wrap: 1180px;
@@ -109,17 +109,6 @@ html { background: var(--hub-navy); }
 .hub-card p:last-child { margin-bottom: 0; }
 .hub-card p { color: var(--hub-muted-ink); }
 .hub-card .hub-more { margin-top: auto; }
-/* ¿Qué necesitas hoy?: lista editorial en dos columnas */
-.hub-services { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; }
-.hub-services li { margin: 0; padding: 18px 0; border-top: 1px solid var(--hub-line); display: flex; flex-direction: column; gap: 4px; }
-.hub-services li:nth-last-child(-n+2) { border-bottom: 1px solid var(--hub-line); }
-.hub-services a { font-family: var(--hub-display); font-weight: 600; font-size: 1.35rem; line-height: 1.25; color: var(--hub-ink); text-decoration: none; align-self: flex-start; }
-.hub-services a:hover { color: var(--hub-blue); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
-.hub-services span { color: var(--hub-muted-ink); }
-@media (max-width: 700px) {
-    .hub-services { grid-template-columns: 1fr; }
-    .hub-services li:nth-last-child(2) { border-bottom: 0; }
-}
 /* Por qué elegir: puntos con regla superior, sin caja */
 .hub-points .hub-point > .kt-inside-inner-col { border-top: 3px solid var(--hub-ink); padding-top: 18px; }
 .hub-points .hub-point h3 { font-size: 1.15rem; margin-bottom: .4em; }
@@ -230,13 +219,12 @@ html { background: var(--hub-navy); }
 .hub-header > * { margin-block: 0 !important; }
 .hub-header .hub-nav, .hub-header .hub-nav .wp-block-navigation__container { align-items: center; }
 
-/* Inicio: tarjeta de plan del hero (el elemento memorable: un comprobante con borde dentado) */
-.hub-hero-plan { filter: drop-shadow(0 24px 40px rgba(2, 8, 24, .45)); max-width: 430px; margin-left: auto; }
+/* Inicio: tarjeta de planes del hero (esquinas redondeadas y sombra profunda suave) */
+.hub-hero-plan { max-width: 440px; margin-left: auto; }
 .hub-main .hub-hplans {
     --hub-surface: #fff; --hub-border: var(--hub-line); --hub-muted: var(--hub-muted-ink); --hub-primary: var(--hub-blue);
-    color: var(--hub-ink); border: 0; border-radius: 18px 18px 0 0; padding-bottom: 12px;
-    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 20px 100%;
-    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 20px 100%;
+    color: var(--hub-ink); border: 0; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 2px 6px rgba(2, 8, 24, .18), 0 28px 60px -12px rgba(2, 8, 24, .55);
 }
 .hub-main .hub-hplans__tabs { padding: 6px 12px 0; }
 .hub-main .hub-hplans__tab { font-family: var(--hub-display); font-size: .98rem; padding: 14px 14px 12px; }
@@ -316,3 +304,157 @@ html { background: var(--hub-navy); }
 .hub-findbar__in { padding-top: 22px; }
 .hub-findbar .hub-dsearch__label { font-size: 1.1rem; margin-bottom: 8px; }
 .hub-trust { margin-top: 20px !important; padding: 14px 0 18px; }
+
+/* ===== Rediseño 1.3: contenedor único, escala tipográfica y portada ===== */
+:root { --hub-gutter: 24px; --hub-shell: calc(var(--hub-wrap) + 2 * var(--hub-gutter)); }
+@media (max-width: 600px) { :root { --hub-gutter: 16px; } }
+/* Un solo contenedor: 1180px de contenido + márgenes laterales, igual en todas las bandas */
+.kb-row-layout-wrap.hub-sec > .kt-row-column-wrap,
+.hub-findbar__in, .hub-foot-top, .hub-foot-bottom, .hub-included p {
+    box-sizing: border-box; max-width: var(--hub-shell) !important; margin-inline: auto;
+    padding-inline: var(--hub-gutter) !important;
+}
+.hub-header, .hub-topbar { padding-inline: max(var(--hub-gutter), calc((100% - var(--hub-wrap)) / 2)); }
+.kb-row-layout-wrap.hub-sec > .kt-row-column-wrap { padding-block: 88px !important; }
+.hub-sec--prose > .kt-row-column-wrap { max-width: calc(820px + 2 * var(--hub-gutter)) !important; }
+
+/* Tipografía: Poppins solo en títulos; cuerpo en Plus Jakarta Sans a 17px */
+.hub-main { font-size: 1.0625rem; line-height: 1.65; color: var(--hub-ink); }
+.hub-sec h1 { font-size: clamp(2.25rem, 5vw, 3.5rem); letter-spacing: -.025em; }
+.hub-sec h2 { font-size: clamp(1.85rem, 3.4vw, 2.5rem); letter-spacing: -.02em; line-height: 1.15; }
+.hub-sec h3 { font-size: 1.2rem; line-height: 1.3; }
+.hub-sub { font-size: 1.125rem; color: var(--hub-muted-ink); margin-bottom: 40px !important; }
+.hub-lead { font-size: clamp(1.1rem, 1.6vw, 1.25rem); line-height: 1.6; }
+.hub-eyebrow { font-size: .9rem; letter-spacing: .06em; text-transform: uppercase; }
+.wp-block-button .wp-block-button__link { padding: 14px 26px; font-size: 1rem; line-height: 1.3; }
+.wp-block-button .wp-block-button__link:focus-visible { outline: 3px solid var(--hub-yellow); outline-offset: 3px; }
+.hub-header .hub-portal .wp-block-button__link { padding: 10px 20px; font-size: .92rem; }
+@media (max-width: 480px) { .hub-header .hub-portal .wp-block-button__link { padding: 8px 12px; font-size: .8rem; } }
+
+/* Bandas oscuras (hero y CTA): degradado radial tenue y malla que se desvanece */
+.kb-row-layout-wrap.hub-sec--dark {
+    background:
+        radial-gradient(60% 80% at 85% 10%, rgba(10, 63, 196, .45), transparent 70%),
+        radial-gradient(50% 70% at 0% 100%, rgba(95, 154, 50, .12), transparent 70%),
+        linear-gradient(180deg, var(--hub-navy) 0%, #0a1838 100%);
+}
+.kb-row-layout-wrap.hub-sec--dark::before {
+    background:
+        linear-gradient(rgba(140, 170, 235, .07) 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(90deg, rgba(140, 170, 235, .07) 1px, transparent 1px) 0 0 / 40px 40px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 90% at 70% 30%, #000 20%, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 90% at 70% 30%, #000 20%, transparent 75%);
+}
+.hub-sec--dark .wp-block-button.hub-btn-light .wp-block-button__link { color: #fff; border-color: rgba(255, 255, 255, .55); background: transparent; }
+.hub-sec--dark .wp-block-button.hub-btn-light .wp-block-button__link:hover { background: rgba(255, 255, 255, .1); border-color: #fff; }
+.hub-sec--dark .wp-block-button.hub-btn-primary .wp-block-button__link { box-shadow: 0 8px 24px -8px rgba(10, 63, 196, .9); }
+
+/* Hero de inicio */
+.hub-hero:has(.hub-hero-plan) > .kt-row-column-wrap { padding-block: 72px 128px !important; gap: 48px; }
+.hub-hero h1 { margin-bottom: 20px; }
+.hub-hero .hub-lead { margin-bottom: 32px !important; }
+.hub-hero .hub-hero-links { margin: 0 0 28px !important; gap: 12px; }
+.hub-hero-checks { list-style: none; margin: 0 !important; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; color: var(--hub-on-dark); font-size: 1rem; font-weight: 500; }
+.hub-hero-checks li { display: flex; align-items: center; gap: 10px; margin: 0; }
+.hub-hero-checks li::before {
+    content: ""; flex: none; width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(95, 154, 50, .25) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239fd16f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-9'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+.hub-main .hub-hplans__tabs { padding: 8px 16px 0; background: #fff; }
+.hub-main .hub-hplans__panel { padding: 24px 28px 28px; }
+.hub-main .hub-hplans__features { border-top: 1px solid var(--hub-line); font-size: 1rem; }
+.hub-main .hub-hplans__cta { padding: 14px 22px; margin-top: 8px; }
+
+/* Buscador de dominios: tarjeta blanca que monta sobre el borde del hero */
+.hub-findbar { background: transparent; border: 0; position: relative; z-index: 2; }
+.hub-findbar__in { padding-top: 0 !important; padding-bottom: 0 !important; margin-top: -72px !important; }
+.hub-main .hub-findbar .hub-dsearch {
+    display: block; background: #fff; border: 1px solid var(--hub-line); border-radius: 18px;
+    padding: 28px 32px; box-shadow: 0 1px 3px rgba(15, 26, 51, .06), 0 20px 48px -16px rgba(15, 26, 51, .22);
+}
+.hub-findbar .hub-dsearch__label { font-size: 1.3rem; margin-bottom: 14px; }
+.hub-main .hub-findbar .hub-dsearch__row { gap: 10px; }
+.hub-main .hub-findbar .hub-dsearch__input { height: 60px; box-sizing: border-box; font-size: 1.125rem; padding-inline: 24px; border: 1.5px solid #9aa6bd; }
+.hub-main .hub-findbar .hub-dsearch__input:hover { border-color: var(--hub-muted-ink); }
+.hub-main .hub-findbar .hub-dsearch__submit { height: 60px; padding-inline: 40px; font-size: 1.0625rem; }
+.hub-findbar .hub-dsearch__chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0 0; }
+.hub-findbar .hub-dsearch__chip { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 16px; font-size: 1rem; background: var(--hub-bg); border-color: transparent; }
+.hub-findbar .hub-dsearch__tld { font-family: var(--hub-display); font-weight: 600; }
+@media (max-width: 860px) { .hub-findbar .hub-dsearch__chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) {
+    .hub-main .hub-findbar .hub-dsearch { padding: 22px 18px; }
+    .hub-findbar .hub-dsearch__chip { padding: 8px 12px; font-size: .95rem; flex-direction: column; gap: 0; }
+    .hub-hero-checks { flex-direction: column; }
+}
+
+/* ¿Qué necesitas hoy?: grilla de servicios 4×2 */
+.hub-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.hub-tiles li { margin: 0; }
+.hub-tile {
+    display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 26px 24px 22px;
+    background: #fff; border: 1px solid var(--hub-line); border-radius: 16px; color: var(--hub-ink); text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.hub-tile:hover { border-color: var(--hub-blue); box-shadow: 0 10px 28px -14px rgba(10, 63, 196, .45); }
+.hub-tile:focus-visible { outline: 3px solid var(--hub-yellow); outline-offset: 3px; border-color: var(--hub-blue); }
+.hub-tile__ico { width: 48px; height: 48px; padding: 10px; box-sizing: border-box; border-radius: 12px; background: var(--hub-blue-50); color: var(--hub-blue); margin-bottom: 18px; }
+.hub-tile__title { font-family: var(--hub-display); font-weight: 600; font-size: 1.2rem; line-height: 1.3; margin-bottom: 6px; }
+.hub-tile__text { color: var(--hub-muted-ink); font-size: 1rem; line-height: 1.55; margin-bottom: 18px; }
+.hub-tile__more { margin-top: auto; color: var(--hub-blue); font-weight: 600; font-size: .98rem; }
+.hub-tile:hover .hub-tile__more { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 1024px) { .hub-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .hub-tiles { grid-template-columns: 1fr; gap: 12px; } .hub-tile { padding: 20px; } }
+
+/* Planes de hosting: más aire y plan destacado */
+.hub-main .hub-plans { gap: 24px; }
+.hub-main .hub-plan { padding: 36px 30px 30px; border-radius: 18px; border: 1px solid var(--hub-line); box-shadow: 0 1px 2px rgba(15, 26, 51, .05), 0 12px 32px -12px rgba(15, 26, 51, .14); }
+.hub-main .hub-plan__name { font-size: 1.4rem; }
+.hub-main .hub-plan__specs { font-size: 1rem; color: var(--hub-muted-ink); }
+.hub-main .hub-plan .hub-price { font-size: 2.3rem; }
+.hub-main .hub-plan .hub-price__cycle { font-family: var(--hub-body); font-size: 1rem; font-weight: 500; letter-spacing: 0; }
+.hub-main .hub-plan--featured { border: 2px solid var(--hub-blue); box-shadow: 0 2px 4px rgba(10, 63, 196, .08), 0 24px 48px -16px rgba(10, 63, 196, .35); }
+.hub-main .hub-plan__badge { font-size: .85rem; padding: 6px 14px; letter-spacing: .02em; }
+.hub-main .hub-plan > .hub-plan__badge { left: 30px; }
+.hub-main .hub-plan .hub-button { padding: 14px 22px; border: 1.5px solid var(--hub-blue); font-size: 1rem; }
+.hub-main .hub-plan:not(.hub-plan--featured) .hub-button { background: transparent; color: var(--hub-blue); }
+.hub-main .hub-plan:not(.hub-plan--featured) .hub-button:hover { background: var(--hub-blue-50); }
+.hub-main .hub-currency { margin-bottom: 28px; }
+.hub-more { margin-top: 28px !important; }
+
+/* Por qué elegir: icono, título y texto */
+.hub-points > .kt-row-column-wrap { gap: 32px !important; }
+.hub-points .hub-point > .kt-inside-inner-col { border-top: 0; padding-top: 0; }
+.hub-points .hub-point > .kt-inside-inner-col::before {
+    content: ""; display: block; position: static; opacity: 1; mix-blend-mode: normal; width: 52px; height: 52px; border-radius: 14px; margin-bottom: 18px;
+    background: var(--hub-blue-50) var(--ico) center / 26px no-repeat;
+}
+.hub-points .hub-point h3 { font-size: 1.2rem; margin-bottom: .45em; }
+.hub-points .hub-point p { font-size: 1.0625rem; line-height: 1.6; color: var(--hub-muted-ink); }
+
+/* Testimonios */
+.hub-quote p { font-size: 1.15rem; }
+.hub-quote cite { font-size: 1rem; }
+
+/* CTA final: banda navy */
+.kb-row-layout-wrap.hub-cta.hub-sec--dark { color: var(--hub-on-dark); }
+.hub-cta.hub-sec--dark > .kt-row-column-wrap { text-align: center; }
+.hub-cta.hub-sec--dark h2 { color: #fff; }
+.hub-cta.hub-sec--dark .hub-lead { color: var(--hub-on-dark-muted); margin-inline: auto; }
+.hub-cta.hub-sec--dark .wp-block-buttons { justify-content: center; }
+
+@media (max-width: 860px) {
+    .hub-hero:has(.hub-hero-plan) > .kt-row-column-wrap { padding-block: 48px 112px !important; }
+    .kb-row-layout-wrap.hub-sec > .kt-row-column-wrap { padding-block: 64px !important; }
+}
+@media (max-width: 480px) {
+    .hub-hero .hub-hero-links .wp-block-button { flex: 1 1 100%; }
+    .hub-hero .hub-hero-links .wp-block-button__link { display: block; text-align: center; }
+    .hub-main .hub-plan { padding: 32px 22px 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .hub-tile { transition: none; } }
+@media (max-width: 860px) {
+    .hub-findbar__in { margin-top: 32px !important; }
+    .hub-main .hub-plans { row-gap: 36px; }
+}
+@media (max-width: 480px) { .hub-findbar .hub-dsearch__chip { border-radius: 12px; } }
+.hub-sec h2 + .hub-points, .hub-sec h2 + .kb-row-layout-wrap.hub-points { margin-top: 36px !important; }
