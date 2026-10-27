@@ -3,14 +3,13 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
-  // VITE_API_TARGET: backend (nginx de infra/docker-compose.yml). El proxy deja
-  // /api y /sanctum en el mismo origen que la app para que las cookies de
-  // sesión y XSRF-TOKEN de Sanctum funcionen en desarrollo.
   const env = loadEnv(mode, process.cwd(), '');
-  const target = env.VITE_API_TARGET || 'http://localhost:8080';
+  const target = process.env.VITE_API_TARGET || env.VITE_API_TARGET || 'http://localhost:8080';
+  const base = process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/';
   const proxy = { target, changeOrigin: false, secure: false, xfwd: true };
 
   return {
+    base,
     plugins: [react()],
     resolve: {
       alias: {

@@ -3,6 +3,7 @@
 !backend/
 !database/
 !infra/docker/php/entrypoint.sh
+!infra/docker/php/load-secrets.php
 
 backend/vendor/
 backend/node_modules/

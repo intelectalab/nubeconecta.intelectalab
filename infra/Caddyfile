@@ -1,0 +1,21 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$HUB_DOMAIN} {
+  encode zstd gzip
+  handle /admin/* {
+    reverse_proxy web:80
+  }
+  handle /portal/* {
+    reverse_proxy web:80
+  }
+  handle {
+    reverse_proxy web:80
+  }
+}
+
+{$WP_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy wordpress:80
+}

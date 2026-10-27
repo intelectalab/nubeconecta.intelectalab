@@ -43,3 +43,11 @@ ehthumbs.db
 
 # Docker data local
 .docker-data/
+# Production secrets and backup archives
+/infra/secrets/
+/infra/backups/
+/infra/.env.production
+/infra/.env.production.*
+/infra/*.key
+/infra/wordpress-credentials.txt
+/infra/*.tar.gz

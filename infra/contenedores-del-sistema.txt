@@ -1,0 +1,70 @@
+EXPLICACIÓN DE LOS CONTENEDORES DEL SISTEMA HUB
+=================================================
+
+Este documento describe el entorno local de desarrollo definido en infra/docker-compose.yml. Los contenedores de la aplicación comparten la red Docker hub_net y pueden localizarse usando el nombre de su servicio.
+
+SERVICIOS DE LA APLICACIÓN
+--------------------------
+
+1. hub_web (servicio Compose: web; imagen: nginx:alpine)
+   Función: recibe las solicitudes web del backend Laravel y las pasa a PHP-FPM (hub_app).
+   Acceso desde Windows: http://localhost:8080
+   Puerto interno: 80. Puerto publicado en el equipo: 8080.
+
+2. hub_app (servicio Compose: app; imagen construida hub-php:dev)
+   Función: ejecuta la aplicación Laravel y atiende PHP-FPM. Utiliza PostgreSQL y Redis.
+   Puerto interno: 9000 (PHP-FPM; no publicado directamente al equipo).
+
+3. hub_worker (servicio Compose: worker; imagen hub-php:dev)
+   Función: ejecuta Laravel Horizon para procesar trabajos en cola en segundo plano.
+   Se conecta a PostgreSQL y Redis. No publica puertos al equipo.
+
+4. hub_scheduler (servicio Compose: scheduler; imagen hub-php:dev)
+   Función: ejecuta las tareas programadas de Laravel continuamente.
+   No publica puertos al equipo.
+
+5. hub_postgres (servicio Compose: postgres; imagen postgres:16-alpine)
+   Función: base de datos principal del sistema Hub y Laravel. Conserva los datos en un volumen de Docker.
+   Acceso desde el equipo: 127.0.0.1:5432. Dentro de la red: postgres:5432.
+   Estado observado: healthy.
+
+6. hub_redis (servicio Compose: redis; imagen redis:7-alpine)
+   Función: proporciona caché, sesiones y almacenamiento de colas usado por Laravel.
+   Acceso desde el equipo: 127.0.0.1:6379. Dentro de la red: redis:6379.
+   Estado observado: healthy.
+
+7. hub_wordpress (servicio Compose: wordpress; imagen wordpress:php8.2-apache)
+   Función: publica el sitio web de la empresa, las páginas editables y el plugin Hub Connector.
+   Acceso desde Windows: http://localhost:8000
+   Puerto interno: 80. Puerto publicado en el equipo: 8000.
+   El plugin puede solicitar datos a Laravel por la red Docker; las páginas y ajustes propios de WordPress se guardan en su base de datos independiente.
+
+8. hub_wp_db (servicio Compose: wordpress_db; imagen mariadb:10.11)
+   Función: almacena las páginas, usuarios, plugins y configuración de WordPress.
+   Dentro de la red: wordpress_db:3306. El puerto 3306 no está publicado al equipo.
+   No reemplaza PostgreSQL: Laravel y Hub siguen usando hub_postgres como base principal.
+
+CONTENEDOR AUXILIAR DE DOCKER
+-----------------------------
+
+buildx_buildkit_default (imagen moby/buildkit:buildx-stable-1)
+   Función: BuildKit, constructor que Docker utiliza para construir imágenes.
+   No forma parte de los ocho servicios de la aplicación y no atiende solicitudes del sitio.
+
+RESUMEN DEL FLUJO
+-----------------
+
+Navegador -> hub_web:8080 -> hub_app -> hub_postgres / hub_redis
+Navegador -> hub_wordpress:8000 -> hub_wp_db
+Hub Connector en WordPress -> servicio Laravel por la red Docker hub_net
+
+Los puertos 8000 y 8080 son para acceder desde el equipo anfitrión. Entre servicios Compose se usa el nombre del servicio y el puerto interno. PostgreSQL y Redis solo se publican en localhost según la configuración actual.
+
+ESTADO AL MOMENTO DE CREAR ESTE DOCUMENTO
+-----------------------------------------
+
+Los ocho contenedores de aplicación estaban en ejecución. PostgreSQL y Redis figuraban como healthy. BuildKit aparecía como contenedor auxiliar en ejecución.
+
+Los estados y puertos pueden cambiar si se modifica infra/docker-compose.yml o se detienen contenedores. Para consultarlos usa:
+   docker compose ps
+

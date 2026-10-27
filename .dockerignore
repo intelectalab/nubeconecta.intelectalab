@@ -1,0 +1,16 @@
+﻿**/.git
+**/node_modules
+**/dist
+**/.vite
+**/coverage
+**/.env
+**/.env.*
+**/.phpunit.result.cache
+**/storage/logs/*
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+infra/secrets
+infra/backups
+*.tar.gz
+*.zip
