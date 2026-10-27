@@ -431,9 +431,27 @@ html { background: var(--hub-navy); }
 .hub-points .hub-point h3 { font-size: 1.2rem; margin-bottom: .45em; }
 .hub-points .hub-point p { font-size: 1.0625rem; line-height: 1.6; color: var(--hub-muted-ink); }
 
-/* Testimonios */
-.hub-quote p { font-size: 1.15rem; }
-.hub-quote cite { font-size: 1rem; }
+/* Por qué elegir: título a la izquierda, puntos 2×2 a la derecha */
+.hub-why .kadence-columnhubin-why-c1 > .kt-inside-inner-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); column-gap: 72px; grid-template-rows: auto auto 1fr; align-items: start; }
+.hub-why .kadence-columnhubin-why-c1 > .kt-inside-inner-col > * { grid-column: 1; }
+.hub-why .kadence-columnhubin-why-c1 > .kt-inside-inner-col > .hub-points { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+.hub-why .hub-sub { margin-bottom: 20px !important; }
+.hub-why .hub-more { margin-top: 0 !important; }
+.hub-why .hub-points > .kt-row-column-wrap { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 0 !important; }
+.hub-why .hub-point > .kt-inside-inner-col { padding: 28px 28px 28px 0 !important; border-top: 1px solid var(--hub-line) !important; }
+.hub-why .hub-point:nth-child(even) > .kt-inside-inner-col { padding-left: 28px !important; padding-right: 0 !important; border-left: 1px solid var(--hub-line); }
+
+/* Testimonios: tarjetas de igual alto con el autor abajo */
+.hub-badge { display: inline-block; margin: 0 0 14px !important; padding: 4px 12px; border-radius: 999px; background: var(--hub-blue-50); color: var(--hub-blue); font-size: .875rem; font-weight: 600; }
+.hub-testimonials .wp-block-kadence-column > .kt-inside-inner-col { height: 100%; }
+.hub-quote.wp-block-quote {
+    height: 100%; box-sizing: border-box; display: flex; flex-direction: column;
+    background: #fff; border: 1px solid var(--hub-line); border-radius: 16px; padding: 30px 30px 26px;
+    box-shadow: 0 1px 2px rgba(15, 26, 51, .04), 0 12px 32px -18px rgba(15, 26, 51, .18);
+}
+.hub-quote::before { font-size: 3rem; margin-bottom: 10px; }
+.hub-quote p { font-size: 1.125rem; line-height: 1.6; flex: 1; margin-bottom: 24px; }
+.hub-quote cite { display: block; padding-top: 16px; border-top: 1px solid var(--hub-line); font-size: .95rem; font-weight: 600; color: var(--hub-ink); }
 
 /* CTA final: banda navy */
 .kb-row-layout-wrap.hub-cta.hub-sec--dark { color: var(--hub-on-dark); }
@@ -441,6 +459,11 @@ html { background: var(--hub-navy); }
 .hub-cta.hub-sec--dark h2 { color: #fff; }
 .hub-cta.hub-sec--dark .hub-lead { color: var(--hub-on-dark-muted); margin-inline: auto; }
 .hub-cta.hub-sec--dark .wp-block-buttons { justify-content: center; }
+
+@media (max-width: 600px) {
+    .hub-why .hub-points > .kt-row-column-wrap { grid-template-columns: 1fr !important; }
+    .hub-why .hub-point > .kt-inside-inner-col, .hub-why .hub-point:nth-child(even) > .kt-inside-inner-col { padding: 24px 0 !important; border-left: 0; }
+}
 
 @media (max-width: 860px) {
     .hub-hero:has(.hub-hero-plan) > .kt-row-column-wrap { padding-block: 48px 112px !important; }
@@ -453,6 +476,8 @@ html { background: var(--hub-navy); }
 }
 @media (prefers-reduced-motion: reduce) { .hub-tile { transition: none; } }
 @media (max-width: 860px) {
+    .hub-why .kadence-columnhubin-why-c1 > .kt-inside-inner-col { display: block; }
+    .hub-why .hub-points { margin-top: 24px; }
     .hub-findbar__in { margin-top: 32px !important; }
     .hub-main .hub-plans { row-gap: 36px; }
 }
