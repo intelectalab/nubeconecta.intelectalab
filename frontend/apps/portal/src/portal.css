@@ -474,6 +474,8 @@ button.nav-item{width:100%;border:0;cursor:pointer;text-align:left;font:inherit;
 .hello .acts{display:flex;gap:8px;flex-wrap:wrap}
 .hello .btn{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.12);color:#fff}
 .hello .btn:hover{background:rgba(255,255,255,.22)}
+.hello .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.hello .btn.primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
 .hello .btn.success{background:var(--ok-strong);border-color:var(--ok-strong)}
 .hello svg.deco{position:absolute;right:-30px;bottom:-40px;width:220px;height:180px;opacity:.12;pointer-events:none}
 @media (max-width:760px){.hello{grid-template-columns:minmax(0,1fr);padding:18px}.hello h1{font-size:21px}}
