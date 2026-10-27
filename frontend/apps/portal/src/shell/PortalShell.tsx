@@ -3,7 +3,7 @@
  * avisos, asistente y usuario; menú lateral agrupado con tarjeta de cuenta; migas;
  * contenedor de página. El contenido de cada pantalla va como `children`.
  */
-import { useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '@hub/ui';
 import type { Me } from '@hub/api';
 import { AssistantChat } from '../components/AssistantChat';
@@ -11,6 +11,127 @@ import { initials } from '../auth/client';
 import { CRUMBS, NAV_OF, type NavGroup, type Route } from './routes';
 
 export type Currency = 'PEN' | 'USD';
+
+/** Elemento buscable con Ctrl K: servicio, dominio o comprobante del cliente. */
+export interface SearchItem {
+  kind: 'Servicio' | 'Dominio' | 'Comprobante';
+  label: string;
+  sub?: string;
+  onPick: () => void;
+}
+
+const THEME_KEY = 'portal.theme';
+type Theme = 'light' | 'dark';
+function storedTheme(): Theme | null {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    return t === 'dark' || t === 'light' ? t : null;
+  } catch {
+    return null;
+  }
+}
+function systemDark(): boolean {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return false;
+  }
+}
+const isMobile = () => window.matchMedia('(max-width:900px)').matches;
+const KIND_ICON: Record<SearchItem['kind'], string> = { Servicio: 'server', Dominio: 'globe', Comprobante: 'receipt' };
+
+function MenuIcon() {
+  return (
+    <svg className="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function Palette({ open, onClose, loadItems }: { open: boolean; onClose: () => void; loadItems: () => Promise<SearchItem[]> }) {
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState<SearchItem[]>([]);
+  const [sel, setSel] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    setQ('');
+    setSel(0);
+    let alive = true;
+    loadItems()
+      .then((r) => alive && setItems(r))
+      .catch(() => alive && setItems([]));
+    setTimeout(() => inputRef.current?.focus(), 0);
+    return () => {
+      alive = false;
+    };
+  }, [open, loadItems]);
+  const found = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return items.filter((i) => !t || `${i.label} ${i.sub ?? ''} ${i.kind}`.toLowerCase().includes(t)).slice(0, 30);
+  }, [items, q]);
+  if (!open) return null;
+  const pick = (i: SearchItem | undefined) => {
+    if (!i) return;
+    onClose();
+    i.onPick();
+  };
+  return (
+    <div className="pal-root" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pal" role="dialog" aria-modal="true" aria-label="Buscar">
+        <div className="pal-in">
+          <Icon name="search" />
+          <input
+            ref={inputRef}
+            value={q}
+            placeholder="Buscar servicios, dominios, comprobantes…"
+            aria-label="Buscar"
+            onChange={(e) => {
+              setQ(e.target.value);
+              setSel(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onClose();
+              else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSel((v) => Math.min(v + 1, found.length - 1));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSel((v) => Math.max(v - 1, 0));
+              } else if (e.key === 'Enter') pick(found[sel]);
+            }}
+          />
+          <kbd>Esc</kbd>
+        </div>
+        <div className="pal-res">
+          {found.length === 0 ? (
+            <div className="pal-empty">Sin resultados</div>
+          ) : (
+            found.map((i, k) => (
+              <div key={`${i.kind}-${i.label}-${k}`} className="pal-it" role="option" aria-selected={k === sel} onMouseEnter={() => setSel(k)} onClick={() => pick(i)}>
+                <span className="ico">
+                  <Icon name={KIND_ICON[i.kind]} />
+                </span>
+                <span className="grow">
+                  <b>{i.label}</b>
+                  <small>
+                    {i.kind}
+                    {i.sub ? ` · ${i.sub}` : ''}
+                  </small>
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="pal-foot">
+          <span>↑↓ navegar</span>
+          <span>Enter abrir</span>
+          <span>Esc cerrar</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export interface PortalShellProps {
   user: Me;
@@ -25,11 +146,53 @@ export interface PortalShellProps {
   /** Texto de la miga actual; por defecto el nombre de la ruta. */
   crumb?: string;
   onLogout: () => void;
+  /** Carga los elementos buscables (servicios, dominios, comprobantes). */
+  loadSearch: () => Promise<SearchItem[]>;
   children: ReactNode;
 }
 
-export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, children }: PortalShellProps) {
+export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, loadSearch, children }: PortalShellProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [palOpen, setPalOpen] = useState(false);
+  const [explicit, setExplicit] = useState<Theme | null>(storedTheme);
+  const [sysDark, setSysDark] = useState(systemDark);
+  const theme: Theme = explicit ?? (sysDark ? 'dark' : 'light');
+  useEffect(() => {
+    if (explicit) document.documentElement.setAttribute('data-theme', explicit);
+  }, [explicit]);
+  useEffect(() => {
+    let mq: MediaQueryList;
+    try {
+      mq = window.matchMedia('(prefers-color-scheme: dark)');
+    } catch {
+      return;
+    }
+    const on = () => setSysDark(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  const toggleTheme = () => {
+    const n: Theme = theme === 'dark' ? 'light' : 'dark';
+    setExplicit(n);
+    try {
+      localStorage.setItem(THEME_KEY, n);
+    } catch {
+      /* sin almacenamiento: la preferencia dura la sesión */
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPalOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => setDrawer(false), [route]);
+  const loadItems = useCallback(() => loadSearch(), [loadSearch]);
   const roleName = user.roles[0]?.name ?? '';
   const active = NAV_OF[route];
   const link = (r: Route) => (e: React.MouseEvent) => {
@@ -38,8 +201,11 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
   };
 
   return (
-    <div className="app" id="app">
+    <div className={`app${drawer ? " drawer" : ""}`} id="app">
       <header className="topbar" role="banner">
+        <button type="button" className="tb-btn" onClick={() => { if (isMobile()) setDrawer((v) => !v); }} aria-label="Abrir o plegar menú" aria-controls="sidebar" aria-expanded={drawer}>
+          <MenuIcon />
+        </button>
         <a className="logo" href="#resumen" onClick={link('resumen')}>
           <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 42, height: 32, flex: 'none' }}>
             <path d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z" fill="none" stroke="#5f9a32" strokeWidth="3.2" strokeLinejoin="round" />
@@ -54,12 +220,20 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
           {demo ? 'Datos de ejemplo' : 'Datos en vivo'}
         </span>
 
-        <div className="tb-spacer" style={{ flex: 1 }} />
+        <button type="button" className="tb-search" onClick={() => setPalOpen(true)} aria-label="Buscar (Ctrl+K)">
+          <Icon name="search" />
+          <span>Buscar servicios, dominios, comprobantes…</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <div className="tb-spacer" />
 
-        <select className="tb-cur" value={cur} onChange={(e) => onCur(e.target.value as Currency)} title="Moneda">
-          <option value="PEN">S/</option>
-          <option value="USD">US$</option>
-        </select>
+        <div className="tb-select">
+          <label htmlFor="selCur">Moneda</label>
+          <select id="selCur" aria-label="Moneda de visualización" value={cur} onChange={(e) => onCur(e.target.value as Currency)}>
+            <option value="PEN">S/</option>
+            <option value="USD">US$</option>
+          </select>
+        </div>
 
         <AssistantChat />
 
@@ -68,14 +242,16 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
           <span className="tb-dot" />
         </button>
 
+        <button type="button" className="tb-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}>
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+        </button>
+
         <div className="anchor">
           <button className="tb-user" aria-label="Usuario" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen(!userMenuOpen)}>
-            <span className="av" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand-text)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>
-              {initials(user.name)}
-            </span>
-            <span className="who" style={{ textAlign: 'left', lineHeight: 1.2 }}>
-              <strong style={{ fontSize: 13, display: 'block' }}>{user.name}</strong>
-              <small style={{ color: 'var(--topbar-muted)', fontSize: 11 }}>{account.name}</small>
+            <span className="avatar">{initials(user.name)}</span>
+            <span className="who">
+              <b>{user.name}</b>
+              <small>{account.name}</small>
             </span>
           </button>
 
@@ -129,7 +305,8 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
         </div>
       </header>
 
-      <nav className="sidebar" aria-label="Navegación principal">
+      <div className="scrim" onClick={() => setDrawer(false)} />
+      <nav className="sidebar" id="sidebar" aria-label="Navegación principal">
         <div className="acct">
           <div className="ico">
             <Icon name="building" />
@@ -170,6 +347,8 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
           </button>
         </div>
       </nav>
+
+      <Palette open={palOpen} onClose={() => setPalOpen(false)} loadItems={loadItems} />
 
       <main className="main" id="main">
         <div className="page">

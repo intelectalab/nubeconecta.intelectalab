@@ -194,6 +194,7 @@ export function Table({ cols, children }: { cols: Array<{ label: ReactNode; righ
 }
 
 export function Pager({ loading, prev, next, onPrev, onNext }: { loading: boolean; prev?: string | null; next?: string | null; onPrev: () => void; onNext: () => void }) {
+  if (!prev && !next) return null;
   return (
     <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
       <button type="button" className="btn sm" disabled={loading || !prev} onClick={onPrev}>

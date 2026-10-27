@@ -6,7 +6,7 @@ import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { LoginView } from './components/LoginView';
 import { Alert, Hello, Kpi, Kpis } from './components/ui';
 import { DEMO_MODE, DEMO_USER, hub, onUnauthenticated } from './auth/client';
-import { PortalShell, type Currency } from './shell/PortalShell';
+import { PortalShell, type Currency, type SearchItem } from './shell/PortalShell';
 import { navGroups, useHashRoute, type Route } from './shell/routes';
 import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
@@ -133,6 +133,21 @@ export default function App() {
   const can = (perm: string) => perms.has(perm) || perms.has('*');
 
   /* Miga de la ruta actual (las de detalle usan el dato de ejemplo en modo demo). */
+  const loadSearch = async (): Promise<SearchItem[]> => {
+    if (DEMO_MODE) {
+      return [
+        ...SRV.map((x): SearchItem => ({ kind: 'Servicio', label: x.name, sub: x.kind, onPick: () => { setSelectedServiceId(x.id); setRoute('servicio-detalle'); } })),
+        ...DOMS.map((x): SearchItem => ({ kind: 'Dominio', label: x.name, sub: `vence ${x.exp}`, onPick: () => setRoute('dominios') })),
+        ...INV.map((x): SearchItem => ({ kind: 'Comprobante', label: x.id, sub: x.desc, onPick: () => setRoute('facturas') })),
+      ];
+    }
+    const [sv, iv] = await Promise.all([hub.services.portalList({ size: 100 }).catch(() => null), hub.billing.portalList({ sort: '-issue_date', size: 100 }).catch(() => null)]);
+    return [
+      ...(sv?.data ?? []).map((x): SearchItem => ({ kind: 'Servicio', label: x.label, sub: x.code, onPick: () => setRoute('servicios') })),
+      ...(iv?.data ?? []).map((x): SearchItem => ({ kind: 'Comprobante', label: x.number ?? x.id, onPick: () => setRoute('facturas') })),
+    ];
+  };
+
   const crumb: string | undefined = live
     ? route === 'pagar'
       ? 'Pagos y vouchers'
@@ -159,6 +174,7 @@ export default function App() {
       nav={nav}
       crumb={crumb}
       onLogout={() => void logout()}
+      loadSearch={loadSearch}
     >
           {live ? <LivePortal route={route as LiveRoute} go={(r: Route) => setRoute(r)} can={can} userName={user.name} /> : null}
 
