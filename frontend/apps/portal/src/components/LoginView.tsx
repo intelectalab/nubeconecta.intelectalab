@@ -309,7 +309,7 @@ export const LoginView: FC<LoginViewProps> = ({ onLoggedIn, notice, changeFor })
         </div>
 
         <div className="auth-art-foot">
-          <span>AlojamientoPlus S.A.C. · RUC 20614587231</span>
+          <span>AlojamientoPlus · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117</span>
           <span>Soporte NOC: guardia@alojamientoplus.pe</span>
         </div>
       </div>

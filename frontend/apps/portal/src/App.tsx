@@ -635,7 +635,7 @@ export default function App() {
                     </div>
 
                     <span className="sub" style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      RUC emisor: 20614587231 • Tipo de cambio referencial S/ {TC}
+                      RUC emisor: 20607431117 • Tipo de cambio referencial S/ {TC}
                     </span>
                   </div>
 
@@ -905,7 +905,7 @@ export default function App() {
                           <div className="bank">
                             <div className="row">
                               <span>Titular:</span>
-                              <b>AlojamientoPlus S.A.C.</b>
+                              <b>GRUPO DE SOLUCIONES CREATIVAS</b>
                             </div>
                             <div className="row">
                               <span>Cuenta BCP Soles:</span>

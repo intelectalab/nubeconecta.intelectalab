@@ -291,7 +291,7 @@ final class DemoCatalogCommand extends Command
             return (string) $id;
         }
         $entity = DB::table('legal_entities')->where('organization_id', $this->org)->orderBy('created_at')->value('id')
-            ?? $this->upsert('legal_entities', ['tax_id' => '20000000000'], ['legal_name' => 'Entidad emisora de demostración']);
+            ?? $this->upsert('legal_entities', ['tax_id' => '20607431117'], ['legal_name' => 'GRUPO DE SOLUCIONES CREATIVAS']);
 
         return $this->upsert('brands', ['code' => $code], ['name' => 'AlojamientoPlus', 'default_legal_entity_id' => $entity]);
     }
