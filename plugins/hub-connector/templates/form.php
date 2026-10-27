@@ -47,7 +47,14 @@ $fields = [
     </p>
     <p class="hub-form__field hub-form__consent">
         <input type="checkbox" id="<?php echo esc_attr($id); ?>-consent" name="consent" value="1"<?php echo $data['consent_required'] ? ' required aria-required="true"' : ''; ?> aria-describedby="<?php echo esc_attr($id); ?>-consent-error">
-        <label for="<?php echo esc_attr($id); ?>-consent"><?php echo esc_html($data['consent_text']); ?></label>
+        <?php
+        // «política de privacidad» del texto pasa a ser un enlace a la política (sin la ruta cruda).
+        $consent = esc_html($data['consent_text']);
+        if (($data['consent_url'] ?? '') !== '') {
+            $consent = (string) preg_replace('/política de privacidad/iu', '<a href="' . esc_url($data['consent_url']) . '" target="_blank" rel="noopener">$0</a>', $consent, 1);
+        }
+        ?>
+        <label for="<?php echo esc_attr($id); ?>-consent"><?php echo $consent; // phpcs:ignore WordPress.Security.EscapeOutput -- texto escapado arriba ?></label>
         <span class="hub-form__error" id="<?php echo esc_attr($id); ?>-consent-error"></span>
     </p>
     <p class="hub-form__actions">

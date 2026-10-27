@@ -55,7 +55,7 @@ class PlanesShortcode extends AbstractShortcode
 
         $views = [];
         foreach (self::pickCycle($plans, $cycle) as $plan) {
-            $views[] = $this->planView($plan, $plan['_prices']);
+            $views[] = $this->quoteFallback($this->planView($plan, $plan['_prices']));
         }
 
         return $this->plugin->templates()->render('plans', [

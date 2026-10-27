@@ -6,7 +6,9 @@ use HubConnector\Api\Endpoints;
 use HubConnector\Plugin;
 
 /**
- * [hub_precios_dominios extensiones=".pe,.com.pe,.com" moneda="" titulo=""] (wpListDomainPrices).
+ * [hub_precios_dominios extensiones=".pe,.com.pe,.com" moneda="" titulo="" vista="tabla|franja" max=""] (wpListDomainPrices).
+ * vista="franja" pinta una línea compacta con el precio de registro por año de cada extensión
+ * (p. ej. en el hero de Inicio) y max limita cuántas extensiones se muestran.
  * También responde como [hub_dominios] (nombre de docs/13 §8). Tabla de registro,
  * renovación y transferencia por extensión, en todas las monedas de la marca.
  */
@@ -24,7 +26,7 @@ class PreciosDominiosShortcode extends AbstractShortcode
 
     protected function defaults(): array
     {
-        return ['extensiones' => '', 'moneda' => '', 'titulo' => ''];
+        return ['extensiones' => '', 'moneda' => '', 'titulo' => '', 'vista' => 'tabla', 'max' => ''];
     }
 
     protected function render(array $atts): string
@@ -41,6 +43,11 @@ class PreciosDominiosShortcode extends AbstractShortcode
             $tlds[] = $tld;
         }
         $currencies = $this->currencies($atts['moneda']);
+        $view = $this->oneOf('vista', $atts['vista'], ['tabla', 'franja']);
+        if ($atts['max'] !== '' && !preg_match('/^[1-9][0-9]?$/', $atts['max'])) {
+            throw new InvalidAttribute(sprintf(__('Valor no válido en el atributo %1$s: "%2$s".', 'hub-connector'), 'max', $atts['max']));
+        }
+        $max = $atts['max'] === '' ? 0 : (int) $atts['max'];
 
         $rows = [];
         foreach ($currencies as $currency) {
@@ -63,6 +70,21 @@ class PreciosDominiosShortcode extends AbstractShortcode
         }
         if ($rows === []) {
             return $this->editorNotice(__('No hay extensiones de dominio vendibles para estos atributos.', 'hub-connector'));
+        }
+        if ($tlds !== []) {
+            // Respeta el orden pedido en extensiones (.pe primero, etc.).
+            $order = array_flip(array_map('strtolower', $tlds));
+            uksort($rows, static fn ($a, $b) => ($order[strtolower((string) $a)] ?? PHP_INT_MAX) <=> ($order[strtolower((string) $b)] ?? PHP_INT_MAX));
+        }
+        if ($max > 0) {
+            $rows = array_slice($rows, 0, $max, true);
+        }
+        if ($view === 'franja') {
+            return $this->plugin->templates()->render('domain-strip', [
+                'caption' => $atts['titulo'] !== '' ? ucfirst(sanitize_text_field($atts['titulo'])) : __('Registro de dominio por año', 'hub-connector'),
+                'rows' => array_values($rows),
+                'visible_currency' => $this->visibleCurrency($currencies),
+            ]);
         }
 
         return $this->plugin->templates()->render('domain-prices', [

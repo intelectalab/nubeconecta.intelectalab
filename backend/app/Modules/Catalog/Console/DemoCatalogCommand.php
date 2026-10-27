@@ -160,11 +160,12 @@ final class DemoCatalogCommand extends Command
     private function hosting(): void
     {
         foreach (self::HOSTING as [$id, $cat, $name, $disk, $bw, $mails, $dbs, $sites, $whm, $penM, $penA, $usdM, $usdA, $online, $featured]) {
-            $product = $this->product($id, $cat, $name, "{$disk} GB · {$sites} sitio(s)", 'recurring', $online, false, ['whm_package' => $whm]);
+            $tagline = "{$disk} GB · {$sites} ".($sites === 1 ? 'sitio' : 'sitios');
+            $product = $this->product($id, $cat, $name, $tagline, 'recurring', $online, false, ['whm_package' => $whm]);
             $limits = ['disk_gb' => $disk, 'bandwidth_gb' => $bw === 0 ? null : $bw, 'email_accounts' => $mails, 'databases' => $dbs, 'websites' => $sites];
             $this->plan($product, "{$id}-m", "{$name} mensual", 'monthly', $limits, ['PEN' => $penM, 'USD' => $usdM]);
             $this->plan($product, "{$id}-a", "{$name} anual", 'annual', $limits, ['PEN' => $penA, 'USD' => $usdA]);
-            $this->listing($product, $name, "{$disk} GB · {$sites} sitio(s)", $online, $featured);
+            $this->listing($product, $name, $tagline, $online, $featured);
         }
     }
 

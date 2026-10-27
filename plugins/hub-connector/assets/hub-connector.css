@@ -9,7 +9,7 @@
     --hub-muted: #4a5568;
     --hub-radius: 10px;
 }
-.hub-plans { list-style: none; margin: 1.5em 0; padding: 0; display: grid; gap: 1.25em; grid-template-columns: 1fr; }
+.hub-plans { list-style: none; margin: 2em 0 1.5em; padding: 0; display: grid; gap: 1.25em; grid-template-columns: 1fr; }
 @media (min-width: 640px) {
     .hub-plans--cols-2, .hub-plans--cols-3, .hub-plans--cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -17,20 +17,32 @@
     .hub-plans--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .hub-plans--cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-.hub-plan { display: flex; flex-direction: column; gap: .5em; height: 100%; box-sizing: border-box; padding: 1.5em; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+.hub-plan { position: relative; display: flex; flex-direction: column; gap: .75em; height: 100%; box-sizing: border-box; padding: 1.75em 1.5em 1.5em; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
 .hub-plan--featured { border: 2px solid var(--hub-primary); }
-.hub-plan__badge { align-self: flex-start; margin: 0; padding: .2em .7em; font-size: .75em; font-weight: 700; color: var(--hub-primary-contrast); background: var(--hub-primary); border-radius: 999px; }
+/* La insignia va sobre el borde superior: no empuja el contenido, así nombre, specs y precio
+   comparten línea base en todas las tarjetas. */
+.hub-plan__badge { display: inline-block; margin: 0; padding: .25em .8em; font-size: .75em; font-weight: 700; line-height: 1.4; color: var(--hub-primary-contrast); background: var(--hub-primary); border-radius: 999px; }
+.hub-plan > .hub-plan__badge { position: absolute; top: 0; left: 1.5em; transform: translateY(-50%); }
 .hub-plan__name { margin: 0; }
+.hub-plan__specs { list-style: none; margin: 0; padding: 0; color: var(--hub-muted); }
+.hub-plan__specs li { margin: 0; }
+.hub-plan__price { margin: 0; }
 .hub-plan__tagline, .hub-price__cycle, .hub-price__setup { color: var(--hub-muted); margin: 0; }
-.hub-price { margin: .25em 0; font-size: 1.6em; font-weight: 700; }
+.hub-price { margin: 0; font-size: 1.6em; font-weight: 700; }
 .hub-price[hidden] { display: none; }
 .hub-price__cycle, .hub-price__setup { font-size: .55em; font-weight: 400; }
 .hub-price__setup { display: block; }
-.hub-plan__features { margin: 0 0 1em; padding-left: 1.2em; flex: 1; }
+.hub-plan__features { margin: 0; padding-left: 1.2em; }
+.hub-plan__features:empty { padding: 0; }
+/* Filas compartidas entre tarjetas (nombre, specs, precio, características, botón). */
+@supports (grid-template-rows: subgrid) {
+    .hub-plans__item { display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 0; }
+    .hub-plan { grid-row: 1 / -1; display: grid; grid-template-rows: subgrid; row-gap: .75em; align-content: start; }
+}
 .hub-button { display: inline-block; text-align: center; padding: .65em 1.2em; font-weight: 600; text-decoration: none; color: var(--hub-primary-contrast); background: var(--hub-primary); border-radius: calc(var(--hub-radius) - 2px); }
 .hub-button:hover, .hub-button:focus-visible { text-decoration: underline; }
 .hub-button:focus-visible, .hub-currency__option:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 2px; }
-.hub-plan .hub-button { margin-top: auto; }
+.hub-plan .hub-button { margin-top: auto; align-self: end; }
 .hub-currency { display: inline-flex; gap: .25em; }
 .hub-currency__option { padding: .4em .9em; font: inherit; cursor: pointer; color: var(--hub-primary); background: transparent; border: 1px solid var(--hub-primary); border-radius: 999px; }
 .hub-currency__option[aria-pressed="true"] { color: var(--hub-primary-contrast); background: var(--hub-primary); }
@@ -80,3 +92,12 @@
 .hub-form__status--ok { color: #1a7f37; font-weight: 600; }
 .hub-form__status--error { color: #b42318; }
 .screen-reader-text { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* [hub_precios_dominios vista=franja]: extensiones con su precio de registro por año. */
+.hub-domstrip { margin: 0; }
+.hub-domstrip__title { margin: 0 0 .75em; font-size: .9em; }
+.hub-domstrip__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.hub-domstrip__item { display: flex; flex-direction: column; gap: .15em; padding: .8em 0; margin: 0; }
+.hub-domstrip__tld { font-weight: 700; font-size: 1.6em; line-height: 1.1; }
+.hub-domstrip .hub-price { font-size: 1em; font-weight: 600; }
+.hub-domstrip .hub-price[hidden] { display: none; }
+@media (max-width: 420px) { .hub-domstrip__list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -43,6 +43,8 @@ class FormularioShortcode extends AbstractShortcode
         $instance++;
         $redirect = is_string($form['redirect_url'] ?? null) && str_starts_with($form['redirect_url'], 'https://') ? $form['redirect_url'] : '';
 
+        [$consentText, $consentUrl] = self::consent(is_string($form['consent']['text'] ?? null) ? $form['consent']['text'] : __('Acepto la política de privacidad.', 'hub-connector'));
+
         return $this->plugin->templates()->render('form', [
             'uid' => 'hubf-' . $code . '-' . $instance,
             'code' => $code,
@@ -50,10 +52,31 @@ class FormularioShortcode extends AbstractShortcode
             'action' => rest_url('hub-connector/v1/relay/form/' . $code),
             'nonce' => wp_create_nonce('hub_connector_form'),
             'consent_required' => !empty($form['consent']['required']),
-            'consent_text' => is_string($form['consent']['text'] ?? null) ? $form['consent']['text'] : __('Acepto la política de privacidad.', 'hub-connector'),
+            'consent_text' => $consentText,
+            'consent_url' => $consentUrl,
             'success_message' => is_string($form['success_message'] ?? null) ? $form['success_message'] : __('Gracias. Recibimos tu mensaje.', 'hub-connector'),
             'redirect_url' => $redirect,
             'button' => $atts['boton'] !== '' ? ucfirst(sanitize_text_field($atts['boton'])) : ($code === 'cotizacion' ? __('Solicitar cotización', 'hub-connector') : __('Enviar mensaje', 'hub-connector')),
         ]);
+    }
+
+    /**
+     * El texto de consentimiento del sistema puede traer la ruta de la política entre
+     * paréntesis («política de privacidad (/politica-de-privacidad/)»): se quita del texto
+     * y se usa como enlace. Sin ruta, se enlaza a /politica-de-privacidad/.
+     *
+     * @return array{0:string, 1:string} texto limpio y URL de la política
+     */
+    public static function consent(string $text): array
+    {
+        $path = '/politica-de-privacidad/';
+        $clean = (string) preg_replace_callback('#\s*\(\s*((?:https?://[^\s()]+)|(?:/[a-z0-9/_-]*))\s*\)#iu', static function (array $m) use (&$path): string {
+            $path = $m[1];
+
+            return '';
+        }, $text);
+        $url = str_starts_with($path, '/') ? home_url($path) : $path;
+
+        return [trim((string) preg_replace('/\s{2,}/u', ' ', $clean)), $url];
     }
 }

@@ -210,7 +210,8 @@ abstract class AbstractShortcode
             'id' => (string) ($plan['id'] ?? ''),
             'code' => (string) ($plan['code'] ?? ''),
             'name' => $name,
-            'tagline' => is_string($plan['tagline'] ?? null) ? $plan['tagline'] : '',
+            'tagline' => is_string($plan['tagline'] ?? null) ? self::pluralize($plan['tagline']) : '',
+            'specs' => is_string($plan['tagline'] ?? null) ? self::specs($plan['tagline']) : [],
             'highlights' => $highlights,
             'featured' => !empty($plan['featured']),
             'cycle' => $cycle,
@@ -218,6 +219,49 @@ abstract class AbstractShortcode
             'prices' => $formatted,
             'action' => $this->action($plan, $name),
         ];
+    }
+
+    /**
+     * «1 sitio(s)» → «1 sitio», «5 sitio(s)» → «5 sitios» (también «(es)»): el sistema
+     * entrega textos con plural genérico y la web los muestra concordados.
+     */
+    public static function pluralize(string $text): string
+    {
+        return (string) preg_replace_callback('/(\d+)(\s+)(\p{L}+)\((e?s)\)/u', static function (array $m): string {
+            return $m[1] . $m[2] . $m[3] . ((int) $m[1] === 1 ? '' : $m[4]);
+        }, $text);
+    }
+
+    /**
+     * Especificaciones de la tarjeta a partir del lema «10 GB · 1 sitio(s)»: el punto medio
+     * (o la barra vertical) del sistema se convierte en lista, no en separador decorativo.
+     *
+     * @return list<string>
+     */
+    public static function specs(string $tagline): array
+    {
+        $parts = preg_split('/\s*[·|•]\s*/u', self::pluralize($tagline)) ?: [];
+
+        return array_values(array_filter(array_map('trim', $parts), 'strlen'));
+    }
+
+    /**
+     * Mientras el sistema no entregue la URL del carrito (D-19), la tarjeta lleva a la
+     * página de cotización con el plan elegido: /cotizacion/?plan=<código>.
+     */
+    protected function quoteFallback(array $view): array
+    {
+        if ($view['action'] !== null || $view['code'] === '') {
+            return $view;
+        }
+        $label = __('Elegir plan', 'hub-connector');
+        $view['action'] = [
+            'url' => add_query_arg(['plan' => rawurlencode($view['code'])], home_url('/cotizacion/')),
+            'text' => $label,
+            'aria' => trim($label . ' ' . $view['name'] . ' ' . $view['cycle_label']),
+        ];
+
+        return $view;
     }
 
     /** Botón de contratar hacia central_urls.cart; sin carrito definido no hay botón (D-19/D-20). */
