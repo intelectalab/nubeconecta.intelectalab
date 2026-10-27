@@ -402,19 +402,6 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
             </div>
           </div>
         ))}
-
-        <div className="nav-foot">
-          <button
-            type="button"
-            className="nav-item"
-            onClick={onLogout}
-            disabled={demo}
-            style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'var(--muted)', fontSize: 13 }}
-          >
-            <Icon name="logout" />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
       </nav>
 
       <AssistantChat userName={user.name.split(' ')[0]} onOpenTicket={() => go('soporte')} />
