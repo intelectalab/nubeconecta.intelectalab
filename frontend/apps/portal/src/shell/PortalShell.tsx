@@ -1,6 +1,6 @@
 /**
- * Armazón del portal (demo y real): cabecera con marca, etiqueta de modo, moneda,
- * avisos, asistente y usuario; menú lateral agrupado con tarjeta de cuenta; migas;
+ * Armazón del portal (demo y real): cabecera con la misma estructura que el admin
+ * (marca, etiqueta de modo, buscador, moneda, avisos, tema y usuario), asistente flotante; menú lateral agrupado con tarjeta de cuenta; migas;
  * contenedor de página. El contenido de cada pantalla va como `children`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -18,6 +18,16 @@ export interface SearchItem {
   label: string;
   sub?: string;
   onPick: () => void;
+}
+
+/** Aviso de la campana de la cabecera. */
+export interface PortalNotif {
+  id: string;
+  icon: string;
+  title: string;
+  sub: string;
+  route: Route;
+  onPick?: () => void;
 }
 
 const THEME_KEY = 'portal.theme';
@@ -148,11 +158,16 @@ export interface PortalShellProps {
   onLogout: () => void;
   /** Carga los elementos buscables (servicios, dominios, comprobantes). */
   loadSearch: () => Promise<SearchItem[]>;
+  /** Avisos de la campana (facturas vencidas, servicios con incidencias, tickets por responder). */
+  notifs?: PortalNotif[];
   children: ReactNode;
 }
 
-export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, loadSearch, children }: PortalShellProps) {
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, loadSearch, notifs = [], children }: PortalShellProps) {
+  const [pop, setPop] = useState<'notif' | 'user' | null>(null);
+  const [read, setRead] = useState<Set<string>>(() => new Set());
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
   const [drawer, setDrawer] = useState(false);
   const [palOpen, setPalOpen] = useState(false);
   const [explicit, setExplicit] = useState<Theme | null>(storedTheme);
@@ -191,7 +206,30 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  useEffect(() => setDrawer(false), [route]);
+  useEffect(() => {
+    setDrawer(false);
+    setPop(null);
+  }, [route]);
+  /* Cierra los menús de la cabecera al hacer clic fuera o con Escape (devuelve el foco al botón). */
+  useEffect(() => {
+    if (!pop) return;
+    const box = pop === 'notif' ? notifRef : userRef;
+    const onDown = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setPop(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setPop(null);
+      box.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [pop]);
+  const unread = notifs.filter((n) => !read.has(n.id)).length;
   const loadItems = useCallback(() => loadSearch(), [loadSearch]);
   const roleName = user.roles[0]?.name ?? '';
   const active = NAV_OF[route];
@@ -206,22 +244,21 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
         <button type="button" className="tb-btn" onClick={() => { if (isMobile()) setDrawer((v) => !v); }} aria-label="Abrir o plegar menú" aria-controls="sidebar" aria-expanded={drawer}>
           <MenuIcon />
         </button>
-        <a className="logo" href="#resumen" onClick={link('resumen')}>
-          <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 42, height: 32, flex: 'none' }}>
+        <a className="logo" href="#resumen" onClick={link('resumen')} aria-label="AlojamientoPlus, ir al resumen del portal">
+          <svg viewBox="0 0 48 36" aria-hidden="true">
             <path d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z" fill="none" stroke="#5f9a32" strokeWidth="3.2" strokeLinejoin="round" />
             <path d="M25.6 9.5 17.8 21h6l-2.2 9.5L31 17.6h-6.2l2.6-8.1z" fill="#f2b71a" stroke="#f2b71a" strokeWidth="1" strokeLinejoin="round" />
           </svg>
           <b>
             Alojamiento<span>Plus</span>
           </b>
-          <em>Portal del cliente</em>
         </a>
         <span className={`demo-badge${demo ? '' : ' live'}`} title={demo ? 'Toda la información mostrada es ficticia' : 'Información real de su cuenta'}>
           {demo ? 'Datos de ejemplo' : 'Datos en vivo'}
         </span>
 
-        <button type="button" className="tb-search" onClick={() => setPalOpen(true)} aria-label="Buscar (Ctrl+K)">
-          <Icon name="search" />
+        <button type="button" className="tb-search" onClick={() => { setPop(null); setPalOpen(true); }} aria-label="Buscar (Ctrl+K)">
+          <Icon name="search" className="sm" />
           <span>Buscar servicios, dominios, comprobantes…</span>
           <kbd>Ctrl K</kbd>
         </button>
@@ -230,78 +267,110 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
         <div className="tb-select">
           <label htmlFor="selCur">Moneda</label>
           <select id="selCur" aria-label="Moneda de visualización" value={cur} onChange={(e) => onCur(e.target.value as Currency)}>
-            <option value="PEN">S/</option>
-            <option value="USD">US$</option>
+            <option value="PEN">Soles (S/)</option>
+            <option value="USD">Dólares (US$)</option>
           </select>
         </div>
 
-        <AssistantChat />
-
-        <button className="tb-btn" title="Notificaciones" aria-label="Notificaciones">
-          <Icon name="bell" />
-          <span className="tb-dot" />
-        </button>
+        <div className="anchor" ref={notifRef}>
+          <button type="button" className="tb-btn" onClick={() => setPop((p) => (p === 'notif' ? null : 'notif'))} aria-label={`Notificaciones, ${unread} sin leer`} aria-haspopup="true" aria-expanded={pop === 'notif'}>
+            <Icon name="bell" />
+            {unread ? <span className="dot">{unread}</span> : null}
+          </button>
+          <div className={`pop${pop === 'notif' ? ' open' : ''}`} role="region" aria-label="Notificaciones">
+            {pop === 'notif' ? (
+              <>
+                <div className="pop-h">
+                  <b>Notificaciones</b>
+                  <button type="button" className="btn ghost sm" autoFocus disabled={!unread} onClick={() => setRead(new Set(notifs.map((n) => n.id)))}>
+                    Marcar todo como leído
+                  </button>
+                </div>
+                {notifs.length === 0 ? (
+                  <div className="pop-empty">No tienes notificaciones nuevas.</div>
+                ) : (
+                  <ul className="pop-list">
+                    {notifs.map((n) => {
+                      const isUnread = !read.has(n.id);
+                      return (
+                        <li key={n.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRead((s) => new Set(s).add(n.id));
+                              setPop(null);
+                              if (n.onPick) n.onPick();
+                              else go(n.route);
+                            }}
+                          >
+                            {isUnread ? <i className="unread" aria-label="sin leer" /> : <i className="read" />}
+                            <Icon name={n.icon} />
+                            <span style={{ flex: 1, minWidth: 0 }}>
+                              <b style={{ fontWeight: isUnread ? 700 : 500 }}>{n.title}</b>
+                              <small>{n.sub}</small>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            ) : null}
+          </div>
+        </div>
 
         <button type="button" className="tb-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
 
-        <div className="anchor">
-          <button className="tb-user" aria-label="Usuario" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen(!userMenuOpen)}>
+        <div className="anchor" ref={userRef}>
+          <button type="button" className="tb-user" onClick={() => setPop((p) => (p === 'user' ? null : 'user'))} aria-haspopup="true" aria-expanded={pop === 'user'} aria-label="Menú de usuario">
             <span className="avatar">{initials(user.name)}</span>
             <span className="who">
               <b>{user.name}</b>
               <small>{account.name}</small>
             </span>
           </button>
-
-          {userMenuOpen && (
-            <div className="pop open umenu" style={{ display: 'block', top: 'calc(100% + 8px)', right: 0, width: 230 }}>
-              <div className="who">
-                <b>{user.name}</b>
-                <small>{user.email}</small>
-                <small>
-                  {account.name}
-                  {roleName ? ` · ${roleName}` : ''}
-                </small>
-              </div>
-              <div className="ttl">Tu cuenta</div>
-              <button
-                type="button"
-                className="mi"
-                onClick={() => {
-                  go('perfil');
-                  setUserMenuOpen(false);
-                }}
-              >
-                <Icon name="building" className="sm" /> Datos de facturación
-              </button>
-              <button
-                type="button"
-                className="mi"
-                onClick={() => {
-                  go('seguridad');
-                  setUserMenuOpen(false);
-                }}
-              >
-                <Icon name="shield" className="sm" /> Seguridad y 2FA
-              </button>
-              <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
-              <button
-                type="button"
-                className="mi"
-                style={{ color: 'var(--danger-text)' }}
-                onClick={() => {
-                  setUserMenuOpen(false);
-                  onLogout();
-                }}
-                disabled={demo}
-                title={demo ? 'No disponible en modo demo' : undefined}
-              >
-                <Icon name="logout" className="sm" /> Cerrar sesión
-              </button>
-            </div>
-          )}
+          <div className={`pop umenu${pop === 'user' ? ' open' : ''}`} style={{ width: 'min(270px,calc(100vw - 24px))' }}>
+            {pop === 'user' ? (
+              <>
+                <div className="who">
+                  <b>{user.name}</b>
+                  <small>{user.email}</small>
+                  <small>
+                    {account.name}
+                    {roleName ? ` · ${roleName}` : ''}
+                  </small>
+                  {demo ? <small>Modo demo (sin backend)</small> : null}
+                </div>
+                <div className="ttl">Tu cuenta</div>
+                <button type="button" className="mi" autoFocus onClick={() => { setPop(null); go('perfil'); }}>
+                  <Icon name="building" /> Datos de facturación
+                </button>
+                <button type="button" className="mi" onClick={() => { setPop(null); go('seguridad'); }}>
+                  <Icon name="shield" /> Seguridad y 2FA
+                </button>
+                <button type="button" className="mi" onClick={() => { setPop(null); go('soporte'); }}>
+                  <Icon name="msg" /> Centro de soporte
+                </button>
+                <div style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 6 }}>
+                  <button
+                    type="button"
+                    className="mi"
+                    onClick={() => {
+                      setPop(null);
+                      onLogout();
+                    }}
+                    disabled={demo}
+                    title={demo ? 'No disponible en modo demo' : undefined}
+                  >
+                    <Icon name="logout" /> Cerrar sesión
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -347,6 +416,8 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
           </button>
         </div>
       </nav>
+
+      <AssistantChat userName={user.name.split(' ')[0]} onOpenTicket={() => go('soporte')} />
 
       <Palette open={palOpen} onClose={() => setPalOpen(false)} loadItems={loadItems} />
 

@@ -6,7 +6,7 @@ import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { LoginView } from './components/LoginView';
 import { Alert, Hello, Kpi, Kpis } from './components/ui';
 import { DEMO_MODE, DEMO_USER, hub, onUnauthenticated } from './auth/client';
-import { PortalShell, type Currency, type SearchItem } from './shell/PortalShell';
+import { PortalShell, type Currency, type PortalNotif, type SearchItem } from './shell/PortalShell';
 import { navGroups, useHashRoute, type Route } from './shell/routes';
 import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
@@ -162,6 +162,29 @@ export default function App() {
     DEMO_MODE ? { servicios: SRV.filter((s) => s.st === 'warn').length, facturas: INV.filter((i) => i.st !== 'pagada').length } : {},
   );
 
+  /* Avisos de la campana (solo en demo; con backend aún no hay endpoint de avisos del cliente). */
+  const notifs: PortalNotif[] = DEMO_MODE
+    ? [
+        ...INV.filter((i) => i.st === 'vencida').map((i): PortalNotif => ({ id: `inv-${i.id}`, icon: 'receipt', title: `Factura ${i.id} vencida`, sub: `${i.desc} · venció el ${i.due}`, route: 'facturas' })),
+        ...SRV.filter((x) => x.st !== 'ok').map((x): PortalNotif => ({
+          id: `srv-${x.id}`,
+          icon: 'tri',
+          title: `Atención en ${x.name}`,
+          sub: x.stNote ?? 'Revisa el estado del servicio',
+          route: 'servicio-detalle',
+          onPick: () => { setSelectedServiceId(x.id); setRoute('servicio-detalle'); },
+        })),
+        ...ticketsList.filter((t) => t.st === 'Esperando tu respuesta').map((t): PortalNotif => ({
+          id: `tk-${t.id}`,
+          icon: 'msg',
+          title: `${t.id} espera tu respuesta`,
+          sub: t.subj,
+          route: 'ticket-detalle',
+          onPick: () => { setSelectedTicketId(t.id); setRoute('ticket-detalle'); },
+        })),
+      ]
+    : [];
+
   return (
     <PortalShell
       user={user}
@@ -175,6 +198,7 @@ export default function App() {
       crumb={crumb}
       onLogout={() => void logout()}
       loadSearch={loadSearch}
+      notifs={notifs}
     >
           {live ? <LivePortal route={route as LiveRoute} go={(r: Route) => setRoute(r)} can={can} userName={user.name} /> : null}
 
