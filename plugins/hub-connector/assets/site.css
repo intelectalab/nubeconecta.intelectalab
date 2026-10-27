@@ -171,6 +171,11 @@ html { background: var(--hub-navy); }
     .hub-header .hub-portal { order: 2; margin-left: auto !important; }
     .hub-header .hub-nav { order: 3; flex: none; }
 }
+/* El núcleo solo pasa a hamburguesa bajo 600px; entre 600 y 1024 el menú completo no cabe. */
+@media (min-width: 600px) and (max-width: 1024px) {
+    .hub-nav .wp-block-navigation__responsive-container-open:not(.always-shown) { display: flex; }
+    .hub-nav .wp-block-navigation__responsive-container:not(.hidden-by-default):not(.is-menu-open) { display: none; }
+}
 @media (max-width: 480px) {
     .hub-header { gap: 8px; }
     .hub-logo { font-size: 1.1rem; gap: 6px; min-width: 0; }
@@ -483,3 +488,6 @@ html { background: var(--hub-navy); }
 }
 @media (max-width: 480px) { .hub-findbar .hub-dsearch__chip { border-radius: 12px; } }
 .hub-sec h2 + .hub-points, .hub-sec h2 + .kb-row-layout-wrap.hub-points { margin-top: 36px !important; }
+
+/* Las tarjetas laterales (p. ej. Datos de contacto) empiezan arriba, no centradas en la columna. */
+.wp-block-kadence-column.hub-card > .kt-inside-inner-col { justify-content: flex-start; }

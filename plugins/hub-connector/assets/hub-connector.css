@@ -50,7 +50,7 @@
 .hub-contact--enlace .hub-contact__item, .hub-contact--texto .hub-contact__item, .hub-contact--boton .hub-contact__item { display: inline-block; margin-right: 1em; }
 .hub-notice--editor { padding: .75em 1em; color: #7a3d00; background: #fff4e5; border: 1px solid #d9700b; border-radius: 6px; }
 /* Comparador y precios de dominios: tablas desplazables en móvil. */
-.hub-compare, .hub-domains { overflow-x: auto; margin: 1.5em 0; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+.hub-compare, .hub-domains { position: relative; overflow-x: auto; margin: 1.5em 0; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
 .hub-compare:focus-visible, .hub-domains:focus-visible { outline: 3px solid var(--hub-primary); outline-offset: 2px; }
 .hub-compare__table, .hub-domains__table { width: 100%; min-width: 560px; border-collapse: collapse; margin: 0; }
 .hub-compare__table th, .hub-compare__table td, .hub-domains__table th, .hub-domains__table td { padding: .75em 1em; text-align: center; border-bottom: 1px solid var(--hub-border); vertical-align: middle; }
