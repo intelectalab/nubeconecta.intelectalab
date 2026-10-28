@@ -1,12 +1,12 @@
 {
-  "version": "1.3.1",
+  "version": "1.3.2",
   "front_page": "inicio",
   "site": {
     "blogname": "AlojamientoPlus",
     "blogdescription": "Hosting, servidores, dominios y correo corporativo en Perú"
   },
   "pages": [
-    {"slug": "inicio", "title": "Inicio", "order": 0, "seo_title": "Hosting en Perú, VPS, dominios .pe y correo %%sep%% %%sitename%%", "seo_description": "Hosting web, VPS, cloud gestionado, dominios .pe y correo corporativo con soporte en español desde Perú. Precios en soles o dólares y factura electrónica."},
+    {"slug": "inicio", "title": "Inicio", "order": 0, "seo_title": "Hosting en Perú, VPS, dominios .pe y correo %%sep%% %%sitename%%", "seo_description": "Hosting web, VPS, cloud gestionado, dominios .pe y correo corporativo con soporte en español desde Lima. Precios en soles o dólares y boleta o factura electrónica."},
     {"slug": "hosting", "title": "Hosting", "order": 10, "seo_title": "Hosting web y WordPress en Perú %%sep%% %%sitename%%", "seo_description": "Planes de hosting con cPanel, SSL gratis, copias diarias y migración sin costo. Compara planes y precios en soles o dólares."},
     {"slug": "servidores-vps", "title": "VPS y servidores", "order": 20, "seo_title": "Servidores VPS y dedicados %%sep%% %%sitename%%", "seo_description": "VPS con recursos garantizados y acceso root, y servidores dedicados en Lima. Administrados o no administrados, con soporte en español."},
     {"slug": "cloud", "title": "Cloud", "order": 30, "seo_title": "Cloud gestionado AWS, Azure y Google Cloud %%sep%% %%sitename%%", "seo_description": "Diseñamos, migramos y operamos tu infraestructura en AWS, Azure, Google Cloud o IBM Cloud con monitoreo y soporte continuo."},
@@ -21,8 +21,8 @@
     {"slug": "politica-de-privacidad", "title": "Política de privacidad", "order": 210, "seo_title": "Política de privacidad %%sep%% %%sitename%%", "seo_description": "Cómo tratamos tus datos personales en AlojamientoPlus (texto pendiente de asesoría legal)."},
     {"slug": "reembolsos-y-cancelaciones", "title": "Reembolsos y cancelaciones", "order": 220, "seo_title": "Reembolsos y cancelaciones %%sep%% %%sitename%%", "seo_description": "Condiciones de reembolso y cancelación de servicios (texto pendiente de asesoría legal)."},
     {"slug": "libro-de-reclamaciones", "title": "Libro de Reclamaciones", "order": 230, "seo_title": "Libro de Reclamaciones %%sep%% %%sitename%%", "seo_description": "Libro de Reclamaciones de GRUPO DE SOLUCIONES CREATIVAS (RUC 20607431117), marca AlojamientoPlus."},
-    {"slug": "promociones", "title": "Promociones", "order": 300, "expire_days": 30, "seo_title": "Promoción de hosting anual %%sep%% %%sitename%%", "seo_description": "Promoción de ejemplo: hosting anual con 20 % de descuento el primer año. Vigencia de 30 días."},
-    {"slug": "promocion-borrador", "title": "Promoción en revisión (ejemplo)", "order": 310, "status": "pending", "seo_title": "Dominio .pe con correo incluido %%sep%% %%sitename%%", "seo_description": "Promoción de ejemplo pendiente de revisión editorial."}
+    {"slug": "promociones", "title": "Promociones", "order": 300, "seo_title": "Promociones %%sep%% %%sitename%%", "seo_description": "Por ahora no hay promociones vigentes. Revisa nuestros planes o solicita una cotización."},
+    {"slug": "promocion-borrador", "title": "Promoción en preparación", "order": 310, "status": "draft", "seo_title": "Promociones en preparación %%sep%% %%sitename%%", "seo_description": "Página reservada para futuras promociones; no se publica hasta su aprobación."}
   ],
   "menus": {
     "principal": {"title": "Menú principal", "items": [
@@ -43,7 +43,7 @@
     "pie": {"title": "Menú de pie", "items": [
       {"label": "Hosting", "page": "hosting"},
       {"label": "VPS y dedicados", "page": "servidores-vps"},
-      {"label": "Cloud", "page": "cloud"},
+      {"label": "Cloud gestionado", "page": "cloud"},
       {"label": "Dominios", "page": "dominios"},
       {"label": "Correo", "page": "correo"},
       {"label": "Web y tiendas", "page": "web-y-tiendas"},
