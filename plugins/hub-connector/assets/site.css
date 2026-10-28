@@ -66,14 +66,16 @@ html { background: var(--hub-navy); }
 .hub-included { background: var(--hub-navy-2); color: var(--hub-on-dark-muted); border-top: 1px solid var(--hub-navy-line); }
 .hub-included p { max-width: var(--hub-wrap); margin: 0 auto; padding: 16px; font-size: .95rem; }
 /* Preguntas frecuentes: lista desplegable */
-.hub-faq { max-width: 820px; border-top: 1px solid var(--hub-line); }
-.hub-faq__item { border-bottom: 1px solid var(--hub-line); margin: 0 !important; }
-.hub-faq__item summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 18px 0; font-family: var(--hub-display); font-weight: 600; font-size: 1.08rem; color: var(--hub-ink); }
+.hub-faq { max-width: 860px; display: grid; gap: 12px; }
+.hub-faq__item { margin: 0 !important; background: #fff; border: 1px solid var(--hub-line); border-radius: 14px; transition: border-color .15s ease, box-shadow .15s ease; }
+.hub-faq__item[open] { border-color: var(--hub-blue); box-shadow: 0 10px 28px -20px rgba(10, 63, 196, .45); }
+.hub-faq__item summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 22px; font-family: var(--hub-display); font-weight: 600; font-size: 1.1rem; color: var(--hub-ink); border-radius: 14px; }
 .hub-faq__item summary::-webkit-details-marker { display: none; }
-.hub-faq__item summary::after { content: "+"; flex: none; font-size: 1.4rem; line-height: 1; color: var(--hub-blue); }
-.hub-faq__item[open] summary::after { content: "\2212"; }
+.hub-faq__item summary::after { content: "+"; flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--hub-blue-50); font-size: 1.25rem; line-height: 1; color: var(--hub-blue); }
+.hub-faq__item[open] summary::after { content: "2"; background: var(--hub-blue); color: #fff; }
 .hub-faq__item summary:hover { color: var(--hub-blue); }
-.hub-faq__item p { color: var(--hub-muted-ink); margin: 0 0 18px; max-width: 70ch; }
+.hub-faq__item summary:focus-visible { outline: 3px solid var(--hub-yellow); outline-offset: 2px; }
+.hub-faq__item p { color: var(--hub-muted-ink); margin: 0; padding: 0 22px 20px; max-width: 70ch; }
 .hub-checks { list-style: none; padding: 0; margin: 0; }
 .hub-checks li { padding: 8px 0 8px 32px; position: relative; border-bottom: 1px solid var(--hub-navy-line); }
 .hub-checks li:last-child { border-bottom: 0; }
@@ -491,3 +493,14 @@ html { background: var(--hub-navy); }
 
 /* Las tarjetas laterales (p. ej. Datos de contacto) empiezan arriba, no centradas en la columna. */
 .wp-block-kadence-column.hub-card > .kt-inside-inner-col { justify-content: flex-start; }
+
+/* Comparador de planes: cabecera con aire, insignia dentro de la celda y columna destacada sombreada. */
+.hub-main .hub-compare { border: 1px solid var(--hub-line); border-radius: 16px; box-shadow: 0 1px 2px rgba(15, 26, 51, .04), 0 14px 34px -24px rgba(15, 26, 51, .25); }
+.hub-main .hub-compare__table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.hub-main .hub-compare thead th { padding: 26px 18px 18px; vertical-align: top; }
+.hub-main .hub-compare__plan .hub-plan__badge { display: inline-block; margin-bottom: 8px; }
+.hub-main .hub-compare__plan--featured { box-shadow: none; background: var(--hub-blue-50); border-top: 3px solid var(--hub-blue); }
+.hub-main .hub-compare tbody th[scope="row"] { font-weight: 600; color: var(--hub-ink); }
+.hub-main .hub-compare tbody th, .hub-main .hub-compare tbody td { padding: 14px 18px; }
+.hub-main .hub-compare tbody tr:nth-child(even) { background: var(--hub-bg); }
+.hub-main .hub-compare .hub-price { font-size: 1.35em; font-family: var(--hub-display); }
