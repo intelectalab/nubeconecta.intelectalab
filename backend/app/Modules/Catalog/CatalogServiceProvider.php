@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Catalog;
 
 use App\Modules\Catalog\Console\DemoCatalogCommand;
+use App\Modules\Catalog\Console\LaunchCatalogCommand;
 use App\Modules\Catalog\Services\PriceResolver;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -24,7 +25,7 @@ final class CatalogServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([DemoCatalogCommand::class]);
+            $this->commands([DemoCatalogCommand::class, LaunchCatalogCommand::class]);
         }
 
         if (! $this->app->routesAreCached()) {

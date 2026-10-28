@@ -129,4 +129,31 @@ final class CatalogTest extends IdentityTestCase
         $this->assertSame(34900, $hp2['price']['amount_minor']);
         $this->assertTrue($hp2['featured']);
     }
+
+    public function test_launch_catalog_is_idempotent_clean_and_keeps_manual_changes(): void
+    {
+        $this->artisan('hub:catalog:launch')->assertSuccessful();
+        $counts = fn () => [DB::table('products')->count(), DB::table('plans')->count(), DB::table('plan_prices')->count(), DB::table('product_listings')->count(), DB::table('tax_rates')->count(), DB::table('brands')->count(), DB::table('domain_tld_prices')->count()];
+        $first = $counts();
+        $this->assertGreaterThan(50, $first[0]);
+
+        // Mismo catálogo que el demo, sin marcas "demo" en códigos ni textos visibles.
+        $this->assertSame(0, DB::table('products')->where('code', 'like', 'demo%')->count());
+        $this->assertSame(0, DB::table('plans')->where('code', 'like', 'demo%')->count());
+        $this->assertSame(0, DB::table('products')->where('description', 'ilike', '%demostraci%')->count());
+        $this->assertSame($first[0], DB::table('products')->distinct()->count('code'));
+        $pyme = DB::table('plans')->where('code', 'hosting-pyme-anual')->value('id');
+        $this->assertSame(34900, (int) DB::table('plan_prices')->where('plan_id', $pyme)->where('currency', 'PEN')->value('price_minor'));
+        $this->assertSame($this->brand, DB::table('products')->where('code', 'hosting-pyme')->value('brand_id'));
+
+        // Re-ejecutar no duplica ni pisa cambios manuales.
+        DB::table('plans')->where('code', 'hosting-pyme-anual')->update(['name' => 'Pyme editado a mano']);
+        DB::table('plan_prices')->where('plan_id', $pyme)->where('currency', 'PEN')->update(['price_minor' => 40000]);
+        DB::table('products')->where('code', 'hosting-pyme')->update(['name' => 'Pyme manual']);
+        $this->artisan('hub:catalog:launch')->assertSuccessful();
+        $this->assertSame($first, $counts());
+        $this->assertSame('Pyme editado a mano', DB::table('plans')->where('code', 'hosting-pyme-anual')->value('name'));
+        $this->assertSame(40000, (int) DB::table('plan_prices')->where('plan_id', $pyme)->where('currency', 'PEN')->value('price_minor'));
+        $this->assertSame('Pyme manual', DB::table('products')->where('code', 'hosting-pyme')->value('name'));
+    }
 }
