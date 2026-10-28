@@ -23,13 +23,16 @@ El proyecto está diseñado como un **monorepo** para que podamos trabajar los 4
 ├── frontend/             # Código de React + TypeScript + Vite
 │   ├── apps/admin/       # Panel administrativo (corre en http://localhost:3000)
 │   ├── apps/portal/      # Portal del cliente (corre en http://localhost:3001)
-│   └── packages/ui/      # Librería de componentes comunes compartida (@hub/ui)
-├── backend/              # API REST modular en Laravel (PHP 8.3)
-├── database/             # Esquema oficial PostgreSQL 16 (schema.sql de 203 tablas) y semillas
-├── infra/                # Docker Compose para levantar PostgreSQL 16, Redis y Nginx
-├── prototipo/            # Prototipos interactivos HTML para ver exactamente cómo debe verse la UI
-├── backlog/              # Matriz de requerimientos y más de 460 historias para Jira
-└── docs/                 # Documentación completa de arquitectura y reglas de negocio
+│   ├── packages/ui/      # Librería de componentes comunes compartida (@hub/ui)
+│   └── packages/api/     # Cliente de la API para admin y portal (@hub/api)
+├── backend/              # API REST modular en Laravel (PHP 8.3): backend/app/Modules/*
+├── database/             # Esquema oficial PostgreSQL 16 (schema.sql) y semillas
+├── api/                  # Contrato OpenAPI de la API (openapi.yaml)
+├── plugins/hub-connector/# Plugin de WordPress que conecta la web comercial con el sistema
+├── infra/                # Docker Compose de desarrollo y de producción, imágenes y scripts
+├── prototipo/            # Prototipos HTML de referencia (diseño original de la UI)
+├── backlog/              # Matriz de requerimientos e historias para Jira
+└── docs/                 # Arquitectura, reglas de negocio y fichas de módulos (docs/modulos)
 ```
 
 > 💡 **Guía visual:** Si tienes dudas de cómo debe verse una pantalla, abre con dos clics los archivos de la carpeta `prototipo/` en tu navegador (`portal.html` y `panel.html`).
@@ -71,11 +74,16 @@ Requisitos: Tener instalado y abierto **Docker Desktop**.
 # Entrar a la carpeta infra
 cd infra
 
-# Levantar PostgreSQL 16 y Redis (carga automáticamente el schema.sql)
+# Levantar todo el sistema (carga automáticamente el schema.sql)
 docker compose up -d
 ```
-* **PostgreSQL:** `localhost:5432` (Usuario: `hub_owner`, Pass: `hub_secret_password`, BD: `hub`)
+* **API (Laravel):** http://localhost:8080
+* **Web comercial (WordPress):** http://localhost:8000 — la primera carga tras encender puede tardar casi un minuto
+* **Correos de prueba (Mailpit):** http://localhost:8025 — nada sale a Internet
+* **PostgreSQL:** `localhost:5432` (Usuario: `hub_owner`, Pass: `hub_secret_password`, BD: `hub`; solo desarrollo)
 * **Redis:** `localhost:6379`
+
+Producción: ver `infra/docker-compose.production.yml` e `infra/.env.production.example` (los secretos se generan en el servidor, nunca en el repo).
 
 ---
 

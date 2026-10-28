@@ -48,6 +48,7 @@ ehthumbs.db
 /infra/backups/
 /infra/.env.production
 /infra/.env.production.*
+!/infra/.env.production.example
 /infra/*.key
 /infra/wordpress-credentials.txt
 /infra/*.tar.gz
