@@ -105,6 +105,24 @@ export function createAuthApi(http: HttpClient) {
         password_confirmation: passwordConfirmation,
       }),
 
+    /** GET /portal/auth/password-policy: reglas vigentes, sin sesión (activación y restablecimiento). */
+    publicPasswordPolicy: async () => (await http.get<Envelope<PasswordPolicy>>('/api/v1/portal/auth/password-policy')).data,
+
+    /** POST /portal/auth/invitations/verify → nombre y correo enmascarado (no consume el enlace). 410 token_expired | token_invalid. */
+    verifyInvitation: async (token: string) =>
+      (await http.post<Envelope<{ name: string; email: string }>>('/api/v1/portal/auth/invitations/verify', { token })).data,
+
+    /** POST /portal/auth/invitations/accept (204): fija la contraseña; no inicia sesión. */
+    acceptInvitation: (token: string, password: string, passwordConfirmation: string) =>
+      http.post<void>('/api/v1/portal/auth/invitations/accept', { token, password, password_confirmation: passwordConfirmation }),
+
+    /** POST /portal/auth/password/forgot (202, siempre genérica). */
+    forgotPassword: (email: string) => http.post<unknown>('/api/v1/portal/auth/password/forgot', { email }),
+
+    /** POST /portal/auth/password/reset (204): cierra todas las sesiones del usuario. */
+    resetPassword: (token: string, password: string, passwordConfirmation: string) =>
+      http.post<void>('/api/v1/portal/auth/password/reset', { token, password, password_confirmation: passwordConfirmation }),
+
     /** POST /auth/mfa/totp → clave y URI otpauth (la clave queda en sesión hasta confirmar). */
     startTotp: async () => (await http.post<Envelope<TotpEnrollment>>(`${P}/mfa/totp`)).data,
 

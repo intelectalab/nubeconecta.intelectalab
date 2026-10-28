@@ -21,6 +21,13 @@ make_secret wp_db_password 48
 make_secret wp_db_root_password 48
 make_secret redis_password 48
 make_secret hub_vault_key 32
+# La contraseña SMTP la entrega el proveedor de correo: se crea vacío y se completa a mano.
+if [ ! -e "$SECRETS_DIR/mail_password.txt" ]; then
+  : > "$SECRETS_DIR/mail_password.txt"
+  chmod 600 "$SECRETS_DIR/mail_password.txt"
+  printf 'Created empty mail_password.txt: write the SMTP password of your mail provider in it.
+'
+fi
 
 APP_KEY_FILE="$SECRETS_DIR/laravel_app_key.txt"
 if [ ! -s "$APP_KEY_FILE" ]; then

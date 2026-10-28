@@ -185,6 +185,12 @@ de esquema que divergen.
 - Catalog emite `PlanChanged`/`PlanPriceChanged` y WebConnector los convierte en avisos `plan` firmados a las webs de la marca del producto (o de todas si no tiene marca).
 - Demo: `HUB_SERVICES_AUTO_ACTIVATE=true` y `HUB_BILLING_AUTO_ISSUE=true` dejan el flujo Pedido → Servicio activo → Comprobante emitido en un solo paso (aprobar).
 
+## Correo del portal: invitación y olvidé mi contraseña
+
+- **Flujo**: dar acceso al portal a un contacto (o `POST .../portal-invitation`) encola `PortalLinkMail` (cola `notifications`) con `{HUB_PORTAL_URL}/#/activar?token=...` (72 h, `HUB_INVITATION_HOURS`). El portal llama a `POST /api/v1/portal/auth/invitations/verify|accept`; "olvidé mi contraseña" usa `POST /portal/auth/password/forgot` (202 siempre genérica; límites `HUB_FORGOT_PER_MINUTE_IP` y `HUB_FORGOT_PER_HOUR_EMAIL`) y `.../password/reset` (60 min, `HUB_PASSWORD_RESET_MINUTES`; cierra todas las sesiones). Los tokens viven solo como hash en `user_tokens`; son de un solo uso.
+- **Desarrollo con Docker**: Mailpit recibe todo el correo en http://localhost:8025 (no sale nada a Internet). Sin Docker: `MAIL_MAILER=log` y el enlace queda en `storage/logs/laravel.log` (`grep "#/activar" storage/logs/laravel.log`).
+- **Producción** (`infra/docker-compose.production.yml`, valores en `infra/.env.production`): `MAIL_HOST`, `MAIL_PORT` (587), `MAIL_SCHEME` (vacío = STARTTLS; `smtps` para 465), `MAIL_USERNAME`, `MAIL_FROM_ADDRESS` (remitente del dominio con SPF/DKIM/DMARC configurados), `MAIL_FROM_NAME`, `HUB_PORTAL_URL` (URL pública del portal) y la contraseña SMTP en `secrets/mail_password.txt` (`MAIL_PASSWORD_FILE`). Horizon (worker) debe estar en marcha: el correo sale por la cola.
+
 ## Endurecimiento para producción
 
 - **Usuario de BD restringido**: `HUB_DB_APP_PASSWORD='<secreto>' php artisan hub:db:app-user` (ejecutado con el dueño `hub_owner`, tras `migrate`) crea o actualiza el rol `HUB_DB_APP_USERNAME` (por defecto `hub_app_login`) con `LOGIN INHERIT` y sin atributos de administración, miembro de `hub_app` (DML sin DDL y con los REVOKE de solo inserción). La aplicación usa luego `DB_USERNAME=hub_app_login`; migraciones y seeders siguen con `hub_owner`. En desarrollo se puede seguir con `hub_owner`. La contraseña nunca va en el repositorio.

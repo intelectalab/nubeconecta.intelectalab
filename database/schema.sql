@@ -100,6 +100,20 @@ CREATE UNIQUE INDEX users_org_email_uq ON users (organization_id, lower(email)) 
 CREATE INDEX ON users (organization_id, type, status);
 COMMENT ON TABLE users IS 'Usuarios del personal y de clientes (portal). Segundo factor por aplicación TOTP o por código al correo, obligatorio u opcional según la política de seguridad administrable (security.*).';
 
+CREATE TABLE user_tokens (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id),
+    user_id         uuid NOT NULL REFERENCES users(id),
+    purpose         text NOT NULL CHECK (purpose IN ('invitation','password_reset')),
+    token_hash      char(64) NOT NULL UNIQUE,   -- sha256; el valor plano solo viaja en el correo
+    expires_at      timestamptz NOT NULL,       -- invitación 72 h, restablecimiento 60 min (config hub.auth.*)
+    consumed_at     timestamptz NULL,           -- un solo uso
+    revoked_at      timestamptz NULL,           -- reemplazado por uno nuevo del mismo usuario y propósito
+    created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON user_tokens (user_id, purpose) WHERE consumed_at IS NULL AND revoked_at IS NULL;
+COMMENT ON TABLE user_tokens IS 'Tokens de un solo uso del portal: invitación para fijar la contraseña y restablecimiento de contraseña (solo hash, caducidad corta, uno vigente por usuario y propósito).';
+
 CREATE TABLE roles (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id uuid NOT NULL REFERENCES organizations(id),

@@ -66,6 +66,47 @@ final class PasswordService
         });
     }
 
+    /**
+     * Fija una contraseña sin conocer la anterior (activación por invitación o
+     * restablecimiento por enlace): aplica el historial, limpia bloqueos y
+     * must_change_password y, si $closeSessions, cierra todas las sesiones y tokens API.
+     */
+    public function set(User $user, string $new, bool $closeSessions): int
+    {
+        if ($this->reused($user, $new)) {
+            throw ValidationException::withMessages(['password' => [__('problems.password_reused')]]);
+        }
+
+        $keep = $this->policy->passwordHistoryCount();
+        if ($keep > 0 && $user->password_hash !== null) {
+            DB::table('password_histories')->insert([
+                'organization_id' => $user->organization_id,
+                'user_id' => $user->id,
+                'password_hash' => $user->password_hash,
+                'created_by' => $user->id,
+            ]);
+            $stale = DB::table('password_histories')->where('user_id', $user->id)
+                ->orderByDesc('created_at')->orderByDesc('id')->offset($keep)->limit(1000)->pluck('id');
+            DB::table('password_histories')->whereIn('id', $stale)->delete();
+        }
+
+        $user->forceFill([
+            'password_hash' => Hash::make($new),
+            'password_changed_at' => now(),
+            'must_change_password' => false,
+            'failed_login_count' => 0,
+            'locked_until' => null,
+        ])->save();
+
+        $revoked = 0;
+        if ($closeSessions) {
+            $revoked = $this->sessions->revokeAll($user);
+            $user->tokens()->delete();
+        }
+
+        return $revoked;
+    }
+
     /** La nueva coincide con la actual o con alguna de las últimas security.password.history_count. */
     private function reused(User $user, string $new): bool
     {

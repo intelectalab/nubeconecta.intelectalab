@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity;
 
+use App\Modules\Customers\Events\ContactPortalAccessGranted;
 use App\Modules\Identity\Console\CreateAdminCommand;
+use App\Modules\Identity\Listeners\SendPortalInvitation;
 use App\Modules\Identity\Services\AccessControlService;
 use App\Modules\Identity\Services\AuthSessionManager;
 use App\Modules\Identity\Services\SecurityPolicy;
 use App\Shared\Contracts\AccessControl;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -40,6 +43,16 @@ final class IdentityServiceProvider extends ServiceProvider
             max(1, (int) config('hub.auth.mfa_pending_minutes')),
             (int) config('hub.auth.mfa_max_attempts'),
         )->by('identity-mfa:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        // Enlaces del portal: comprobar/usar un token por IP; "olvidé mi contraseña" por IP y por correo (el 429 es igual exista o no la cuenta).
+        RateLimiter::for('identity-token-check', fn (Request $request) => Limit::perMinute(30)->by('identity-token-check:'.$request->ip()));
+        RateLimiter::for('identity-token-use', fn (Request $request) => Limit::perMinute(10)->by('identity-token-use:'.$request->ip()));
+        RateLimiter::for('identity-forgot', fn (Request $request) => [
+            Limit::perMinute((int) config('hub.auth.forgot_per_minute_ip'))->by('identity-forgot-ip:'.$request->ip()),
+            Limit::perHour((int) config('hub.auth.forgot_per_hour_email'))->by('identity-forgot-email:'.sha1(mb_strtolower(trim((string) $request->input('email'))))),
+        ]);
+
+        Event::listen(ContactPortalAccessGranted::class, SendPortalInvitation::class);
 
         // {user} y {role} solo aceptan UUID: otro valor responde 404 sin llegar a la base.
         Route::pattern('user', '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');

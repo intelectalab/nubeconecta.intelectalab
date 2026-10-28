@@ -7,6 +7,7 @@ use App\Modules\Identity\Http\Controllers\Admin\RoleController;
 use App\Modules\Identity\Http\Controllers\Admin\UserController;
 use App\Modules\Identity\Http\Controllers\AuthController;
 use App\Modules\Identity\Http\Controllers\MfaController;
+use App\Modules\Identity\Http\Controllers\PortalCredentialController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +29,15 @@ Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::delete('mfa/totp', [MfaController::class, 'disableTotp'])->middleware('mfa.recent')->name('mfa.totp.disable');
         Route::post('mfa/step-up', [MfaController::class, 'stepUp'])->middleware(['throttle:identity-login', 'throttle:identity-mfa'])->name('mfa.step-up');
     });
+});
+
+// Públicas del portal: activar la cuenta con invitación y recuperar la contraseña.
+Route::prefix('portal/auth')->name('portal.auth.')->group(function (): void {
+    Route::get('password-policy', [AuthController::class, 'passwordPolicy'])->middleware('throttle:identity-token-check')->name('password-policy');
+    Route::post('invitations/verify', [PortalCredentialController::class, 'verifyInvitation'])->middleware('throttle:identity-token-check')->name('invitations.verify');
+    Route::post('invitations/accept', [PortalCredentialController::class, 'acceptInvitation'])->middleware('throttle:identity-token-use')->name('invitations.accept');
+    Route::post('password/forgot', [PortalCredentialController::class, 'forgot'])->middleware('throttle:identity-forgot')->name('password.forgot');
+    Route::post('password/reset', [PortalCredentialController::class, 'reset'])->middleware('throttle:identity-token-use')->name('password.reset');
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff'])->group(function (): void {

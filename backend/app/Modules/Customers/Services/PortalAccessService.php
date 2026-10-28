@@ -19,8 +19,8 @@ use Illuminate\Support\Facades\DB;
  * ContactPortalAccessGranted para que IDN envíe la invitación. Quitar el
  * acceso da de baja al usuario y cierra sus sesiones.
  *
- * Pendiente de IDN: el correo de invitación con enlace para fijar la contraseña
- * (hoy no existe ese flujo); el evento queda emitido para conectarlo.
+ * La invitación (correo con enlace de un solo uso para crear la contraseña) la
+ * envía IDN al escuchar ContactPortalAccessGranted (SendPortalInvitation).
  */
 final class PortalAccessService
 {
@@ -79,6 +79,9 @@ final class PortalAccessService
     {
         if ($contact->user_id === null) {
             throw new ProblemException(409, 'conflict', 'El contacto no tiene acceso al portal.');
+        }
+        if (User::query()->whereKey($contact->user_id)->whereNotNull('password_hash')->exists()) {
+            throw new ProblemException(409, 'already_activated');
         }
         $this->audit->record('contact.portal_invitation_resent', 'contact', $contact->id, null, null, ['user_id' => $contact->user_id], $contact->customer_id);
         ContactPortalAccessGranted::dispatch($contact->organization_id, $contact->id, $contact->user_id);

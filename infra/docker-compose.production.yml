@@ -72,6 +72,16 @@ services:
       SESSION_DRIVER: redis
       HUB_SCHEMA_PATH: /var/www/database/schema.sql
       HUB_VAULT_KEY_FILE: /run/secrets/hub_vault_key
+      # Correo saliente (invitación al portal y restablecimiento de contraseña): SMTP del proveedor.
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_HOST: ${MAIL_HOST:?Set MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SCHEME: ${MAIL_SCHEME:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:?Set MAIL_USERNAME}
+      MAIL_PASSWORD_FILE: /run/secrets/mail_password
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?Set MAIL_FROM_ADDRESS}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-AlojamientoPlus}
+      HUB_PORTAL_URL: ${HUB_PORTAL_URL:?Set HUB_PORTAL_URL}
       SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:?Set SANCTUM_STATEFUL_DOMAINS}
       SESSION_SECURE_COOKIE: "true"
     secrets: &php-secrets
@@ -80,6 +90,7 @@ services:
       - db_app_password
       - redis_password
       - hub_vault_key
+      - mail_password
     volumes: !override
       - laravel_storage:/var/www/html/storage
     expose: ["9000"]
@@ -252,3 +263,5 @@ secrets:
     file: ${SECRETS_DIR:-./secrets}/laravel_app_key.txt
   hub_vault_key:
     file: ${SECRETS_DIR:-./secrets}/hub_vault_key.txt
+  mail_password:
+    file: ${SECRETS_DIR:-./secrets}/mail_password.txt

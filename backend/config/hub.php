@@ -36,6 +36,17 @@ return [
         'mfa_max_attempts' => (int) env('HUB_MFA_MAX_ATTEMPTS', 5),
         'totp_issuer' => env('HUB_TOTP_ISSUER', env('APP_NAME', 'Hub')),
         'recovery_codes' => 10,
+        // Enlaces de un solo uso del portal (invitación y olvidé mi contraseña).
+        'invitation_hours' => (int) env('HUB_INVITATION_HOURS', 72),
+        'password_reset_minutes' => (int) env('HUB_PASSWORD_RESET_MINUTES', 60),
+        'forgot_per_minute_ip' => (int) env('HUB_FORGOT_PER_MINUTE_IP', 5),
+        'forgot_per_hour_email' => (int) env('HUB_FORGOT_PER_HOUR_EMAIL', 3),
+    ],
+
+    // Portal del cliente: URL base de los enlaces de los correos ({url}/#/activar?token=...).
+    'portal' => [
+        'url' => env('HUB_PORTAL_URL', 'http://localhost:3001'),
+        'brand' => env('HUB_PORTAL_BRAND', 'AlojamientoPlus'),
     ],
 
     // Claves que nunca se guardan en before/after de la auditoría.

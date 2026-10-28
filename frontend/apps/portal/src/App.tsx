@@ -4,6 +4,7 @@ import { isProblem } from '@hub/api';
 import type { Me } from '@hub/api';
 import { CLIENT, PROJ, SRV, DOMS, INV, TK } from './data/portalData';
 import { LoginView } from './components/LoginView';
+import { AccountLinkViews, usePublicRoute } from './components/AccountLinkViews';
 import { Alert, Hello, Kpi, Kpis } from './components/ui';
 import { DEMO_MODE, DEMO_USER, hub, onUnauthenticated } from './auth/client';
 import { PortalShell, type Currency, type PortalNotif, type SearchItem } from './shell/PortalShell';
@@ -14,6 +15,8 @@ import './portal.css';
 export default function App() {
   /* Ruta sincronizada con el hash (#facturas, #servicios…) en ambos modos. */
   const [route, setRoute] = useHashRoute();
+  /* Pantallas públicas sin sesión: #/activar?token=…, #/olvide, #/restablecer?token=… */
+  const [publicRoute, leavePublicRoute] = usePublicRoute();
   const [selectedServiceId, setSelectedServiceId] = useState<string>('sitio');
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TK-10482');
   const [cur, setCur] = useState<Currency>('PEN');
@@ -113,6 +116,19 @@ export default function App() {
     );
     setNewReply('');
   };
+
+  if (publicRoute && auth.k !== 'ready') {
+    return (
+      <AccountLinkViews
+        route={publicRoute}
+        go={(h) => { window.location.hash = h; }}
+        onFinished={(m) => {
+          leavePublicRoute();
+          setAuth({ k: 'anon', notice: m });
+        }}
+      />
+    );
+  }
 
   if (auth.k === 'loading') {
     return (
