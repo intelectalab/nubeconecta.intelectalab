@@ -22,8 +22,6 @@ WORKDIR /var/www/html
 COPY backend/composer.json backend/composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-scripts --no-autoloader --no-progress
 COPY backend/ ./
-COPY backend/config/hub-secrets.php /var/www/html/config/hub-secrets.php
-COPY backend/config/redis.php /var/www/html/config/redis.php
 COPY database/ /var/www/database/
 RUN composer dump-autoload --optimize --no-dev --no-scripts \
     && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
