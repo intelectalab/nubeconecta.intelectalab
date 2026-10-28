@@ -60,6 +60,7 @@
       "permissions": [
         "customers.*",
         "sales.*",
+        "web_connector.form_submission.view",
         "catalog.*.view",
         "orders.order.view",
         "orders.order.create",

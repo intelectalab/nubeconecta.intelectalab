@@ -6,6 +6,9 @@
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from 'react';
 import { useApp, useMoney } from '../../app/context';
+import type { ViewProps } from '../../app/routes';
+import CrmLive from './crm/CrmLive';
+import { LIVE } from './clientes/shared';
 import { useViewState } from '../../app/storage';
 import { Icon } from '../../components/Icon';
 import { BrandTag, Chip, EmptyState, PageHead, SearchBox, Seg, StatLine, Toolbar } from '../../components/ui';
@@ -15,7 +18,12 @@ import type { Lead, LeadStage } from '../../data';
 type CrmSort = 'co' | 'stage' | 'val' | 'next';
 const isToday = (d: Date) => diffD(d, TODAY) === 0;
 
-export default function CrmView() {
+/** Con backend usa el CRM de la API (crm/CrmLive); en modo demo (VITE_DEMO=1) conserva los datos de ejemplo. */
+export default function CrmView(props: ViewProps) {
+  return LIVE ? <CrmLive {...props} /> : <CrmDemo />;
+}
+
+function CrmDemo() {
   const { brand, dataVersion, toast, refresh, dialogs } = useApp();
   const m = useMoney();
   const [view, setView] = useViewState<'kanban' | 'lista'>('crm.view', 'kanban');

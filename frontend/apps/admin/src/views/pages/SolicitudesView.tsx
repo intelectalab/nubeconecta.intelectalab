@@ -7,8 +7,9 @@
  *
  * Con backend usa /api/v1/admin/web-connector/form-submissions; en modo demo
  * (VITE_DEMO=1) trabaja sobre WEB_SUBMISSIONS en memoria.
- * Derivar a prospecto o ticket (status routed) queda para cuando CRM y
- * Helpdesk tengan API: el backend ya lo admite con lead_id / ticket_id.
+ * «Convertir en prospecto» crea el lead del CRM (POST .../{id}/lead, idempotente) y
+ * deja la solicitud derivada; «Ver prospecto» abre el CRM. Derivar a ticket queda
+ * para cuando Helpdesk tenga API.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { isProblem, WEB_SUBMISSION_STATUS_LABELS, type CursorPage, type WebSubmission, type WebSubmissionChange, type WebSubmissionStatus, type WebSubmissionSummary } from '@hub/api';
@@ -214,7 +215,7 @@ export default function SolicitudesView({ param }: ViewProps) {
 
 /** Panel de detalle: datos de contacto, mensaje completo, origen, UTM, consentimiento y acciones. */
 function SubmissionSheet({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
-  const { toast } = useApp();
+  const { toast, href } = useApp();
   const can = useCan();
   const res = useLoad(() => {
     if (LIVE) return api.get(id);
@@ -243,6 +244,24 @@ function SubmissionSheet({ id, onClose, onChanged }: { id: string; onClose: () =
     }
   };
 
+  /** «Convertir en prospecto»: crea el prospecto en el CRM (idempotente) y deja la solicitud derivada. */
+  const toLead = async () => {
+    if (!s) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await hub.sales.leads.fromSubmission(s.id);
+      toast(r.created ? 'Prospecto creado' : 'La solicitud ya tenía prospecto', r.code);
+      res.reload();
+      onChanged();
+    } catch (e) {
+      setMsg(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const canLead = LIVE && can('sales.lead.create');
+
   const p = s?.payload;
   const utm = s && s.attribution && !Array.isArray(s.attribution) ? Object.entries(s.attribution).filter(([, v]) => v) : [];
   const mail = p?.email
@@ -269,6 +288,15 @@ function SubmissionSheet({ id, onClose, onChanged }: { id: string; onClose: () =
                 <Icon name="phone" size="sm" />
                 Llamar
               </a>
+            ) : null}
+            {s.lead_id ? (
+              <a className="btn primary" href={href('crm', s.lead_id)}>
+                Ver prospecto
+              </a>
+            ) : canLead && s.status !== 'spam' && !s.ticket_id ? (
+              <button type="button" className="btn primary" disabled={busy} onClick={() => void toLead()}>
+                {busy ? 'Procesando…' : 'Convertir en prospecto'}
+              </button>
             ) : null}
             {canManage && s.status !== 'routed' ? (
               s.status === 'spam' ? (
