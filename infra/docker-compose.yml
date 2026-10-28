@@ -197,6 +197,7 @@ services:
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD:-wp_password}
       WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
       WORDPRESS_CONFIG_EXTRA: "define( 'WP_ENVIRONMENT_TYPE', 'local' ); define( 'FS_METHOD', 'direct' );"
+      HUB_PORTAL_URL: ${HUB_PORTAL_URL:-http://localhost:3001}   # botón «Portal del cliente» de la web
     volumes:
       - wordpress_data:/var/www/html
       - ./docker/wordpress/wordpress-rewrites.conf:/etc/apache2/conf-enabled/zz-wordpress-rewrites.conf:ro

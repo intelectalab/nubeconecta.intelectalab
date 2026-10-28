@@ -89,7 +89,8 @@ class HubClient
             return ['status' => 0, 'error' => 'not_configured'];
         }
         $response = wp_remote_post($base . $path, [
-            'timeout' => (float) apply_filters('hub_connector_http_timeout', 8),
+            // Un envío perdido es un cliente perdido: más margen que las lecturas para un arranque en frío del sistema.
+            'timeout' => (float) apply_filters('hub_connector_http_timeout', 20),
             'redirection' => 0,
             'sslverify' => true,
             'headers' => $headers + [
