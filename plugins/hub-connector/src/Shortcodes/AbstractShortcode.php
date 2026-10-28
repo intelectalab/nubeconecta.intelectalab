@@ -247,7 +247,8 @@ abstract class AbstractShortcode
 
     /**
      * Mientras el sistema no entregue la URL del carrito (D-19), la tarjeta lleva a la
-     * página de cotización con el plan elegido: /cotizacion/?plan=<código>.
+     * página de cotización con el plan elegido: /cotizacion/?plan=<código>&nombre=<plan y ciclo>;
+     * el formulario lo escribe en el mensaje para que llegue al sistema con la solicitud.
      */
     protected function quoteFallback(array $view): array
     {
@@ -256,7 +257,7 @@ abstract class AbstractShortcode
         }
         $label = __('Elegir plan', 'hub-connector');
         $view['action'] = [
-            'url' => add_query_arg(['plan' => rawurlencode($view['code'])], home_url('/cotizacion/')),
+            'url' => add_query_arg(['plan' => rawurlencode($view['code']), 'nombre' => rawurlencode(trim($view['name'] . ' ' . $view['cycle_label']))], home_url('/cotizacion/')),
             'text' => $label,
             'aria' => trim($label . ' ' . $view['name'] . ' ' . $view['cycle_label']),
         ];

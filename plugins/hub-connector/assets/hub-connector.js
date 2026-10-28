@@ -117,6 +117,29 @@
         return out;
     }
 
+    /* «Elegir plan» llega con ?plan=<código>&nombre=<plan>: se escribe en el mensaje
+       de cotización (si está vacío) para que el asesor sepa qué plan se eligió. */
+    function prefillPlan() {
+        var plan = '', name = '';
+        try {
+            var params = new URLSearchParams(window.location.search);
+            plan = (params.get('plan') || '').slice(0, 80);
+            name = (params.get('nombre') || '').slice(0, 120);
+        } catch (e) { return; }
+        if (!/^[A-Za-z0-9_-]+$/.test(plan)) { return; }
+        document.querySelectorAll('form[data-hub-form] textarea[name="message"]').forEach(function (box) {
+            if (box.value.trim() === '') {
+                box.value = 'Quiero cotizar el plan ' + (name ? name + ' (código ' + plan + ')' : plan) + '.';
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', prefillPlan);
+    } else {
+        prefillPlan();
+    }
+
     document.addEventListener('submit', function (event) {
         var form = event.target;
         if (!form || !form.matches || !form.matches('form[data-hub-form]')) { return; }
