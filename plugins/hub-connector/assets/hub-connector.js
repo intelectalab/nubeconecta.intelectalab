@@ -17,7 +17,20 @@
         var available = false;
         prices.forEach(function (el) { if (el.getAttribute('data-currency') === currency) { available = true; } });
         if (!available) { return; }
-        prices.forEach(function (el) { el.hidden = el.getAttribute('data-currency') !== currency; });
+        // Por grupo (los precios hermanos de un mismo plan): si el plan no tiene
+        // precio en la moneda elegida, sigue mostrando el suyo en vez de quedar vacío.
+        var groups = [];
+        prices.forEach(function (el) {
+            var parent = el.parentNode;
+            if (groups.indexOf(parent) === -1) { groups.push(parent); }
+        });
+        groups.forEach(function (parent) {
+            var own = [];
+            prices.forEach(function (el) { if (el.parentNode === parent) { own.push(el); } });
+            var has = own.some(function (el) { return el.getAttribute('data-currency') === currency; });
+            var show = has ? currency : own[0].getAttribute('data-currency');
+            own.forEach(function (el) { el.hidden = el.getAttribute('data-currency') !== show; });
+        });
         document.querySelectorAll('[data-hub-currency]').forEach(function (btn) {
             btn.setAttribute('aria-pressed', btn.getAttribute('data-hub-currency') === currency ? 'true' : 'false');
         });
