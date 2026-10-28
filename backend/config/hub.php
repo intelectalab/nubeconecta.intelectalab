@@ -133,7 +133,7 @@ return [
         // Las llaves solo viven en el entorno; nunca en logs ni auditoría.
         'card_gateway' => [
             'driver' => env('HUB_CARD_GATEWAY_DRIVER', 'mercadopago'),   // mercadopago | none
-            'portal_url' => env('HUB_PORTAL_URL', 'http://localhost:5173'),  // back_urls de retorno
+            'portal_url' => env('HUB_PORTAL_URL', 'http://localhost:3001'),  // back_urls de retorno (mismo portal que hub.portal.url)
             'checkout_expiry_minutes' => (int) env('HUB_CARD_CHECKOUT_EXPIRY_MINUTES', 60),
             'mercadopago' => [
                 'access_token' => env('MP_ACCESS_TOKEN'),
