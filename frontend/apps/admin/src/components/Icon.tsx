@@ -7,7 +7,7 @@
 import {
   Activity, AppWindow, ArrowLeftRight, ArrowRight, Bell, BookOpen, Building2, Calendar, ChartLine, Check,
   ChevronDown, ChevronLeft, ChevronRight, Circle, CirclePause, Clock, Cloud, Code, Columns2, CreditCard, Cpu,
-  Database, Dot, Download, ExternalLink, Eye, FileCheck, FileText, Funnel, Gauge, Globe, Handshake, House, Info,
+  Database, Dot, Download, ExternalLink, Eye, FileCheck, FileText, Funnel, Gauge, Globe, Handshake, House, Inbox, Info,
   KeyRound, Layers, Link, List, ListFilter, Lock, LogOut, Mail, Menu, MessageCircle, MessageSquare, Moon, Network,
   OctagonAlert, Package, Palette, PanelLeft, Pencil, Phone, Plus, Receipt, RefreshCw, Search, Send, Server, Shield,
   SlidersHorizontal, Square, SquareCheck, Sun, Tag, Trash2, TriangleAlert, Upload, User, Users, Wallet, X, Zap,
@@ -28,7 +28,7 @@ export const ICONS = {
   code: Code, layers: Layers, box: Package, net: Network, contract: FileCheck, activity: Activity, download: Download,
   upload: Upload, phone: Phone, receipt: Receipt, pause: CirclePause, handshake: Handshake, dot: Dot, filter: ListFilter,
   edit: Pencil, building: Building2, sq: Square, gauge: Gauge, lock: Lock, key: KeyRound, chart: ChartLine,
-  tasks: SquareCheck, external: ExternalLink, book: BookOpen, palette: Palette, browser: AppWindow, tag: Tag, circ: Circle,
+  tasks: SquareCheck, external: ExternalLink, book: BookOpen, palette: Palette, browser: AppWindow, tag: Tag, circ: Circle, inbox: Inbox,
 } as const;
 
 /** Ids de icono disponibles (los mismos del prototipo). */

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\WebConnector\Http\Controllers\WebFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpCacheInvalidationController;
 use App\Modules\WebConnector\Http\Controllers\WpFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpPublicController;
@@ -34,6 +35,12 @@ Route::prefix('admin/web-connector')->name('admin.web-connector.')->middleware([
 
     Route::get('cache-invalidations', [WpCacheInvalidationController::class, 'index'])->middleware('permission:web_connector.cache_invalidation.view')->name('cache-invalidations.index');
     Route::post('cache-invalidations', [WpCacheInvalidationController::class, 'store'])->middleware(['permission:web_connector.cache_invalidation.create', 'idempotency:optional'])->name('cache-invalidations.store');
+    // Bandeja «Solicitudes web»: envíos de contacto y cotización recibidos por el plugin.
+    Route::get('form-submissions', [WebFormSubmissionController::class, 'index'])->middleware('permission:web_connector.form_submission.view')->name('form-submissions.index');
+    Route::get('form-submissions/summary', [WebFormSubmissionController::class, 'summary'])->middleware('permission:web_connector.form_submission.view')->name('form-submissions.summary');
+    Route::get('form-submissions/{id}', [WebFormSubmissionController::class, 'show'])->whereUuid('id')->middleware('permission:web_connector.form_submission.view')->name('form-submissions.show');
+    Route::patch('form-submissions/{id}', [WebFormSubmissionController::class, 'update'])->whereUuid('id')->middleware('permission:web_connector.form_submission.update')->name('form-submissions.update');
+
     Route::post('cache-invalidations/{id}/retry', [WpCacheInvalidationController::class, 'retry'])->whereUuid('id')->middleware(['permission:web_connector.cache_invalidation.create', 'idempotency:optional'])->name('cache-invalidations.retry');
 });
 

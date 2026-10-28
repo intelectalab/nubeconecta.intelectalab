@@ -16,6 +16,7 @@ const PedidosView = lazy(() => import('../views/pages/PedidosView'));
 const ServiciosView = lazy(() => import('../views/pages/ServiciosView'));
 const TareasView = lazy(() => import('../views/pages/TareasView'));
 const CrmView = lazy(() => import('../views/pages/CrmView'));
+const SolicitudesView = lazy(() => import('../views/pages/SolicitudesView'));
 const CotizacionesView = lazy(() => import('../views/pages/CotizacionesView'));
 const ContratosView = lazy(() => import('../views/pages/ContratosView'));
 const CatalogoView = lazy(() => import('../views/pages/CatalogoView'));
@@ -65,6 +66,7 @@ export const VIEWS: Record<RouteId, LazyExoticComponent<ComponentType<ViewProps>
   servicios: ServiciosView,
   tareas: TareasView,
   crm: CrmView,
+  solicitudes: SolicitudesView,
   cotizaciones: CotizacionesView,
   contratos: ContratosView,
   catalogo: CatalogoView,

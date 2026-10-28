@@ -5,7 +5,7 @@
  */
 export type RouteId =
   | 'inicio' | 'kpi' | 'kpid' | 'clientes' | 'cliente' | 'dominios' | 'pedidos' | 'servicios' | 'tareas'
-  | 'crm' | 'cotizaciones' | 'contratos' | 'catalogo'
+  | 'crm' | 'solicitudes' | 'cotizaciones' | 'contratos' | 'catalogo'
   | 'cobranza' | 'facturas' | 'reportes'
   | 'tickets' | 'reclamos'
   | 'infra' | 'monitoreo' | 'proveedores' | 'cloud' | 'correo' | 'boveda'
@@ -40,6 +40,7 @@ export const ROUTE_META: Record<RouteId, RouteMeta> = {
   servicios: { t: 'Servicios', g: 'Operación', ic: 'layers' },
   tareas: { t: 'Tareas', g: 'Operación', ic: 'tasks' },
   crm: { t: 'CRM', g: 'Comercial', ic: 'funnel' },
+  solicitudes: { t: 'Solicitudes web', g: 'Comercial', ic: 'inbox' },
   cotizaciones: { t: 'Cotizaciones', g: 'Comercial', ic: 'receipt' },
   contratos: { t: 'Contratos', g: 'Comercial', ic: 'contract' },
   catalogo: { t: 'Catálogo de productos', g: 'Comercial', ic: 'tag' },

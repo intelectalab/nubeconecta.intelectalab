@@ -3619,6 +3619,152 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /admin/web-connector/form-submissions:
+    get:
+      tags:
+        - WebConnector
+      operationId: listWebFormSubmissions
+      summary: Bandeja «Solicitudes web» (envíos de contacto y cotización)
+      description: "Más recientes primero. Filtros `filter[status]` (received, routed, failed, spam; varios separados por coma; sin filtro se excluye spam), `filter[form_code]`, `filter[brand_id]`, `filter[web_form_id]` y `q` (nombre, correo o empresa). Cada fila trae `form_code`, `form_name` y `brand_name`; nunca `ip_hash` ni `idempotency_key`."
+      x-permission: web_connector.form_submission.view
+      responses:
+        "200":
+          description: Página.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - links
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebFormSubmission"
+                  meta:
+                    $ref: "#/components/schemas/CursorMeta"
+                  links:
+                    $ref: "#/components/schemas/CursorLinks"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /admin/web-connector/form-submissions/summary:
+    get:
+      tags:
+        - WebConnector
+      operationId: summarizeWebFormSubmissions
+      summary: Conteo de solicitudes por estado (contador del menú)
+      x-permission: web_connector.form_submission.view
+      responses:
+        "200":
+          description: Conteo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties:
+                      type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/web-connector/form-submissions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - WebConnector
+      operationId: getWebFormSubmission
+      summary: Detalle de una solicitud web
+      x-permission: web_connector.form_submission.view
+      responses:
+        "200":
+          description: Solicitud.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WebFormSubmission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - WebConnector
+      operationId: updateWebFormSubmission
+      summary: Cambiar el estado (spam, restaurar o derivar a prospecto/ticket)
+      description: "`routed` exige `lead_id` o `ticket_id` (CHECK de la tabla). Una solicitud derivada no vuelve atrás (409). Audita `web_form_submission.marked_spam|restored|routed` sin el contenido."
+      x-permission: web_connector.form_submission.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+                - status
+              properties:
+                version:
+                  type: integer
+                status:
+                  type: string
+                  enum:
+                    - received
+                    - spam
+                    - routed
+                lead_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                ticket_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "200":
+          description: Solicitud actualizada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WebFormSubmission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
   /public/wp/site:
     get:
       tags:
@@ -10118,6 +10264,89 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/WpCacheInvalidation"
+    WebFormSubmission:
+      type: object
+      description: Envío de un formulario de la web (tabla web_form_submissions).
+      properties:
+        id:
+          type: string
+          format: uuid
+        web_form_id:
+          type: string
+          format: uuid
+        form_code:
+          type: string
+        form_name:
+          type: string
+        brand_id:
+          type: string
+          format: uuid
+        brand_name:
+          type: string
+        wp_site_id:
+          type: string
+          format: uuid
+          nullable: true
+        payload:
+          type: object
+          description: "name, email, phone, company, message, source."
+          additionalProperties: true
+        file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        consent_given:
+          type: boolean
+        consent_text:
+          type: string
+          nullable: true
+        captcha_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        page_url:
+          type: string
+          nullable: true
+        attribution:
+          type: object
+          description: UTM (source, medium, campaign, term, content).
+          additionalProperties:
+            type: string
+        status:
+          type: string
+          enum:
+            - received
+            - routed
+            - failed
+            - spam
+        lead_id:
+          type: string
+          format: uuid
+          nullable: true
+        ticket_id:
+          type: string
+          format: uuid
+          nullable: true
+        emailed_at:
+          type: string
+          format: date-time
+          nullable: true
+        routed_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     WpSiteConfig:
       type: object
       required:

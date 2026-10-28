@@ -523,6 +523,71 @@ final class WebConnectorTest extends IdentityTestCase
         $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, $valid, ['X-Hub-Visitor-Ip' => '198.51.100.8'])->assertStatus(202);
     }
 
+    public function test_admin_inbox_lists_filters_shows_and_changes_status_of_web_submissions(): void
+    {
+        Event::fake([WebFormSubmitted::class]);
+        $brand = $this->brand('marca-a');
+        ['token' => $token] = $this->activeSite($brand);
+        $org = DB::table('organizations')->value('id');
+        foreach (['contacto', 'cotizacion'] as $code) {
+            DB::table('web_forms')->insert(['id' => (string) Str::uuid(), 'organization_id' => $org, 'brand_id' => $brand, 'code' => $code, 'name' => ucfirst($code), 'status' => 'active', 'destination' => 'email',
+                'notify_email' => 'ventas@marca.test', 'consent_required' => true, 'consent_purpose' => 'privacy', 'consent_text' => json_encode(['es' => 'Acepto la política']),
+                'captcha_required' => false, 'success_message' => json_encode(['es' => '¡Gracias!'])]);
+        }
+        $base = ['phone' => '+51 999 888 777', 'message' => 'Necesito información de sus planes.', 'consent' => true, 'page_url' => 'https://www.marca-a.test/contacto/'];
+        $ana = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['name' => 'Ana Pérez', 'email' => 'ana@cliente.pe', 'company' => 'ACME SAC', 'utm' => ['source' => 'google', 'campaign' => 'hosting']] + $base, ['X-Hub-Visitor-Ip' => '203.0.113.10'])->assertStatus(202)->json('data.id');
+        $luis = $this->pluginPost('/api/v1/public/wp/forms/cotizacion/submissions', $token, ['name' => 'Luis Rojas', 'email' => 'luis@empresa.pe', 'source' => 'cotizacion'] + $base, ['X-Hub-Visitor-Ip' => '203.0.113.11'])->assertStatus(202)->json('data.id');
+        $spam = $this->pluginPost('/api/v1/public/wp/forms/contacto/submissions', $token, ['name' => 'Bot', 'email' => 'bot@spam.test', 'website' => 'http://spam.test'] + $base, ['X-Hub-Visitor-Ip' => '203.0.113.12'])->assertStatus(202)->json('data.id');
+        // now() es el de la transacción del test: se separan las horas para fijar el orden.
+        foreach ([$ana => 30, $luis => 20, $spam => 10] as $id => $minutes) {
+            DB::table('web_form_submissions')->where('id', $id)->update(['created_at' => now()->subMinutes($minutes)]);
+        }
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($this->admin);
+        $uri = '/api/v1/admin/web-connector/form-submissions';
+
+        // Por defecto sin spam, más recientes primero, con formulario y marca; sin ip_hash ni clave de idempotencia.
+        $list = $this->getJson($uri)->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.has_more', false);
+        $this->assertSame([$luis, $ana], array_column($list->json('data'), 'id'));
+        $this->assertSame('cotizacion', $list->json('data.0.form_code'));
+        $this->assertSame('MARCA-A', $list->json('data.0.brand_name'));
+        $this->assertArrayNotHasKey('ip_hash', $list->json('data.0'));
+        $this->assertArrayNotHasKey('idempotency_key', $list->json('data.0'));
+        $this->getJson("{$uri}?filter[status]=spam")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $spam);
+        $this->getJson("{$uri}?filter[status]=received,spam")->assertOk()->assertJsonCount(3, 'data');
+        $this->getJson("{$uri}?filter[form_code]=contacto")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $ana);
+        $this->getJson("{$uri}?q=LUIS@")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $luis);
+        $this->getJson("{$uri}?q=acme")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $ana);
+        $this->getJson("{$uri}?page[size]=1")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.has_more', true);
+        $this->assertProblem($this->getJson("{$uri}?filter[status]=atendida"), 422, 'validation_failed');
+        $this->getJson("{$uri}/summary")->assertOk()->assertExactJson(['data' => ['received' => 2, 'routed' => 0, 'failed' => 0, 'spam' => 1]]);
+
+        // Detalle: mensaje, página, UTM y consentimiento.
+        $detail = $this->getJson("{$uri}/{$ana}")->assertOk()->assertJsonPath('data.payload.name', 'Ana Pérez')->assertJsonPath('data.payload.company', 'ACME SAC')
+            ->assertJsonPath('data.page_url', 'https://www.marca-a.test/contacto/')->assertJsonPath('data.attribution.campaign', 'hosting')
+            ->assertJsonPath('data.consent_given', true)->assertJsonPath('data.consent_text', 'Acepto la política')->assertJsonPath('data.form_name', 'Contacto');
+        $version = $detail->json('data.version');
+        $this->assertProblem($this->getJson("{$uri}/".Str::uuid()), 404, 'not_found');
+
+        // Cambio de estado con versión: spam, conflicto con versión vieja, restaurar; derivar exige vínculo.
+        $this->patchJson("{$uri}/{$ana}", ['status' => 'spam', 'version' => $version])->assertOk()->assertJsonPath('data.status', 'spam')->assertJsonPath('data.version', $version + 1)->assertJsonPath('data.form_code', 'contacto');
+        $this->assertProblem($this->patchJson("{$uri}/{$ana}", ['status' => 'received', 'version' => $version]), 409, 'version_conflict');
+        $this->patchJson("{$uri}/{$ana}", ['status' => 'received', 'version' => $version + 1])->assertOk()->assertJsonPath('data.status', 'received');
+        $this->assertProblem($this->patchJson("{$uri}/{$ana}", ['status' => 'routed', 'version' => $version + 2]), 422, 'validation_failed');
+        $this->assertProblem($this->patchJson("{$uri}/{$ana}", ['status' => 'failed', 'version' => $version + 2]), 422, 'validation_failed');
+        $audit = DB::table('audit_events')->where('entity_type', 'web_form_submission')->where('entity_id', $ana)->orderBy('chain_seq')->get();
+        $this->assertSame(['web_form_submission.marked_spam', 'web_form_submission.restored'], $audit->pluck('action')->all());
+        $this->assertSame('spam', json_decode((string) $audit[0]->after, true)['status']);
+        $this->assertStringNotContainsString('ana@cliente.pe', (string) $audit[0]->after.$audit[0]->before.$audit[0]->metadata);
+
+        // Soporte ve la bandeja pero no cambia estados; finanzas no la ve.
+        $this->actingAs($this->makeUser(['support'], mfa: true));
+        $this->getJson($uri)->assertOk();
+        $this->assertProblem($this->patchJson("{$uri}/{$luis}", ['status' => 'spam', 'version' => 1]), 403, 'forbidden');
+        $this->actingAs($this->makeUser(['finance'], mfa: true));
+        $this->assertProblem($this->getJson($uri), 403, 'forbidden');
+    }
+
     public function test_demo_web_content_and_domain_extensions(): void
     {
         $this->artisan('hub:demo:catalog')->assertSuccessful();

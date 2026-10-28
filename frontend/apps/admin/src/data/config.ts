@@ -9,7 +9,7 @@ import type { RoleDef, RoleName, SecurityPolicy, UserAccount } from './types';
  */
 export const ROLES: Record<RoleName, string[] | null> = {
   Administrador: null,
-  Ventas: ['inicio', 'kpi', 'clientes', 'cliente', 'dominios', 'crm', 'catalogo', 'wp', 'cotizaciones', 'contratos', 'pedidos', 'servicios', 'tareas'],
+  Ventas: ['inicio', 'kpi', 'clientes', 'cliente', 'dominios', 'crm', 'solicitudes', 'catalogo', 'wp', 'cotizaciones', 'contratos', 'pedidos', 'servicios', 'tareas'],
   Finanzas: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'cobranza', 'facturas', 'ajustes', 'reportes', 'cotizaciones', 'contratos', 'proveedores', 'pedidos', 'servicios'],
   Soporte: ['inicio', 'kpi', 'plantillas', 'clientes', 'cliente', 'dominios', 'tickets', 'infra', 'reclamos', 'monitoreo', 'correo', 'cloud', 'boveda', 'tareas', 'pedidos', 'servicios'],
 };

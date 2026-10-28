@@ -8,7 +8,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './styles/panel.css';
 import { AppProvider, useApp } from './app/context';
-import { navCounts } from './app/navCounts';
+import { navCounts, useLiveNavCounts } from './app/navCounts';
 import { Palette } from './app/Palette';
 import { GROUPS, ROUTE_META, ROUTE_IDS, href, type GroupName, type RouteId } from './app/routeMeta';
 import { VIEWS } from './app/routes';
@@ -210,7 +210,8 @@ function Shell() {
     setRole(r);
   };
 
-  const counts = useMemo(() => navCounts(brand), [brand, dataVersion]);
+  const liveCounts = useLiveNavCounts([route, dataVersion]);
+  const counts = useMemo(() => ({ ...navCounts(brand), ...liveCounts }), [brand, dataVersion, liveCounts]);
   const unread = notifs.filter((n) => n.u).length;
   const activeOf = useCallback((k: RouteId) => route === k || ROUTE_META[route].parent === k, [route]);
   const View = VIEWS[route];
