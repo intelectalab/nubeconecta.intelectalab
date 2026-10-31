@@ -36,5 +36,5 @@ export const storedPanelColor = (): string | null => {
   return pc && hexOk(pc) ? pc : null;
 };
 
-/** URL del portal del cliente (app hermana en el puerto 3001). */
-export const PORTAL_URL = 'http://localhost:3001/';
+/** URL del portal del cliente: configurable por entorno; en desarrollo la app hermana corre en el puerto 3001. */
+export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:3001/' : '/portal/');
