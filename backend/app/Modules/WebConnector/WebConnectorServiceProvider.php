@@ -24,6 +24,7 @@ use App\Modules\WebConnector\Services\SecretStore;
 use App\Modules\WebConnector\Services\WebhookSigner;
 use App\Modules\WebConnector\Services\WpSiteService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Event;
@@ -57,6 +58,22 @@ final class WebConnectorServiceProvider extends ServiceProvider
 
         Event::listen([BrandUpdated::class, BrandThemeVersionPublished::class, BrandThemeVersionReverted::class], InvalidateBrandSites::class);
         Event::listen([PlanChanged::class, PlanPriceChanged::class], InvalidateCatalogSites::class);
+
+        AboutCommand::add('Hub', fn () => [
+            'Vault key' => (static function (): string {
+                $key = config('hub.vault.key');
+
+                if ($key === null || $key === '') {
+                    return 'derivada de APP_KEY (no apta para producción)';
+                }
+
+                $decoded = is_string($key) ? base64_decode($key, true) : false;
+
+                return $decoded !== false && strlen($decoded) === 32
+                    ? 'configurada'
+                    : 'invalida (no es base64 de 32 bytes)';
+            })(),
+        ]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([DemoWebCommand::class]);
