@@ -13,7 +13,7 @@ import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
 
 /** URL del panel interno: al salir de la vista "ver como cliente" se vuelve allí. */
-const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:3000/' : '/');
+const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:3000/' : '/admin/');
 
 export default function App() {
   /* Ruta sincronizada con el hash (#facturas, #servicios…) en ambos modos. */
