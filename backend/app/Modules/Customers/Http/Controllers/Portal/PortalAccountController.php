@@ -13,6 +13,7 @@ use App\Modules\Customers\Models\Contact;
 use App\Modules\Customers\Models\Customer;
 use App\Modules\Customers\Services\ConsentService;
 use App\Modules\Customers\Services\CustomerService;
+use App\Modules\Customers\Support\PortalCustomer;
 use App\Modules\Customers\Support\TaxIdValidator;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Concurrency\VersionGuard;
@@ -131,7 +132,8 @@ final class PortalAccountController
 
     private function customer(Request $request): Customer
     {
-        return Customer::query()->find($this->selfContact($request)->customer_id)
+        // PortalCustomer::id resuelve también la vista "ver como cliente" del staff.
+        return Customer::query()->find(PortalCustomer::id($request))
             ?? throw ProblemException::forbidden('Su usuario no está vinculado a un cliente.');
     }
 

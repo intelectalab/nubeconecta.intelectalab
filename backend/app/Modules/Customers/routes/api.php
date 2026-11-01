@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Customers\Http\Controllers\Admin\ContactController;
 use App\Modules\Customers\Http\Controllers\Admin\CustomerController;
 use App\Modules\Customers\Http\Controllers\Admin\CustomerNoteController;
+use App\Modules\Customers\Http\Controllers\Admin\ImpersonationController;
 use App\Modules\Customers\Http\Controllers\Admin\PrivacyController;
 use App\Modules\Customers\Http\Controllers\Portal\PortalAccountController;
 use App\Modules\Customers\Http\Controllers\Public\UnsubscribeController;
@@ -38,7 +39,11 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
         Route::post('contacts', [ContactController::class, 'store'])->middleware(['permission:customers.contact.create', 'idempotency:optional'])->name('contacts.store');
         Route::get('notes', [CustomerNoteController::class, 'index'])->middleware('permission:customers.customer_note.view')->name('notes.index');
         Route::post('notes', [CustomerNoteController::class, 'store'])->middleware('permission:customers.customer_note.create')->name('notes.store');
+        Route::post('impersonation', [ImpersonationController::class, 'start'])->middleware('permission:customers.customer.impersonate')->name('impersonation.start');
     });
+
+    // Salir de la vista "ver como cliente" no exige permiso: quien la inició debe poder terminarla siempre.
+    Route::delete('customers/impersonation', [ImpersonationController::class, 'stop'])->name('customers.impersonation.stop');
 
     Route::prefix('contacts/{id}')->whereUuid('id')->name('contacts.')->group(function (): void {
         Route::get('/', [ContactController::class, 'show'])->middleware('permission:customers.contact.view')->name('show');

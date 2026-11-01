@@ -260,6 +260,13 @@ export function createCustomersApi(http: HttpClient) {
       resendInvitation: (id: string) => http.post<unknown>(`${base}/contacts/${enc(id)}/portal-invitation`),
     },
 
+    /** Vista "ver como cliente": solo lectura sobre la sesión del staff, auditada. */
+    impersonation: {
+      start: (customerId: string) =>
+        http.post<Envelope<{ customer_id: string; portal_url: string; expires_at: number }>>(`${base}/customers/${enc(customerId)}/impersonation`).then(unwrap),
+      stop: () => http.delete<void>(`${base}/customers/impersonation`),
+    },
+
     notes: {
       list: (customerId: string, params: ListParams = {}) => http.get<CursorPage<CustomerNote>>(`${base}/customers/${enc(customerId)}/notes${toQuery(page(params))}`),
       create: (customerId: string, body: string, is_pinned = false) => http.post<Envelope<CustomerNote>>(`${base}/customers/${enc(customerId)}/notes`, { body, is_pinned }).then(unwrap),

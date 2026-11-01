@@ -7,6 +7,7 @@ namespace App\Shared\Authorization;
 use App\Shared\Contracts\AccessControl;
 use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 
 /**
@@ -29,7 +30,7 @@ final class PermissionGate
             throw ProblemException::mfaRequired();
         }
         foreach ($permissions as $permission) {
-            if (! $this->access->allows($user, $permission)) {
+            if (! $this->access->allows($user, $permission) && ! $this->impersonatedRead($request, $user, $permission)) {
                 throw ProblemException::forbidden();
             }
         }
@@ -38,5 +39,18 @@ final class PermissionGate
                 throw ProblemException::mfaRequired();
             }
         }
+    }
+
+    /**
+     * Vista "ver como cliente" (M-CUS): un staff con la vista activa lee rutas
+     * portal.* aunque sus roles no lleven esos permisos (el trigger de BD
+     * reserva portal.* a roles de cliente). Solo métodos de lectura.
+     */
+    private function impersonatedRead(Request $request, Authenticatable $user, string $permission): bool
+    {
+        return str_starts_with($permission, 'portal.')
+            && $request->isMethodSafe()
+            && ($user->type ?? null) === 'staff'
+            && ImpersonationState::current($request->session()) !== null;
     }
 }

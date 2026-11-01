@@ -876,3 +876,10 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:1px 5px;border-radius:4px;b
   .tb-search span,.tb-search kbd{display:none}
 }
 @media (max-width:520px){.logo b{display:none}.topbar{gap:2px}.tb-btn{width:36px}}
+
+/* Vista "ver como cliente" (staff): franja superior de solo lectura */
+.app.imp{grid-template-rows:auto calc(var(--toph) + env(safe-area-inset-top)) minmax(0,1fr);grid-template-areas:"imp imp" "top top" "side main"}
+.imp-bar{grid-area:imp;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;padding:7px max(16px,env(safe-area-inset-right)) 7px max(16px,env(safe-area-inset-left));background:var(--warn);color:#2b1d00;font-size:13px;font-weight:600}
+.imp-bar b{font-weight:800}
+.imp-exit{border:1px solid rgba(43,29,0,.4);background:rgba(255,255,255,.35);color:#2b1d00;border-radius:7px;padding:3px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.imp-exit:hover{background:rgba(255,255,255,.6)}

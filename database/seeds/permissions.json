@@ -2033,6 +2033,16 @@
       "operations": 2
     },
     {
+      "code": "customers.customer.impersonate",
+      "module_key": "customers",
+      "module": "CUS",
+      "entity": "customer",
+      "action": "impersonate",
+      "description": "Ver el portal como un cliente (vista de solo lectura, auditada)",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
       "code": "customers.customer.update",
       "module_key": "customers",
       "module": "CUS",

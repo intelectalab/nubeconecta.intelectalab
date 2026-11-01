@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Identity\Http\Middleware;
 
+use App\Shared\Authorization\ImpersonationState;
 use App\Shared\Http\Problem\ProblemException;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
@@ -22,7 +23,17 @@ final class EnsureUserType
         $user = $request->user() ?? throw new AuthenticationException;
 
         if (! in_array($user->type, $types, true)) {
-            throw ProblemException::forbidden();
+            // Vista "ver como cliente": un staff con la vista activa puede LEER rutas del portal.
+            $impersonating = $user->type === 'staff'
+                && in_array('customer', $types, true)
+                && ImpersonationState::current($request->session()) !== null;
+
+            if (! $impersonating) {
+                throw ProblemException::forbidden();
+            }
+            if (! $request->isMethodSafe()) {
+                throw ProblemException::forbidden('La vista de cliente es de solo lectura.');
+            }
         }
 
         return $next($request);

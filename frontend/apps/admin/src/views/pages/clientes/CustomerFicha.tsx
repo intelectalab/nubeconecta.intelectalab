@@ -78,6 +78,17 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
   const c = ov.customer;
   const balances = Object.entries(ov.balance_minor).filter(([, v]) => v);
 
+  /** Vista "ver como cliente": activa la vista de solo lectura y abre el portal en otra pestaña. */
+  const viewAsCustomer = async () => {
+    try {
+      const r = await customersApi.impersonation.start(c.id);
+      window.open(r.portal_url, '_blank', 'noopener');
+      toast('Vista de cliente activada', 'El portal se abrió en otra pestaña (solo lectura, 30 min).');
+    } catch (e) {
+      toast('No se pudo abrir la vista', errorText(e), 'err');
+    }
+  };
+
   const tabs: { id: TabId; label: string; count?: number }[] = [
     { id: 'resumen', label: 'Resumen' },
     ...(can('customers.contact.view') ? [{ id: 'contactos' as TabId, label: 'Contactos', count: ov.counts.contacts }] : []),
@@ -145,12 +156,20 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
               <b>{balances.length ? balances.map(([cur, v]) => moneyMinor(v ?? 0, cur)).join(' · ') : '—'}</b>
             </div>
           </div>
-          {can('customers.customer.update') ? (
-            <button type="button" className="btn primary" onClick={() => setEditing(true)}>
-              <Icon name="edit" size="sm" />
-              Editar cliente
-            </button>
-          ) : null}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {can('customers.customer.impersonate') ? (
+              <button type="button" className="btn" onClick={() => void viewAsCustomer()}>
+                <Icon name="external" size="sm" />
+                Ver como cliente
+              </button>
+            ) : null}
+            {can('customers.customer.update') ? (
+              <button type="button" className="btn primary" onClick={() => setEditing(true)}>
+                <Icon name="edit" size="sm" />
+                Editar cliente
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
       <Tabs tabs={tabs} value={tab} onChange={setTab} label="Secciones de la ficha" style={{ marginBottom: 14 }} />

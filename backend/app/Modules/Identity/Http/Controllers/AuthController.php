@@ -12,6 +12,7 @@ use App\Modules\Identity\Services\MfaService;
 use App\Modules\Identity\Services\PasswordService;
 use App\Modules\Identity\Services\SecurityPolicy;
 use App\Shared\Audit\AuditLogger;
+use App\Shared\Authorization\ImpersonationState;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -52,7 +53,7 @@ final class AuthController
         $this->sessions->start($user, $request, mfaVerified: false);
         $this->audit->record('user.logged_in', 'user', $user->id, null, null, ['mfa' => false]);
 
-        return response()->json(['data' => ['mfa_required' => false, 'user' => $this->mePayload($user)]]);
+        return response()->json(['data' => ['mfa_required' => false, 'user' => $this->mePayload($user, $request)]]);
     }
 
     public function verifyMfa(Request $request, MfaService $mfa): JsonResponse
@@ -92,7 +93,7 @@ final class AuthController
         $this->sessions->start($user, $request, mfaVerified: true);
         $this->audit->record('user.logged_in', 'user', $user->id, null, null, ['mfa' => true, 'method' => $data['method']]);
 
-        return response()->json(['data' => ['mfa_required' => false, 'user' => $this->mePayload($user)]]);
+        return response()->json(['data' => ['mfa_required' => false, 'user' => $this->mePayload($user, $request)]]);
     }
 
     public function logout(Request $request): Response
@@ -109,7 +110,7 @@ final class AuthController
         /** @var User $user */
         $user = $request->user();
 
-        return response()->json(['data' => $this->mePayload($user)]);
+        return response()->json(['data' => $this->mePayload($user, $request)]);
     }
 
     /** GET /auth/password-policy: reglas vigentes para el formulario de cambio. */
@@ -138,7 +139,7 @@ final class AuthController
     }
 
     /** @return array<string, mixed> */
-    private function mePayload(User $user): array
+    private function mePayload(User $user, Request $request): array
     {
         $required = $this->policy->mfaRequiredFor($user);
 
@@ -151,6 +152,8 @@ final class AuthController
                 'enrollment_required' => $required && ! $user->hasMfa(),
             ],
             'password' => ['change_required' => $this->policy->passwordChangeRequired($user)],
+            // Vista "ver como cliente" activa en esta sesión (el portal la muestra como banner de solo lectura).
+            'impersonation' => $user->type === 'staff' ? ImpersonationState::current($request->session()) : null,
         ];
     }
 }

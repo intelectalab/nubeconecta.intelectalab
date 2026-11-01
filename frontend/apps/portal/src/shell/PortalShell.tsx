@@ -160,10 +160,12 @@ export interface PortalShellProps {
   loadSearch: () => Promise<SearchItem[]>;
   /** Avisos de la campana (facturas vencidas, servicios con incidencias, tickets por responder). */
   notifs?: PortalNotif[];
+  /** Vista "ver como cliente" (staff): franja superior de solo lectura con botón para salir. */
+  impersonation?: { account: string; onExit: () => void } | null;
   children: ReactNode;
 }
 
-export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, loadSearch, notifs = [], children }: PortalShellProps) {
+export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, crumb, onLogout, loadSearch, notifs = [], impersonation = null, children }: PortalShellProps) {
   const [pop, setPop] = useState<'notif' | 'user' | null>(null);
   const [read, setRead] = useState<Set<string>>(() => new Set());
   const notifRef = useRef<HTMLDivElement>(null);
@@ -239,7 +241,17 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
   };
 
   return (
-    <div className={`app${drawer ? " drawer" : ""}`} id="app">
+    <div className={`app${drawer ? " drawer" : ""}${impersonation ? " imp" : ""}`} id="app">
+      {impersonation ? (
+        <div className="imp-bar" role="status">
+          <span>
+            Vista de cliente: <b>{impersonation.account}</b> · solo lectura
+          </span>
+          <button type="button" className="imp-exit" onClick={impersonation.onExit}>
+            Salir de la vista
+          </button>
+        </div>
+      ) : null}
       <header className="topbar" role="banner">
         <button type="button" className="tb-btn" onClick={() => { if (isMobile()) setDrawer((v) => !v); }} aria-label="Abrir o plegar menú" aria-controls="sidebar" aria-expanded={drawer}>
           <MenuIcon />

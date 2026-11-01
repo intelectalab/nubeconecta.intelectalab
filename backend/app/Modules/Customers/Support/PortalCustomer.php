@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Customers\Support;
 
 use App\Modules\Customers\Models\Contact;
+use App\Shared\Authorization\ImpersonationState;
 use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,11 @@ final class PortalCustomer
 {
     public static function id(Request $request): string
     {
+        // Vista "ver como cliente": el cliente sale del estado en sesión del staff.
+        if ($request->user()?->type === 'staff' && ($state = ImpersonationState::current($request->session())) !== null) {
+            return $state['customer_id'];
+        }
+
         $customerId = Contact::query()->where('user_id', $request->user()?->getAuthIdentifier())->value('customer_id');
 
         return $customerId === null

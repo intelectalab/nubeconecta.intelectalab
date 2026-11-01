@@ -12,6 +12,9 @@ import { navGroups, useHashRoute, type Route } from './shell/routes';
 import { LIVE_ROUTES, LivePortal, type LiveRoute } from './live/LivePortal';
 import './portal.css';
 
+/** URL del panel interno: al salir de la vista "ver como cliente" se vuelve allí. */
+const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:3000/' : '/');
+
 export default function App() {
   /* Ruta sincronizada con el hash (#facturas, #servicios…) en ambos modos. */
   const [route, setRoute] = useHashRoute();
@@ -33,9 +36,9 @@ export default function App() {
   type AuthState = { k: 'loading' } | { k: 'anon'; notice?: string | null; changeFor?: Me } | { k: 'ready'; user: Me };
   const [auth, setAuth] = useState<AuthState>(() => (DEMO_MODE ? { k: 'ready', user: DEMO_USER } : { k: 'loading' }));
 
-  /** El portal es solo para usuarios de cliente (type=customer). */
+  /** El portal es solo para usuarios de cliente (type=customer) o staff con la vista "ver como cliente" activa. */
   const enter = useCallback((user: Me) => {
-    if (user.type !== 'customer') {
+    if (user.type !== 'customer' && !user.impersonation) {
       hub.auth.logout().catch(() => undefined);
       setAuth({ k: 'anon', notice: 'Esta cuenta es del personal: ingresa por el panel de administración.' });
       return;
@@ -83,6 +86,16 @@ export default function App() {
       /* la sesión puede haber expirado ya */
     }
     setAuth({ k: 'anon', notice: 'Sesión cerrada.' });
+  }, []);
+
+  /** Termina la vista "ver como cliente" sin cerrar la sesión del staff y vuelve al panel. */
+  const exitImpersonation = useCallback(async () => {
+    try {
+      await hub.http.delete('/api/v1/admin/customers/impersonation');
+    } catch {
+      /* la vista pudo expirar ya */
+    }
+    window.location.href = ADMIN_URL;
   }, []);
 
   const TC = 3.75;
@@ -212,9 +225,10 @@ export default function App() {
       go={setRoute}
       nav={nav}
       crumb={crumb}
-      onLogout={() => void logout()}
+      onLogout={() => void (user.impersonation ? exitImpersonation() : logout())}
       loadSearch={loadSearch}
       notifs={notifs}
+      impersonation={user.impersonation ? { account: account.name, onExit: () => void exitImpersonation() } : null}
     >
           {live ? <LivePortal route={route as LiveRoute} go={(r: Route) => setRoute(r)} can={can} userName={user.name} /> : null}
 

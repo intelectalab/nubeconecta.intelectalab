@@ -47,6 +47,8 @@ export interface Me extends User {
     enrollment_required: boolean;
   };
   password: { change_required: boolean };
+  /** Vista "ver como cliente" activa en la sesión (solo staff); null si no hay. */
+  impersonation?: { customer_id: string; started_at: number; expires_at: number } | null;
 }
 
 export type LoginResult =
