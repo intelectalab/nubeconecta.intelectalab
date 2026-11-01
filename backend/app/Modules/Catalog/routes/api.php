@@ -6,6 +6,7 @@ use App\Modules\Catalog\Http\Controllers\PlanController;
 use App\Modules\Catalog\Http\Controllers\PlanPriceController;
 use App\Modules\Catalog\Http\Controllers\ProductCategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
+use App\Modules\Catalog\Http\Controllers\ProductAddonController;
 use App\Modules\Catalog\Http\Controllers\ProductListingController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,4 +29,9 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     $crud('plans', PlanController::class, 'catalog.plan');
     $crud('plan-prices', PlanPriceController::class, 'catalog.plan_price');
     $crud('product-listings', ProductListingController::class, 'catalog.product_listing');
+
+    Route::get('products/{id}/addons', [ProductAddonController::class, 'index'])->whereUuid('id')->middleware('permission:catalog.product.view')->name('products.addons.index');
+    Route::post('products/{id}/addons', [ProductAddonController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.product.update', 'idempotency:optional'])->name('products.addons.store');
+    Route::patch('products/{id}/addons/{addon}', [ProductAddonController::class, 'update'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.update');
+    Route::delete('products/{id}/addons/{addon}', [ProductAddonController::class, 'destroy'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.destroy');
 });

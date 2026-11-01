@@ -56,4 +56,9 @@ class Product extends Model
     {
         return $this->hasMany(ProductListing::class);
     }
+
+    public function addons(): HasMany
+    {
+        return $this->hasMany(ProductAddon::class, 'product_id')->orderBy('created_at');
+    }
 }
