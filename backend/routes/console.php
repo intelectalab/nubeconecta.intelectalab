@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 // Poda diaria de tokens Sanctum vencidos (sanctum.expiration o expires_at) con 24 h de gracia.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer()->withoutOverlapping();
 
+// Privacidad de Customers: elimina diariamente exportaciones cifradas vencidas.
+Schedule::command('hub:privacy:purge-exports')->daily()->onOneServer()->withoutOverlapping();
+
 // Billing (M-BIL §9): borradores de renovación de los servicios que vencen (RN-BIL-001), cola `billing`.
 Schedule::job(new App\Modules\Billing\Jobs\GenerateRenewalInvoices, 'billing')->dailyAt('06:00')->onOneServer()->withoutOverlapping();
 

@@ -14,6 +14,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -53,7 +54,8 @@ final class ExportPersonalData implements ShouldQueue
             'communication_consents' => CommunicationConsent::query()->whereIn('contact_id', $contacts->pluck('id'))->orderBy('recorded_at')->get()->toArray(),
             'related_records' => $this->contactId ? null : $related->counts($customer->id),
         ];
-        Storage::disk('local')->put(self::path($customer->id, $this->requestId), json_encode($package, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $json = json_encode($package, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        Storage::disk('local')->put(self::path($customer->id, $this->requestId), Crypt::encryptString($json));
         $audit->record('customer.personal_data_exported', 'customer', $customer->id, null, null, ['request_id' => $this->requestId, 'contact_id' => $this->contactId], $customer->id, ['type' => 'system', 'id' => null], $this->organizationId);
     }
 }

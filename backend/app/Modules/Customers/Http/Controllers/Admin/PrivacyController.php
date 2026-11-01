@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Modules\Customers\Http\Controllers\Admin;
 
+use App\Modules\Customers\Jobs\ExportPersonalData;
 use App\Modules\Customers\Models\Contact;
 use App\Modules\Customers\Models\Customer;
 use App\Modules\Customers\Services\CustomerImporter;
 use App\Modules\Customers\Services\PrivacyService;
+use App\Shared\Audit\AuditLogger;
 use App\Shared\Http\Problem\ProblemException;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * P-CUS-06 (privacidad del titular) e importación CSV (M-CUS §4.6 y §4.7).
@@ -26,6 +32,36 @@ final class PrivacyController
         $contact = $this->contact($request, $customer);
 
         return response()->json(['data' => ['request_id' => $privacy->requestExport($customer, $contact), 'status' => 'queued']], 202);
+    }
+
+    /** GET …/personal-data-exports/{request}/download: descifra y audita la entrega al personal autorizado. */
+    public function download(string $id, string $request, AuditLogger $audit): StreamedResponse
+    {
+        $customer = Customer::query()->findOrFail($id);
+        $disk = Storage::disk('local');
+        $path = ExportPersonalData::path($customer->id, $request);
+        $ttlDays = max(0, (int) config('hub.privacy.export_ttl_days', 7));
+
+        if (! $disk->exists($path) || $disk->lastModified($path) < now()->subDays($ttlDays)->getTimestamp()) {
+            throw ProblemException::notFound();
+        }
+
+        try {
+            $json = Crypt::decryptString($disk->get($path));
+        } catch (DecryptException) {
+            throw ProblemException::notFound();
+        }
+
+        $audit->record('customer.personal_data_export_downloaded', 'customer', $customer->id, null, null, ['request_id' => $request], $customer->id);
+
+        return response()->streamDownload(static function () use ($json): void {
+            echo $json;
+        }, "datos-personales-{$customer->id}.json", [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+            'Content-Security-Policy' => "default-src 'none'",
+        ]);
     }
 
     /** POST …/customers/{id}/personal-data-erasure (customers.customer.delete): exige escribir el código del cliente. */

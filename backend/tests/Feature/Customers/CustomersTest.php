@@ -11,13 +11,19 @@ use App\Modules\Customers\Events\CustomerFiscalDataChanged;
 use App\Modules\Customers\Events\CustomersMerged;
 use App\Modules\Customers\Jobs\ExportPersonalData;
 use App\Modules\Customers\Models\Contact;
+use App\Modules\Customers\Models\Customer;
+use App\Modules\Customers\Services\PrivacyService;
+use App\Modules\Customers\Services\RelatedRecords;
 use App\Modules\Customers\Support\TaxIdValidator;
 use App\Modules\Customers\Support\UnsubscribeToken;
 use App\Shared\Contracts\CommunicationPreferences;
+use App\Shared\Audit\AuditLogger;
+use App\Shared\Organization\CurrentOrganization;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Feature\Identity\IdentityTestCase;
 
@@ -270,5 +276,39 @@ final class CustomersTest extends IdentityTestCase
         $this->assertNull($row->email);
         $this->assertNotNull($row->deleted_at);
         $this->assertNotNull(DB::table('users')->where('id', $user->id)->value('deleted_at'));
+    }
+
+    public function test_personal_data_exports_are_encrypted_protected_expiring_and_erased(): void
+    {
+        Storage::fake('local');
+        $data = $this->customer('Exportación Privada SAC', self::ruc(50), ['email' => 'privado@example.pe']);
+        $requestId = (string) Str::uuid();
+        $job = new ExportPersonalData(DB::table('organizations')->value('id'), $data['id'], null, $requestId, $this->admin->id);
+        $job->handle(app(CurrentOrganization::class), app(AuditLogger::class), app(RelatedRecords::class));
+        $path = ExportPersonalData::path($data['id'], $requestId);
+        $disk = Storage::disk('local');
+        $stored = $disk->get($path);
+        $this->assertStringNotContainsString('Exportación Privada SAC', $stored);
+        $this->assertStringNotContainsString('privado@example.pe', $stored);
+
+        $url = "/api/v1/admin/customers/{$data['id']}/personal-data-exports/{$requestId}/download";
+        $download = $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/json; charset=UTF-8')
+            ->assertHeader('Cache-Control', 'no-store, private');
+        $this->assertSame('Exportación Privada SAC', json_decode($download->streamedContent(), true, 512, JSON_THROW_ON_ERROR)['customer']['legal_name']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'customer.personal_data_export_downloaded', 'entity_type' => 'customer',
+            'entity_id' => $data['id'], 'customer_id' => $data['id'],
+        ]);
+
+        $support = $this->makeUser(['support'], mfa: true);
+        $this->actAs($support);
+        $this->assertProblem($this->getJson($url), 403, 'forbidden');
+        $this->actAs($this->admin);
+
+        touch($disk->path($path), now()->subDays(8)->getTimestamp());
+        $this->assertProblem($this->getJson($url), 404, 'not_found');
+
+        app(PrivacyService::class)->erase(Customer::query()->findOrFail($data['id']));
+        $this->assertFalse($disk->exists($path));
     }
 }

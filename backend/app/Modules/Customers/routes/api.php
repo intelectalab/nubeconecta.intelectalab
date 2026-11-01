@@ -34,6 +34,7 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
         Route::get('overview', [CustomerController::class, 'overview'])->middleware('permission:customers.customer.view')->name('overview');
         Route::get('history', [CustomerController::class, 'history'])->middleware('permission:customers.customer.view')->name('history');
         Route::post('personal-data-exports', [PrivacyController::class, 'export'])->middleware(['permission:customers.customer.export', 'idempotency:optional'])->name('personal-data-exports');
+        Route::get('personal-data-exports/{request}/download', [PrivacyController::class, 'download'])->whereUuid('request')->middleware('permission:customers.customer.export')->name('personal-data-exports.download');
         Route::post('personal-data-erasure', [PrivacyController::class, 'erase'])->middleware(['permission:customers.customer.delete', 'idempotency:optional'])->name('personal-data-erasure');
         Route::get('contacts', [ContactController::class, 'index'])->middleware('permission:customers.contact.view')->name('contacts.index');
         Route::post('contacts', [ContactController::class, 'store'])->middleware(['permission:customers.contact.create', 'idempotency:optional'])->name('contacts.store');

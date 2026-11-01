@@ -9,6 +9,11 @@ declare(strict_types=1);
 */
 
 return [
+    // Retención máxima de exportaciones de datos personales cifradas.
+    'privacy' => [
+        'export_ttl_days' => (int) env('HUB_PRIVACY_EXPORT_TTL_DAYS', 7),
+    ],
+
     // Carpeta de los seeds canónicos (roles.json, permissions.json, settings.json).
     'seeds_path' => env('HUB_SEEDS_PATH', base_path('../database/seeds')),
 

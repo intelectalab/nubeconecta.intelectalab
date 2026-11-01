@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Customers;
 
+use App\Modules\Customers\Console\PurgePersonalDataExports;
 use App\Modules\Customers\Contracts\TaxIdLookup;
 use App\Modules\Customers\Services\ConsentService;
 use App\Modules\Customers\Services\CustomerImporter;
@@ -43,6 +44,10 @@ final class CustomersServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([PurgePersonalDataExports::class]);
+        }
+
         // Baja pública por enlace: la doc no fija el límite; 30/min por IP.
         RateLimiter::for('customers-unsubscribe', fn (Request $request) => Limit::perMinute(30)->by((string) $request->ip()));
 

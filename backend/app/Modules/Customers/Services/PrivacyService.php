@@ -13,6 +13,7 @@ use App\Modules\Identity\Services\AuthSessionManager;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Solicitudes de privacidad del titular (M-CUS §4.6, P-CUS-06).
@@ -68,6 +69,8 @@ final class PrivacyService
                 $this->audit->record('contact.personal_data_erased', 'contact', $contact->id, null, null, ['retained' => $retained], $customer->id);
             }
             PersonalDataErased::dispatch($customer->organization_id, $contact?->id ?? $customer->id);
+            // El paquete cifrado sigue conteniendo datos personales: bórralo tras validar y aplicar la supresión.
+            Storage::disk('local')->deleteDirectory("privacy-exports/{$customer->id}");
 
             return ['anonymized_contacts' => $contacts->count(), 'retained' => $retained];
         });
