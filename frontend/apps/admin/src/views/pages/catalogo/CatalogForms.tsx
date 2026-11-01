@@ -6,11 +6,13 @@
  * - Un precio vigente no se edita: cambiar el importe registra una nueva vigencia
  *   (POST /plan-prices); el backend cierra la anterior en esa fecha.
  */
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { currentPrice, isProblem, newIdempotencyKey, PLAN_CYCLES, CYCLE_LABELS, type Currency, type Plan, type PlanInput, type Product, type ProductCategory, type ProductInput } from '@hub/api';
+import { useApp } from '../../../app/context';
+import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
-import { Note, Switch } from '../../../components/ui';
-import { errorText, fieldErrors, useLookups } from '../clientes/shared';
+import { EmptyState, Note, SearchBox, Switch } from '../../../components/ui';
+import { errorText, fieldErrors, useCan, useLoad, useLookups } from '../clientes/shared';
 import { catalogApi } from './shared';
 
 type Vals = Record<string, string>;
@@ -253,9 +255,12 @@ export function PlanForm({ product, plan: initialPlan, onClose, onSaved }: PlanF
             {f.field('effective_from', 'Vigencia del nuevo precio desde', f.input('effective_from', 'date'), { hint: 'Solo aplica si cambia un importe; el precio anterior se cierra en esa fecha.' })}
           </div>
           {plan ? (
-            <Note icon="info" style={{ marginTop: 10 }}>
-              Los pedidos ya creados conservan el precio con que se registraron. Un precio que ya entró en vigencia no se puede modificar el mismo día: use una fecha posterior.
-            </Note>
+            <>
+              <Note icon="info" style={{ marginTop: 10 }}>
+                Los pedidos ya creados conservan el precio con que se registraron. Un precio que ya entró en vigencia no se puede modificar el mismo día: use una fecha posterior.
+              </Note>
+              <BundleItemsSection plan={plan} />
+            </>
           ) : null}
           <div className="err" role="alert">
             {msg}
@@ -271,5 +276,138 @@ export function PlanForm({ product, plan: initialPlan, onClose, onSaved }: PlanF
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Componentes de un plan paquete; solo se ofrece para planes ya persistidos. */
+function BundleItemsSection({ plan }: { plan: Plan }) {
+  const { toast } = useApp();
+  const can = useCan();
+  const [query, setQuery] = useState('');
+  const [selection, setSelection] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const items = useLoad(() => catalogApi.plans.bundleItems.list(plan.id), [plan.id]);
+  const candidates = useLoad(
+    () => (can('catalog.plan.update') ? catalogApi.plans.list({ q: query.trim(), size: 100 }).then((r) => r.data) : Promise.resolve([] as Plan[])),
+    [query, can('catalog.plan.update')],
+  );
+  useEffect(() => {
+    setQuantities(Object.fromEntries((items.data ?? []).map((item) => [item.id, String(item.quantity)])));
+  }, [items.data]);
+
+  const attachedIds = new Set((items.data ?? []).map((item) => item.item_plan_id));
+  const options = (candidates.data ?? []).filter((candidate) => candidate.id !== plan.id && !attachedIds.has(candidate.id));
+  const bundleError = (e: unknown) =>
+    isProblem(e) && e.status === 422
+      ? 'No se pudo guardar el componente. Verifique que sea otro plan y que la cantidad sea mayor que cero.'
+      : errorText(e);
+
+  const attach = async () => {
+    const quantity = Number(quantities.new ?? '1');
+    if (!selection || !Number.isFinite(quantity) || quantity <= 0) {
+      toast('Cantidad no válida', 'Ingrese una cantidad mayor que cero.', 'err');
+      return;
+    }
+    const selected = options.find((candidate) => candidate.id === selection);
+    setBusy('new');
+    try {
+      await catalogApi.plans.bundleItems.attach(plan.id, { item_plan_id: selection, quantity });
+      toast('Componente agregado', selected?.name ?? '');
+      setSelection('');
+      setQuery('');
+      setQuantities((current) => ({ ...current, new: '1' }));
+    } catch (e) {
+      toast('No se pudo agregar el componente', bundleError(e), 'err');
+    } finally {
+      setBusy(null);
+      items.reload();
+    }
+  };
+  const update = async (itemId: string, version: number) => {
+    const raw = quantities[itemId] ?? '';
+    const quantity = Number(raw);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      toast('Cantidad no válida', 'Ingrese una cantidad mayor que cero.', 'err');
+      setQuantities((current) => ({ ...current, [itemId]: String(items.data?.find((item) => item.id === itemId)?.quantity ?? 1) }));
+      return;
+    }
+    const current = items.data?.find((item) => item.id === itemId);
+    if (current?.quantity === quantity) return;
+    setBusy(itemId);
+    try {
+      await catalogApi.plans.bundleItems.update(plan.id, itemId, { quantity, version });
+      toast('Componente actualizado', current?.item_plan?.name ?? '');
+    } catch (e) {
+      toast('No se pudo actualizar el componente', bundleError(e), 'err');
+    } finally {
+      setBusy(null);
+      items.reload();
+    }
+  };
+  const remove = async (itemId: string, name: string) => {
+    setBusy(itemId);
+    try {
+      await catalogApi.plans.bundleItems.remove(plan.id, itemId);
+      toast('Componente quitado', name);
+    } catch (e) {
+      toast('No se pudo quitar el componente', bundleError(e), 'err');
+    } finally {
+      setBusy(null);
+      items.reload();
+    }
+  };
+
+  return (
+    <section style={{ marginTop: 20 }} aria-label="Componentes del paquete">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 8px' }}>
+        <h3 style={{ margin: 0 }}>Componentes del paquete</h3>
+      </div>
+      {items.error ? (
+        <Note kind="warn" icon="tri" role="alert">
+          No se pudieron cargar los componentes: {errorText(items.error)}{' '}
+          <button type="button" className="btn sm" onClick={items.reload}>Reintentar</button>
+        </Note>
+      ) : items.loading ? (
+        <p className="sub">Cargando componentes…</p>
+      ) : items.data?.length ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {items.data.map((item) => {
+            const name = item.item_plan?.name ?? item.item_plan_id;
+            return (
+              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 8, padding: '9px 12px' }}>
+                <div><b>{name}</b>{item.item_plan?.code ? <div className="sub mono">{item.item_plan.code}</div> : null}</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <label className="field" style={{ margin: 0 }}>
+                    Cantidad
+                    <input className="input" type="number" min="0.000001" step="any" value={quantities[item.id] ?? String(item.quantity)} disabled={!can('catalog.plan.update') || busy === item.id} aria-label={`Cantidad de ${name}`} onChange={(e) => setQuantities((current) => ({ ...current, [item.id]: e.target.value }))} onBlur={() => void update(item.id, item.version)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} />
+                  </label>
+                  {can('catalog.plan.update') ? <button type="button" className="btn sm" disabled={busy === item.id} onClick={() => void remove(item.id, name)}>Quitar</button> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : <EmptyState title="Sin componentes" text="Agregue los planes que incluye este paquete y su cantidad." icon="tag" />}
+      {can('catalog.plan.update') ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr) minmax(110px, .5fr) auto', alignItems: 'end', gap: 8, marginTop: 12 }}>
+          <SearchBox value={query} onChange={(value) => { setQuery(value); setSelection(''); }} placeholder="Buscar plan…" label="Buscar planes componente" />
+          <label className="field">
+            Plan componente
+            <select className="select" value={selection} disabled={candidates.loading || !options.length} onChange={(e) => setSelection(e.target.value)}>
+              <option value="">{candidates.loading ? 'Cargando…' : options.length ? 'Seleccione un plan' : 'Sin planes disponibles'}</option>
+              {options.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            Cantidad
+            <input className="input" type="number" min="0.000001" step="any" value={quantities.new ?? '1'} onChange={(e) => setQuantities((current) => ({ ...current, new: e.target.value }))} />
+          </label>
+          <button type="button" className="btn sm primary" disabled={!selection || busy !== null} onClick={() => void attach()}>
+            <Icon name="plus" size="sm" /> Agregar
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }

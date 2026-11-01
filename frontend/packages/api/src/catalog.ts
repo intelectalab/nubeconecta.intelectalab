@@ -91,6 +91,20 @@ export interface ProductAddon {
   addon_product?: Pick<Product, 'id' | 'code' | 'name'>;
 }
 
+/** Plan componente asociado a un plan paquete. */
+export interface BundleItem {
+  id: string;
+  item_plan_id: string;
+  quantity: number;
+  version: number;
+  item_plan?: Pick<Plan, 'id' | 'code' | 'name'>;
+}
+
+export interface BundleItemInput {
+  item_plan_id: string;
+  quantity: number;
+}
+
 export interface Product extends Audit {
   id: string;
   code: string;
@@ -159,7 +173,9 @@ function crud<T, I>(http: HttpClient, path: string) {
 
 export function createCatalogApi(http: HttpClient) {
   const products = crud<Product, ProductInput>(http, 'products');
+  const plans = crud<Plan, PlanInput>(http, 'plans');
   const encProduct = (productId: string) => `/api/v1/admin/products/${enc(productId)}/addons`;
+  const encBundleItems = (planId: string) => `/api/v1/admin/plans/${enc(planId)}/bundle-items`;
   return {
     categories: crud<ProductCategory, ProductCategoryInput>(http, 'product-categories'),
     products: {
@@ -174,7 +190,16 @@ export function createCatalogApi(http: HttpClient) {
         remove: (productId: string, addonId: string) => http.delete<void>(`${encProduct(productId)}/${enc(addonId)}`),
       },
     },
-    plans: crud<Plan, PlanInput>(http, 'plans'),
+    plans: {
+      ...plans,
+      bundleItems: {
+        list: (planId: string) => http.get<Envelope<BundleItem[]>>(encBundleItems(planId)).then((r) => r.data),
+        attach: (planId: string, input: BundleItemInput) => http.post<Envelope<BundleItem>>(encBundleItems(planId), input).then((r) => r.data),
+        update: (planId: string, itemId: string, input: Pick<BundleItem, 'quantity' | 'version'>) =>
+          http.patch<Envelope<BundleItem>>(`${encBundleItems(planId)}/${enc(itemId)}`, input).then((r) => r.data),
+        remove: (planId: string, itemId: string) => http.delete<void>(`${encBundleItems(planId)}/${enc(itemId)}`),
+      },
+    },
     prices: crud<PlanPrice, PlanPriceInput>(http, 'plan-prices'),
     listings: crud<ProductListing, ProductListingInput>(http, 'product-listings'),
   };
