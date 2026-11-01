@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Catalog\Http\Controllers\PlanController;
 use App\Modules\Catalog\Http\Controllers\PlanPriceController;
+use App\Modules\Catalog\Http\Controllers\BundleItemController;
 use App\Modules\Catalog\Http\Controllers\ProductCategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\ProductAddonController;
@@ -34,4 +35,9 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('products/{id}/addons', [ProductAddonController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.product.update', 'idempotency:optional'])->name('products.addons.store');
     Route::patch('products/{id}/addons/{addon}', [ProductAddonController::class, 'update'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.update');
     Route::delete('products/{id}/addons/{addon}', [ProductAddonController::class, 'destroy'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.destroy');
+
+    Route::get('plans/{id}/bundle-items', [BundleItemController::class, 'index'])->whereUuid('id')->middleware('permission:catalog.plan.view')->name('plans.bundle-items.index');
+    Route::post('plans/{id}/bundle-items', [BundleItemController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.plan.update', 'idempotency:optional'])->name('plans.bundle-items.store');
+    Route::patch('plans/{id}/bundle-items/{item}', [BundleItemController::class, 'update'])->whereUuid('id')->whereUuid('item')->middleware('permission:catalog.plan.update')->name('plans.bundle-items.update');
+    Route::delete('plans/{id}/bundle-items/{item}', [BundleItemController::class, 'destroy'])->whereUuid('id')->whereUuid('item')->middleware('permission:catalog.plan.update')->name('plans.bundle-items.destroy');
 });

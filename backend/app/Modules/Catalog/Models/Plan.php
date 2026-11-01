@@ -59,4 +59,9 @@ class Plan extends Model
     {
         return $this->hasMany(PlanPrice::class)->orderBy('currency')->orderByDesc('effective_from');
     }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'bundle_plan_id');
+    }
 }
