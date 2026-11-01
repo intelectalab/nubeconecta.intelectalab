@@ -7,13 +7,13 @@
  * en el modo demo (VITE_DEMO=1).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { currentPrice, cycleLabel, type Plan, type Product } from '@hub/api';
+import { currentPrice, cycleLabel, isProblem, type Plan, type Product } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { useViewState } from '../../../app/storage';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
 import { Sheet } from '../../../components/Modal';
-import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Tabs, Toolbar } from '../../../components/ui';
+import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Switch, Tabs, Toolbar } from '../../../components/ui';
 import { errorText, moneyMinor, useCan, useLoad, useLookups } from '../clientes/shared';
 import { PlanForm, ProductForm } from './CatalogForms';
 import { catalogApi } from './shared';
@@ -248,7 +248,16 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
   const res = useLoad(() => catalogApi.products.get(id), [id]);
   const [planForm, setPlanForm] = useState<{ plan?: Plan } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [addonQuery, setAddonQuery] = useState('');
+  const [addonSelection, setAddonSelection] = useState('');
   const p = res.data;
+  const addons = useLoad(() => catalogApi.products.addons.list(id), [id]);
+  const addonProducts = useLoad(
+    () => (can('catalog.product.update') ? catalogApi.products.list({ q: addonQuery.trim(), filter: { is_active: true }, size: 100 }).then((r) => r.data) : Promise.resolve([] as Product[])),
+    [addonQuery, can('catalog.product.update')],
+  );
+  const attachedIds = new Set((addons.data ?? []).map((addon) => addon.addon_product_id));
+  const addonOptions = (addonProducts.data ?? []).filter((candidate) => candidate.id !== id && !attachedIds.has(candidate.id));
 
   const togglePlan = async (pl: Plan) => {
     setBusy(pl.id);
@@ -265,6 +274,54 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
   };
 
   const canPlan = can('catalog.plan.update');
+  const canAddon = can('catalog.product.update');
+  const addonError = (e: unknown) =>
+    isProblem(e) && e.status === 422
+      ? 'No se pudo guardar el complemento. Puede estar duplicado o tener datos no válidos; revise la selección e inténtelo de nuevo.'
+      : errorText(e);
+  const updateAddon = async (addonId: string, version: number, isRequired: boolean) => {
+    setBusy(`addon:${addonId}`);
+    try {
+      await catalogApi.products.addons.update(id, addonId, { is_required: isRequired, version });
+      toast('Complemento actualizado', p?.name ?? '');
+    } catch (e) {
+      toast('No se pudo actualizar el complemento', addonError(e), 'err');
+    } finally {
+      setBusy(null);
+      addons.reload();
+      onChanged();
+    }
+  };
+  const attachAddon = async () => {
+    if (!addonSelection) return;
+    const selected = addonOptions.find((candidate) => candidate.id === addonSelection);
+    setBusy('addon:new');
+    try {
+      await catalogApi.products.addons.attach(id, { addon_product_id: addonSelection, is_required: false });
+      toast('Complemento agregado', selected?.name ?? '');
+      setAddonSelection('');
+      setAddonQuery('');
+    } catch (e) {
+      toast('No se pudo agregar el complemento', addonError(e), 'err');
+    } finally {
+      setBusy(null);
+      addons.reload();
+      onChanged();
+    }
+  };
+  const removeAddon = async (addonId: string, name: string) => {
+    setBusy(`addon:${addonId}`);
+    try {
+      await catalogApi.products.addons.remove(id, addonId);
+      toast('Complemento quitado', name);
+    } catch (e) {
+      toast('No se pudo quitar el complemento', addonError(e), 'err');
+    } finally {
+      setBusy(null);
+      addons.reload();
+      onChanged();
+    }
+  };
   return (
     <Sheet open onClose={onClose} title={p?.name ?? 'Producto'} sub={p ? `${p.code} · ${p.category?.name ?? ''}` : undefined}>
       {res.error ? (
@@ -285,6 +342,48 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
             ]}
           />
           {p.description ? <p className="sub" style={{ marginTop: 8 }}>{p.description}</p> : null}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 8px' }}>
+            <h3 style={{ margin: 0 }}>Complementos</h3>
+          </div>
+          {addons.error ? (
+            <Note kind="warn" icon="tri" role="alert">
+              No se pudieron cargar los complementos: {errorText(addons.error)}{' '}
+              <button type="button" className="btn sm" onClick={addons.reload}>Reintentar</button>
+            </Note>
+          ) : addons.loading ? (
+            <p className="sub">Cargando complementos…</p>
+          ) : addons.data?.length ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {addons.data.map((addon) => {
+                const name = addon.addon_product?.name ?? addon.addon_product_id;
+                return (
+                  <div key={addon.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 8, padding: '9px 12px' }}>
+                    <div><b>{name}</b>{addon.addon_product?.code ? <div className="sub mono">{addon.addon_product.code}</div> : null}</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                      <span className="sub">Requerido</span>
+                      <Switch checked={addon.is_required} disabled={!canAddon || busy === `addon:${addon.id}`} label={`Complemento requerido: ${name}`} onChange={(value) => void updateAddon(addon.id, addon.version, value)} />
+                      {canAddon ? <button type="button" className="btn sm" disabled={busy === `addon:${addon.id}`} onClick={() => void removeAddon(addon.id, name)}>Quitar</button> : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : <EmptyState title="Sin complementos" text="Agregue productos que puedan venderse junto con este producto." icon="tag" />}
+          {canAddon ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr) auto', alignItems: 'end', gap: 8, marginTop: 12 }}>
+              <SearchBox value={addonQuery} onChange={(value) => { setAddonQuery(value); setAddonSelection(''); }} placeholder="Buscar producto activo…" label="Buscar productos complemento" />
+              <label className="field">
+                Producto complemento
+                <select className="select" value={addonSelection} disabled={addonProducts.loading || !addonOptions.length} onChange={(e) => setAddonSelection(e.target.value)}>
+                  <option value="">{addonProducts.loading ? 'Cargando…' : addonOptions.length ? 'Seleccione un producto' : 'Sin productos disponibles'}</option>
+                  {addonOptions.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
+                </select>
+              </label>
+              <button type="button" className="btn sm primary" disabled={!addonSelection || busy !== null} onClick={() => void attachAddon()}>
+                <Icon name="plus" size="sm" /> Agregar
+              </button>
+            </div>
+          ) : null}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 8px' }}>
             <h3 style={{ margin: 0 }}>Planes</h3>
             {can('catalog.plan.create') ? (

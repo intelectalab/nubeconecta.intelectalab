@@ -82,6 +82,15 @@ export interface ProductListing extends Audit {
   visible_until: string | null;
 }
 
+/** Complemento asociado a un producto. La relación incluye el producto para mostrar su nombre. */
+export interface ProductAddon {
+  id: string;
+  addon_product_id: string;
+  is_required: boolean;
+  version: number;
+  addon_product?: Pick<Product, 'id' | 'code' | 'name'>;
+}
+
 export interface Product extends Audit {
   id: string;
   code: string;
@@ -108,6 +117,10 @@ export type PlanInput = Partial<Pick<Plan, 'product_id' | 'code' | 'name' | 'cyc
 export type PlanPriceInput = Partial<Pick<PlanPrice, 'plan_id' | 'currency' | 'price_minor' | 'setup_fee_minor' | 'effective_from' | 'effective_to'>>;
 export type ProductCategoryInput = Partial<Pick<ProductCategory, 'code' | 'name' | 'kind' | 'parent_id' | 'shortcode_type' | 'sort_order'>>;
 export type ProductListingInput = Partial<Pick<ProductListing, 'product_id' | 'brand_id' | 'display_name' | 'tagline' | 'sellable_online' | 'is_featured' | 'sort_order' | 'visible_from' | 'visible_until'>>;
+export interface ProductAddonInput {
+  addon_product_id: string;
+  is_required: boolean;
+}
 
 export interface ProductFilters {
   category_id?: string;
@@ -146,12 +159,20 @@ function crud<T, I>(http: HttpClient, path: string) {
 
 export function createCatalogApi(http: HttpClient) {
   const products = crud<Product, ProductInput>(http, 'products');
+  const encProduct = (productId: string) => `/api/v1/admin/products/${enc(productId)}/addons`;
   return {
     categories: crud<ProductCategory, ProductCategoryInput>(http, 'product-categories'),
     products: {
       ...products,
       list: (params: ListParams & { filter?: ProductFilters } = {}) =>
         products.list({ ...params, filter: { ...params.filter, is_active: bool(params.filter?.is_active), sellable_online: bool(params.filter?.sellable_online) } }),
+      addons: {
+        list: (productId: string) => http.get<Envelope<ProductAddon[]>>(encProduct(productId)).then((r) => r.data),
+        attach: (productId: string, input: ProductAddonInput) => http.post<Envelope<ProductAddon>>(encProduct(productId), input).then((r) => r.data),
+        update: (productId: string, addonId: string, input: Pick<ProductAddon, 'is_required' | 'version'>) =>
+          http.patch<Envelope<ProductAddon>>(`${encProduct(productId)}/${enc(addonId)}`, input).then((r) => r.data),
+        remove: (productId: string, addonId: string) => http.delete<void>(`${encProduct(productId)}/${enc(addonId)}`),
+      },
     },
     plans: crud<Plan, PlanInput>(http, 'plans'),
     prices: crud<PlanPrice, PlanPriceInput>(http, 'plan-prices'),
