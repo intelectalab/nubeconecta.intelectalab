@@ -39,8 +39,10 @@ export default function App() {
   /** El portal es solo para usuarios de cliente (type=customer) o staff con la vista "ver como cliente" activa. */
   const enter = useCallback((user: Me) => {
     if (user.type !== 'customer' && !user.impersonation) {
-      hub.auth.logout().catch(() => undefined);
-      setAuth({ k: 'anon', notice: 'Esta cuenta es del personal: ingresa por el panel de administración.' });
+      // OJO: NO cerrar sesión aquí. El panel y el portal comparten la cookie de sesión
+      // (mismo host), así que un logout botaría también la sesión del panel. Solo avisamos;
+      // el personal entra al portal de un cliente desde el botón "Ver como cliente" del panel.
+      setAuth({ k: 'anon', notice: 'Esta cuenta es del personal. Para ver el portal de un cliente usa el botón «Ver como cliente» en su ficha, dentro del panel de administración.' });
       return;
     }
     if (user.password.change_required) {
