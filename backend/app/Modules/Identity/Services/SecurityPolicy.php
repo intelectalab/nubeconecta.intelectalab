@@ -46,7 +46,8 @@ final class SecurityPolicy
     {
         $roles = $user->activeRoleCodes();
         if (in_array('admin', $roles, true)) {
-            return true;
+            // Por defecto el admin siempre lleva 2FA; el ajuste permite desactivarlo (baja la seguridad de todos los admin).
+            return $this->settings->bool('security.mfa.required_for_admin', true);
         }
 
         $byRole = (array) $this->settings->get('security.mfa.required_by_role', []);

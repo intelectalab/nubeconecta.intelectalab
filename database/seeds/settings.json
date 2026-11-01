@@ -2023,6 +2023,22 @@
       "origin": "§8, §23, §26"
     },
     {
+      "key": "security.mfa.required_for_admin",
+      "group": "Seguridad",
+      "description": "Segundo factor obligatorio para las cuentas con rol admin. Por defecto activo; desactivarlo baja la seguridad de todos los administradores.",
+      "type": "boolean",
+      "default": true,
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§8, §23, §26"
+    },
+    {
       "key": "security.mfa.required_for_customers",
       "group": "Seguridad",
       "description": "Segundo factor obligatorio para los usuarios de clientes (tipo de usuario customer), salvo que security.mfa.required_by_role diga otra cosa para el rol.",

@@ -42,6 +42,16 @@ final class AdminAccessTest extends IdentityTestCase
         $this->assertProblem($this->getJson('/api/v1/admin/users'), 403, 'mfa_required');
     }
 
+    public function test_admin_mfa_requirement_can_be_disabled_by_setting(): void
+    {
+        // security.mfa.required_for_admin=false permite al admin operar sin segundo factor.
+        $this->setSetting('security.mfa.required_for_staff', false);
+        $this->setSetting('security.mfa.required_for_admin', false);
+        $this->actingAs($this->makeUser(['admin']));
+
+        $this->getJson('/api/v1/admin/users')->assertOk();
+    }
+
     public function test_expired_role_assignment_grants_nothing(): void
     {
         $user = $this->makeUser(['admin'], mfa: true);
