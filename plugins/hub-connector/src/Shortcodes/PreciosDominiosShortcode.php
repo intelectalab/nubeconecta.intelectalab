@@ -10,8 +10,9 @@ use HubConnector\Plugin;
  * vista="franja" pinta una línea compacta con el precio de registro por año de cada extensión
  * (p. ej. en el hero de Inicio) y max limita cuántas extensiones se muestran.
  * vista="buscador" pinta un buscador (GET a /dominios/?q=) con las extensiones como chips; con
- * resultados="si" lee ?q= y muestra el nombre buscado con el precio de cada extensión y un
- * botón a /cotizacion/?dominio= (aún no hay consulta de disponibilidad, D-35).
+ * resultados="si" lee ?q= y muestra el nombre buscado con el precio de cada extensión; el
+ * navegador consulta la disponibilidad real (ruta REST del plugin, D-35) y muestra Disponible,
+ * Registrado o No pudimos verificar. Sin JavaScript quedan los precios y un botón a cotización.
  * También responde como [hub_dominios] (nombre de docs/13 §8). Tabla de registro,
  * renovación y transferencia por extensión, en todas las monedas de la marca.
  */
@@ -92,7 +93,11 @@ class PreciosDominiosShortcode extends AbstractShortcode
                 'action' => home_url('/dominios/'),
                 'query' => $name,
                 'searched' => $withResults && trim($raw) !== '',
-                'quote_url' => $name === '' ? '' : add_query_arg(['dominio' => rawurlencode($name)], home_url('/cotizacion/')),
+                'quote_url' => $name === '' ? '' : add_query_arg(['plan' => 'dominio', 'nombre' => rawurlencode($name), 'accion' => 'consultar'], home_url('/cotizacion/')),
+                'quote_base' => home_url('/cotizacion/'),
+                'contact_base' => home_url('/contacto/'),
+                'endpoint' => rest_url('hub-connector/v1/domains/availability'),
+                'nonce' => wp_create_nonce('hub_connector_domains'),
                 'chips' => $max > 0 && !($withResults && trim($raw) !== '') ? array_values($rows) : [],
                 'rows' => $all,
                 'visible_currency' => $this->visibleCurrency($currencies),

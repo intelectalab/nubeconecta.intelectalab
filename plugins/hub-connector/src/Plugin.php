@@ -8,6 +8,7 @@ use HubConnector\Api\HubClient;
 use HubConnector\Cache\CacheStore;
 use HubConnector\Cache\PageCachePurger;
 use HubConnector\Render\Templates;
+use HubConnector\Rest\DomainAvailabilityController;
 use HubConnector\Rest\FormRelayController;
 use HubConnector\Rest\InvalidateController;
 use HubConnector\Security\SecretBox;
@@ -106,6 +107,12 @@ class Plugin
             register_rest_route('hub-connector/v1', '/relay/form/(?P<code>[a-z0-9]+(?:-[a-z0-9]+)*)', [
                 'methods' => 'POST',
                 'callback' => [new FormRelayController($this->client), 'handle'],
+                'permission_callback' => '__return_true',
+            ]);
+            // Disponibilidad de dominios (D-35): la consulta la hace el navegador con nonce; no se guarda nada.
+            register_rest_route('hub-connector/v1', '/domains/availability', [
+                'methods' => 'GET',
+                'callback' => [new DomainAvailabilityController($this->client), 'handle'],
                 'permission_callback' => '__return_true',
             ]);
         });

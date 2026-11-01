@@ -4,7 +4,7 @@ namespace HubConnector\Api;
 
 /**
  * Mapa de endpoints de /public/wp (docs/13 §5) que el sistema ya publica.
- * Pendientes: paquetes, promociones, estado de servicios, servidores, WHOIS y Libro.
+ * Pendientes: paquetes, promociones, estado de servicios, servidores y Libro.
  */
 final class Endpoints
 {
@@ -14,6 +14,7 @@ final class Endpoints
     public const COMPARE = '/public/wp/catalog/compare';
     public const DOMAIN_PRICES = '/public/wp/catalog/domain-prices';
     public const CONTACT = '/public/wp/contact';
+    public const DOMAIN_AVAILABILITY = '/public/wp/domains/availability';
 
     public static function plan(string $id): string
     {

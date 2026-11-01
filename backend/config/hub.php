@@ -86,6 +86,25 @@ return [
         'requests_per_minute' => (int) env('HUB_WP_REQUESTS_PER_MINUTE', 120),
     ],
 
+    // Disponibilidad de dominios con RDAP/WHOIS públicos (D-35, solución inicial).
+    // `whois`: lista blanca extensión => servidor (no se consultan otros hosts); el resto va por RDAP.
+    'domain_availability' => [
+        'rdap_bootstrap_url' => 'https://data.iana.org/rdap/dns.json',
+        'whois' => [
+            'pe' => 'whois.nic.pe',
+            'com.pe' => 'whois.nic.pe',
+            'org.pe' => 'whois.nic.pe',
+            'net.pe' => 'whois.nic.pe',
+            'gob.pe' => 'whois.nic.pe',
+            'edu.pe' => 'whois.nic.pe',
+            'nom.pe' => 'whois.nic.pe',
+        ],
+        'timeout_seconds' => 4,
+        'requests_per_ip_per_10min' => (int) env('HUB_DOMAIN_CHECKS_PER_IP', 30),
+        // Segundos de caché por resultado (0 = no se cachea; un fallo nunca se cachea).
+        'cache_seconds' => ['available' => 60, 'registered' => 3600, 'unknown' => 0],
+    ],
+
     // Temas por marca (M-BRD). Estructura de tokens propuesta por el código, no por
     // los documentos: colores por modo en tokens.colors.<modo>.<nombre> y pares
     // texto/fondo que se miden contra brands.theme.min_contrast_ratio. Revisar con diseño.

@@ -605,4 +605,131 @@ final class WebConnectorTest extends IdentityTestCase
         $this->assertSame(1900, collect($prices)->firstWhere('tld', 'com')['register_minor']);
         $this->assertGreaterThanOrEqual(7, DB::table('domain_extensions')->count());
     }
+
+    public function test_domain_availability_with_public_rdap_and_whois(): void
+    {
+        $brand = $this->brand('marca-a');
+        ['token' => $token] = $this->activeSite($brand);
+        $org = DB::table('organizations')->value('id');
+        $registrar = (string) Str::uuid();
+        DB::table('providers')->insert(['id' => $registrar, 'organization_id' => $org, 'code' => 'reg', 'name' => 'Registrador X', 'type' => 'registrar']);
+        foreach (['pe', 'com.pe', 'com', 'net', 'io', 'cl'] as $i => $tld) {
+            DB::table('domain_extensions')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'tld' => $tld, 'default_registrar_id' => $registrar, 'sellable_online' => $tld !== 'cl', 'allows_transfer_in' => true, 'sort_order' => $i]);
+            DB::table('domain_tld_prices')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'tld' => $tld, 'provider_id' => $registrar, 'operation' => 'register', 'cost_minor' => 100, 'cost_currency' => 'USD', 'price_minor' => 11900, 'currency' => 'PEN', 'effective_from' => now()->subMonth()->toDateString()]);
+        }
+
+        // Sin red real: WHOIS falso inyectado y RDAP por Http::fake.
+        $whois = new class implements \App\Modules\WebConnector\Contracts\WhoisClient
+        {
+            /** @var list<string> */
+            public array $queried = [];
+
+            public function query(string $host, string $domain): ?string
+            {
+                $this->queried[] = $host.' '.$domain;
+                if (str_starts_with($domain, 'falla.')) {
+                    return null;
+                }
+
+                if (str_starts_with($domain, 'libre-')) {
+                    return match (strtok($domain, '.')) {
+                        'libre-notfound' => "NOT FOUND\n",
+                        'libre-nodata' => "No Data Found for this query\n",
+                        'libre-free' => "Status: free\n",
+                        'libre-available' => "Status: AVAILABLE\n",
+                        'libre-registration' => "The domain is available for registration\n",
+                        default => "Domain Status: No Object Found\n",
+                    };
+                }
+                if (str_starts_with($domain, 'ambiguo.')) {
+                    return "WHOIS server ready\nPlease contact the registry\n";
+                }
+                if (str_starts_with($domain, 'registrado-')) {
+                    return match (strtok($domain, '.')) {
+                        'registrado-id' => "Registry Domain ID: 12345\n",
+                        'registrado-date' => "Creation Date: 2020-01-01T00:00:00Z\n",
+                        'registrado-status' => "Domain Status: clientTransferProhibited\n",
+                        default => "Domain Name: {$domain}\nSponsoring Registrar: X\n",
+                    };
+                }
+
+                return str_starts_with($domain, 'libre.') ? "Domain Status: No Object Found\n" : "Domain Name: {$domain}\nSponsoring Registrar: X\n";
+            }
+        };
+        $this->app->instance(\App\Modules\WebConnector\Contracts\WhoisClient::class, $whois);
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            'data.iana.org/*' => Http::response(['services' => [[['com', 'net'], ['http://insegura.test/', 'https://rdap.verisign.com/com/v1/']]]]),
+            'rdap.verisign.com/*' => fn (HttpRequest $r) => str_contains($r->url(), 'libre.') ? Http::response('', 404) : (str_contains($r->url(), 'falla.') ? Http::response('', 500) : Http::response(['ldhName' => 'x'])),
+        ]);
+        $uri = '/api/v1/public/wp/domains/availability';
+        $ip = ['X-Hub-Visitor-Ip' => '203.0.113.50'];
+
+        // Libre en .pe/.com/.net, solo extensiones del catálogo en línea (.cl y .xyz se ignoran); .io sin RDAP = unknown.
+        $free = $this->plugin("{$uri}?name=Libre&tlds=pe,com.pe,com,net,io,cl,xyz", $token, $ip)->assertOk()->assertHeaderMissing('ETag')
+            ->assertJsonPath('data.name', 'libre')->assertJsonCount(5, 'data.results');
+        $byTld = collect($free->json('data.results'))->keyBy('tld');
+        $this->assertSame(['pe' => 'available', 'com.pe' => 'available', 'com' => 'available', 'net' => 'available', 'io' => 'unknown'], $byTld->map->status->all());
+        $this->assertSame('libre.com.pe', $byTld['com.pe']['domain']);
+        $this->assertSame(11900, $byTld['com']['register_minor']);
+        $this->assertSame('PEN', $byTld['com']['currency']);
+        $this->assertContains('whois.nic.pe libre.com.pe', $whois->queried);
+
+        // Variantes habituales de disponibilidad, datos registrales y respuestas ambiguas.
+        foreach (['libre-notfound', 'libre-nodata', 'libre-free', 'libre-available', 'libre-registration'] as $name) {
+            $this->assertSame('available', $this->plugin("{$uri}?name={$name}&tlds=pe", $token, $ip)->assertOk()->json('data.results.0.status'));
+        }
+        foreach (['registrado-id', 'registrado-date', 'registrado-status'] as $name) {
+            $this->assertSame('registered', $this->plugin("{$uri}?name={$name}&tlds=pe", $token, $ip)->assertOk()->json('data.results.0.status'));
+        }
+        $this->assertSame('unknown', $this->plugin("{$uri}?name=ambiguo&tlds=pe", $token, $ip)->assertOk()->json('data.results.0.status'));
+
+        // Registrado, y la IP del visitante no cuenta contra otra.
+        $taken = $this->plugin("{$uri}?name=google&tlds=.pe,.com", $token, $ip)->assertOk()->json('data.results');
+        $this->assertSame(['registered', 'registered'], array_column($taken, 'status'));
+
+        // Errores nunca se muestran como libres: WHOIS caído y RDAP 500 = unknown (y no se cachean).
+        $err = $this->plugin("{$uri}?name=falla&tlds=pe,com", $token, $ip)->assertOk()->json('data.results');
+        $this->assertSame(['unknown', 'unknown'], array_column($err, 'status'));
+        $before = count($whois->queried);
+        $this->plugin("{$uri}?name=falla&tlds=pe", $token, $ip)->assertOk();
+        $this->assertCount($before + 1, $whois->queried);
+
+        // Solo https para RDAP: el servidor http del bootstrap nunca se consulta.
+        Http::assertNotSent(fn (HttpRequest $r) => str_starts_with($r->url(), 'http://'));
+        // Un resultado libre o registrado se reutiliza de la caché corta.
+        $count = count($whois->queried);
+        $this->plugin("{$uri}?name=libre&tlds=pe", $token, $ip)->assertOk();
+        $this->assertCount($count, $whois->queried);
+
+        // Validación.
+        foreach (['', 'mi_empresa', '-abc', 'abc-', 'a.b', 'ñandu', str_repeat('a', 64)] as $bad) {
+            $this->assertProblem($this->plugin($uri.'?name='.urlencode($bad), $token, $ip), 422, 'validation_failed');
+        }
+        $this->assertProblem($this->plugin("{$uri}?name=abc&tlds=a1,a2,a3,a4,a5,a6,a7,a8,a9", $token, $ip), 422, 'validation_failed');
+        $this->assertProblem($this->plugin("{$uri}?name=abc&tlds=%3Cx%3E", $token, $ip), 422, 'validation_failed');
+        $this->assertProblem($this->plugin("{$uri}?name=abc", null), 401, 'unauthenticated');
+
+        // Límite por IP del visitante.
+        config(['hub.domain_availability.requests_per_ip_per_10min' => 2]);
+        $other = ['X-Hub-Visitor-Ip' => '198.51.100.9'];
+        $this->plugin("{$uri}?name=abc&tlds=pe", $token, $other)->assertOk();
+        $this->plugin("{$uri}?name=abc&tlds=pe", $token, $other)->assertOk();
+        $limited = $this->plugin("{$uri}?name=abc&tlds=pe", $token, $other);
+        $this->assertProblem($limited, 429, 'rate_limited');
+        $limited->assertHeader('Retry-After');
+        $this->plugin("{$uri}?name=abc&tlds=pe", $token, ['X-Hub-Visitor-Ip' => '198.51.100.10'])->assertOk();
+
+        // Una cabecera inválida usa la IP real de conexión y no crea una identidad nueva.
+        config(['hub.domain_availability.requests_per_ip_per_10min' => 2]);
+        $badHeader = ['X-Hub-Visitor-Ip' => 'no-es-una-ip'];
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.11']);
+        $this->plugin("{$uri}?name=abc&tlds=pe", $token, $badHeader)->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.11']);
+        $this->plugin("{$uri}?name=abd&tlds=pe", $token, $badHeader)->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.11']);
+        $this->assertProblem($this->plugin("{$uri}?name=abe&tlds=pe", $token, $badHeader), 429, 'rate_limited');
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.12']);
+        $this->plugin("{$uri}?name=abf&tlds=pe", $token, $badHeader)->assertOk();
+    }
 }

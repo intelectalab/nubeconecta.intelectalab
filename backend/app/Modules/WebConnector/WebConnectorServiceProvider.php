@@ -11,6 +11,10 @@ use App\Modules\Catalog\Events\PlanChanged;
 use App\Modules\Catalog\Events\PlanPriceChanged;
 use App\Modules\WebConnector\Console\DemoWebCommand;
 use App\Modules\WebConnector\Contracts\CaptchaVerifier;
+use App\Modules\WebConnector\Contracts\DomainAvailabilityChecker;
+use App\Modules\WebConnector\Contracts\WhoisClient;
+use App\Modules\WebConnector\Services\Domains\PublicDomainAvailabilityChecker;
+use App\Modules\WebConnector\Services\Domains\SocketWhoisClient;
 use App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite;
 use App\Modules\WebConnector\Listeners\InvalidateBrandSites;
 use App\Modules\WebConnector\Listeners\InvalidateCatalogSites;
@@ -38,6 +42,9 @@ final class WebConnectorServiceProvider extends ServiceProvider
         $this->app->scoped(WpSiteService::class);
         // D-24: proveedor de captcha sin decidir; este enlace se reemplaza cuando se elija.
         $this->app->singleton(CaptchaVerifier::class, NullCaptchaVerifier::class);
+        // D-35: disponibilidad con RDAP/WHOIS públicos; se reemplaza por la API de un registrador.
+        $this->app->bind(WhoisClient::class, SocketWhoisClient::class);
+        $this->app->bind(DomainAvailabilityChecker::class, PublicDomainAvailabilityChecker::class);
     }
 
     public function boot(Router $router): void

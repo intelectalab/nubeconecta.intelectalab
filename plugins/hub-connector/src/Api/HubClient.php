@@ -18,9 +18,11 @@ class HubClient
 
     /**
      * @param array<string, scalar> $query
+     * @param array<string, string> $extraHeaders cabeceras adicionales (p. ej. X-Hub-Visitor-Ip)
+     * @param float $timeout segundos de espera (la disponibilidad consulta registros externos)
      * @return array{status:int, data?:mixed, etag?:string, error?:string, retry_after?:int}
      */
-    public function get(string $path, array $query = [], ?string $etag = null): array
+    public function get(string $path, array $query = [], ?string $etag = null, array $extraHeaders = [], float $timeout = 5): array
     {
         $base = $this->settings->apiBase();
         $token = $this->settings->token();
@@ -34,7 +36,7 @@ class HubClient
             $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
         }
 
-        $headers = [
+        $headers = $extraHeaders + [
             'Authorization' => 'Bearer ' . $token,
             'Accept' => 'application/json',
             'Accept-Language' => $this->settings->lang(),
@@ -45,7 +47,7 @@ class HubClient
         }
 
         $response = wp_remote_get($url, [
-            'timeout' => (float) apply_filters('hub_connector_http_timeout', 5),
+            'timeout' => (float) apply_filters('hub_connector_http_timeout', $timeout),
             'redirection' => 0,
             'sslverify' => true,
             'headers' => $headers,

@@ -139,4 +139,19 @@
 .hub-dsearch__list li { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; margin: 0; padding: .75em 0; border-bottom: 1px solid var(--hub-border); }
 .hub-dsearch__domain { overflow-wrap: anywhere; }
 .hub-dsearch__error { margin: 0; color: #9b1c1c; font-weight: 600; }
+.hub-dsearch__status { margin: .6em 0 0; min-height: 1.5em; color: var(--hub-muted); }
+.hub-dsearch__status--error { color: #9b1c1c; font-weight: 600; }
+.hub-dsearch__list li { flex-wrap: wrap; align-items: center; }
+.hub-dsearch__domain { flex: 1 1 12em; }
+.hub-dsearch__state, .hub-dsearch__cost, .hub-dsearch__action { display: inline-flex; align-items: center; }
+.hub-dsearch__state:empty, .hub-dsearch__action:empty { display: none; }
+.hub-dsearch__badge { display: inline-block; padding: .15em .7em; border-radius: 999px; font-size: .9em; font-weight: 600; border: 1px solid currentColor; }
+.hub-dsearch__badge--available { color: #14663a; background: #e6f6ec; }
+.hub-dsearch__badge--registered { color: #54607a; background: #eef1f6; }
+.hub-dsearch__badge--unknown { color: #7a4b00; background: #fff4dc; }
+.hub-dsearch__list li[data-status="registered"] .hub-dsearch__domain { color: var(--hub-muted); }
+.hub-dsearch__link { font-weight: 600; text-decoration: underline; }
+.hub-dsearch__want, .hub-dsearch__ask { padding-block: .45em; }
+.hub-dsearch__live[aria-busy="true"] .hub-dsearch__list { opacity: .85; }
+.hub-dsearch__live [hidden] { display: none !important; }
 .hub-hplans__price .hub-price__cycle { font-size: 1em; font-weight: 500; }

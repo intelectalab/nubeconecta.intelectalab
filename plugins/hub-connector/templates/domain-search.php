@@ -1,11 +1,12 @@
 <?php
 /**
- * Buscador de [hub_precios_dominios vista="buscador" resultados="si|no"]. Mientras no haya
- * consulta de disponibilidad (D-35) lleva a /dominios/?q= y allí muestra el nombre con el
- * precio de cada extensión. Sobreescribible en <tema>/hub-connector/domain-search.php.
+ * Buscador de [hub_precios_dominios vista="buscador" resultados="si|no"]. Lleva a /dominios/?q= y
+ * allí muestra el nombre con el precio de cada extensión; hub-connector.js consulta la
+ * disponibilidad real (D-35) y rellena estado y botón de cada fila. Sin JavaScript queda la
+ * lista de precios y el botón a cotización. Sobreescribible en <tema>/hub-connector/domain-search.php.
  *
- * @var array $data action, query, searched, quote_url, chips (rows), rows (tld, name,
- *                  prices[moneda][register]), visible_currency
+ * @var array $data action, query, searched, quote_url, quote_base, contact_base, endpoint, nonce,
+ *                  chips (rows), rows (tld, name, prices[moneda][register]), visible_currency
  */
 if (!defined('ABSPATH')) {
     exit;
@@ -50,13 +51,22 @@ $price_html = static function (array $row, string $visible): string {
                 <p class="hub-dsearch__error" id="<?php echo esc_attr($uid . '-r'); ?>" role="alert"><?php echo esc_html__('Escribe un nombre con letras, números o guiones, sin espacios.', 'hub-connector'); ?></p>
             <?php else : ?>
                 <h2 class="hub-dsearch__title" id="<?php echo esc_attr($uid . '-r'); ?>"><?php echo esc_html(sprintf(__('Extensiones para «%s»', 'hub-connector'), $data['query'])); ?></h2>
-                <p class="hub-dsearch__note"><?php echo esc_html__('Aún no comprobamos la disponibilidad en línea. Elige y te confirmamos si el dominio está libre.', 'hub-connector'); ?></p>
-                <ul class="hub-dsearch__list">
-                    <?php foreach ($data['rows'] as $row) : ?>
-                        <li><span class="hub-dsearch__domain"><?php echo esc_html($data['query']); ?><strong><?php echo esc_html($row['name']); ?></strong></span> <?php echo $price_html($row, $data['visible_currency']); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado arriba ?></li>
-                    <?php endforeach; ?>
-                </ul>
-                <a class="hub-button" href="<?php echo esc_url($data['quote_url']); ?>"><?php echo esc_html__('Consultar disponibilidad', 'hub-connector'); ?></a>
+                <?php $rows = array_slice($data['rows'], 0, 40); ?>
+                <div class="hub-dsearch__live" data-hub-availability data-endpoint="<?php echo esc_url($data['endpoint']); ?>" data-nonce="<?php echo esc_attr($data['nonce']); ?>" data-name="<?php echo esc_attr($data['query']); ?>" data-quote="<?php echo esc_url($data['quote_base']); ?>" data-contact="<?php echo esc_url($data['contact_base']); ?>">
+                    <p class="hub-dsearch__note" data-hub-fallback><?php echo esc_html__('Estos son los precios de cada extensión. Elige y te confirmamos si el dominio está libre.', 'hub-connector'); ?></p>
+                    <p class="hub-dsearch__status" role="status" aria-live="polite" data-hub-live></p>
+                    <ul class="hub-dsearch__list">
+                        <?php foreach ($rows as $row) : ?>
+                            <li data-hub-row data-tld="<?php echo esc_attr($row['tld']); ?>">
+                                <span class="hub-dsearch__domain"><?php echo esc_html($data['query']); ?><strong><?php echo esc_html($row['name']); ?></strong></span>
+                                <span class="hub-dsearch__state" data-hub-state></span>
+                                <span class="hub-dsearch__cost" data-hub-price><?php echo $price_html($row, $data['visible_currency']); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado arriba ?></span>
+                                <span class="hub-dsearch__action" data-hub-action></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <a class="hub-button" data-hub-fallback href="<?php echo esc_url($data['quote_url']); ?>"><?php echo esc_html__('Consultar disponibilidad', 'hub-connector'); ?></a>
+                </div>
             <?php endif; ?>
         </div>
     <?php endif; ?>

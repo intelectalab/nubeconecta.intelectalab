@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\WebConnector\Http\Controllers\WebFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpCacheInvalidationController;
+use App\Modules\WebConnector\Http\Controllers\WpDomainAvailabilityController;
 use App\Modules\WebConnector\Http\Controllers\WpFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpPublicController;
 use App\Modules\WebConnector\Http\Controllers\WpSiteController;
@@ -53,6 +54,8 @@ Route::prefix('public/wp')->name('public.wp.')->middleware(['wp.site', 'throttle
     Route::get('contact', [WpPublicController::class, 'contact'])->name('contact');
     Route::get('catalog/compare', [WpPublicController::class, 'compare'])->name('catalog.compare');
     Route::get('catalog/domain-prices', [WpPublicController::class, 'domainPrices'])->name('catalog.domain-prices');
+    // Disponibilidad con RDAP/WHOIS públicos (D-35); límite por IP del visitante en el controlador.
+    Route::get('domains/availability', [WpDomainAvailabilityController::class, 'show'])->name('domains.availability');
     Route::get('legal-documents/{slug}', [WpPublicController::class, 'legalDocument'])->where('slug', '[a-z0-9]+([_-][a-z0-9]+)*')->name('legal-documents.show');
     Route::get('forms/{code}', [WpPublicController::class, 'form'])->where('code', '[a-z0-9]+(-[a-z0-9]+)*')->name('forms.show');
     // Envío en modo reenvío del plugin (docs/13 §9); el límite por IP del visitante va en el controlador.

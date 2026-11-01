@@ -140,10 +140,20 @@
             name = (params.get('nombre') || '').slice(0, 120);
         } catch (e) { return; }
         if (!/^[A-Za-z0-9_-]+$/.test(plan)) { return; }
+        var action = '';
+        try { action = new URLSearchParams(window.location.search).get('accion') || ''; } catch (e) { /* sin URLSearchParams */ }
+        var text;
+        if (plan === 'dominio') {
+            /* Buscador de dominios: el nombre es el dominio (miempresa.pe) o solo el nombre buscado. */
+            if (!/^[a-z0-9][a-z0-9.-]{0,130}$/.test(name)) { return; }
+            text = action === 'transferir' ? 'Quiero transferir el dominio ' + name + ' a su servicio.'
+                : action === 'consultar' ? 'Quiero consultar la disponibilidad del dominio ' + name + '.'
+                : 'Quiero registrar el dominio ' + name + '.';
+        } else {
+            text = 'Quiero cotizar el plan ' + (name ? name + ' (código ' + plan + ')' : plan) + '.';
+        }
         document.querySelectorAll('form[data-hub-form] textarea[name="message"]').forEach(function (box) {
-            if (box.value.trim() === '') {
-                box.value = 'Quiero cotizar el plan ' + (name ? name + ' (código ' + plan + ')' : plan) + '.';
-            }
+            if (box.value.trim() === '') { box.value = text; }
         });
     }
 
@@ -258,4 +268,128 @@
             select(next, true);
         }
     });
+})();
+
+/* Hub Connector: disponibilidad en /dominios/?q= (D-35). La página es cacheable; el navegador
+   pregunta a la ruta REST del plugin (con nonce) y rellena estado y botón de cada extensión.
+   Sin JavaScript, o si falla la consulta, quedan los precios y el botón a cotización. */
+(function () {
+    'use strict';
+    var MAX = 8;
+    var MSG = {
+        checking: 'Comprobando disponibilidad…',
+        done: 'Disponibilidad actualizada.',
+        failed: 'No pudimos comprobar la disponibilidad ahora. Estos son los precios; te confirmamos al cotizar.',
+        limited: 'Hiciste muchas consultas seguidas. Intenta de nuevo en unos minutos.',
+        available: 'Disponible', registered: 'Registrado', unknown: 'No pudimos verificar',
+        want: 'Lo quiero', transfer: '¿Es tuyo? Transfiérelo', consult: 'Consultar'
+    };
+
+    function link(url, text, aria, cls) {
+        var a = document.createElement('a');
+        a.href = url;
+        a.className = cls;
+        a.textContent = text;
+        a.setAttribute('aria-label', aria);
+        return a;
+    }
+
+    function setFallback(root, show) {
+        root.querySelectorAll('[data-hub-fallback]').forEach(function (el) { el.hidden = !show; });
+    }
+
+    function apply(root, row, item) {
+        var domain = item.domain || (root.getAttribute('data-name') + '.' + item.tld);
+        var state = row.querySelector('[data-hub-state]');
+        var price = row.querySelector('[data-hub-price]');
+        var action = row.querySelector('[data-hub-action]');
+        var quote = root.getAttribute('data-quote') || '';
+        var contact = root.getAttribute('data-contact') || '';
+        var q = '?plan=dominio&nombre=' + encodeURIComponent(domain);
+        state.textContent = '';
+        action.textContent = '';
+        row.setAttribute('data-status', item.status);
+        var badge = document.createElement('span');
+        badge.className = 'hub-dsearch__badge hub-dsearch__badge--' + item.status;
+        badge.textContent = MSG[item.status] || MSG.unknown;
+        state.appendChild(badge);
+        if (price) { price.hidden = item.status !== 'available'; }
+        if (item.status === 'available') {
+            action.appendChild(link(quote + q + '&accion=registrar', MSG.want, MSG.want + ' ' + domain, 'hub-button hub-dsearch__want'));
+        } else if (item.status === 'registered') {
+            if (item.allows_transfer_in) {
+                action.appendChild(link(contact + q + '&accion=transferir', MSG.transfer, MSG.transfer + ' ' + domain, 'hub-dsearch__link'));
+            }
+        } else {
+            action.appendChild(link(contact + q + '&accion=consultar', MSG.consult, MSG.consult + ' ' + domain, 'hub-button hub-dsearch__ask'));
+        }
+    }
+
+    function request(root, tlds, signal) {
+        var base = root.getAttribute('data-endpoint');
+        var url = base + (base.indexOf('?') < 0 ? '?' : '&')
+            + 'name=' + encodeURIComponent(root.getAttribute('data-name')) + '&tlds=' + encodeURIComponent(tlds.join(','));
+        return fetch(url, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json', 'X-Hub-Domain-Nonce': root.getAttribute('data-nonce') || '' },
+            signal: signal
+        }).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (json) { return { status: response.status, json: json }; });
+        });
+    }
+
+    function run(root) {
+        var rows = {};
+        var order = [];
+        root.querySelectorAll('[data-hub-row]').forEach(function (row) {
+            var tld = row.getAttribute('data-tld');
+            if (tld) { rows[tld] = row; order.push(tld); }
+        });
+        var live = root.querySelector('[data-hub-live]');
+        if (!order.length || !root.getAttribute('data-endpoint') || !window.fetch) { return; }
+        var controller = window.AbortController ? new AbortController() : null;
+        var timer = controller ? window.setTimeout(function () { controller.abort(); }, 25000) : null;
+        var chunks = [];
+        for (var i = 0; i < order.length; i += MAX) { chunks.push(order.slice(i, i + MAX)); }
+        root.setAttribute('aria-busy', 'true');
+        if (live) { live.textContent = MSG.checking; }
+        var applied = 0;
+        var problem = '';
+
+        chunks.reduce(function (chain, chunk) {
+            return chain.then(function () {
+                if (problem) { return null; }
+                return request(root, chunk, controller ? controller.signal : undefined).then(function (result) {
+                    if (result.status !== 200 || !result.json || !result.json.results) {
+                        problem = result.status === 429 ? 'limited' : 'failed';
+                        return;
+                    }
+                    result.json.results.forEach(function (item) {
+                        if (item && rows[item.tld]) { apply(root, rows[item.tld], item); applied++; }
+                    });
+                });
+            });
+        }, Promise.resolve()).catch(function () {
+            problem = 'failed';
+        }).then(function () {
+            if (timer) { window.clearTimeout(timer); }
+            root.removeAttribute('aria-busy');
+            if (applied > 0) { setFallback(root, false); }
+            if (live) {
+                live.textContent = problem ? MSG[problem] : MSG.done;
+                if (problem) { live.classList.add('hub-dsearch__status--error'); }
+            }
+        });
+    }
+
+    function init() {
+        document.querySelectorAll('[data-hub-availability]').forEach(run);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();

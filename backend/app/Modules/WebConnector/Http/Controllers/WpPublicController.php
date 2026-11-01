@@ -6,6 +6,7 @@ namespace App\Modules\WebConnector\Http\Controllers;
 
 use App\Modules\Settings\Services\SettingsResolver;
 use App\Modules\WebConnector\Models\WpSite;
+use App\Modules\WebConnector\Services\Domains\DomainPriceCatalog;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Settings\SettingsReader;
 use Carbon\CarbonImmutable;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class WpPublicController
 {
-    public function __construct(private readonly SettingsReader $settings, private readonly SettingsResolver $resolver) {}
+    public function __construct(private readonly SettingsReader $settings, private readonly SettingsResolver $resolver, private readonly DomainPriceCatalog $domainCatalog) {}
 
     public function site(Request $request): JsonResponse
     {
@@ -163,47 +164,8 @@ final class WpPublicController
             'tlds' => ['sometimes', 'string', 'max:500', 'regex:/^\.?[a-z0-9-]+(\.[a-z0-9-]+)*(,\.?[a-z0-9-]+(\.[a-z0-9-]+)*)*$/'],
             'currency' => ['sometimes', 'in:PEN,USD'],
         ]);
-        $org = $this->org($request);
-        $currency = $filters['currency'] ?? 'PEN';
-        $today = now()->toDateString();
         $tlds = isset($filters['tlds']) ? array_values(array_unique(array_map(fn ($t) => ltrim(trim($t), '.'), explode(',', $filters['tlds'])))) : null;
-
-        $extensions = DB::table('domain_extensions')->where('organization_id', $org)
-            ->where('is_active', true)->where('sellable_online', true)
-            ->when($tlds !== null, fn (Builder $q) => $q->whereIn('tld', $tlds))
-            ->orderBy('sort_order')->orderBy('tld')
-            ->get(['tld', 'default_registrar_id', 'is_featured', 'allows_transfer_in']);
-        $prices = DB::table('domain_tld_prices')->where('organization_id', $org)
-            ->whereIn('tld', $extensions->pluck('tld')->all())
-            ->where('currency', $currency)->where('years', 1)
-            ->whereIn('operation', ['register', 'renew', 'transfer'])
-            ->where('effective_from', '<=', $today)
-            ->where(fn (Builder $q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', $today))
-            ->orderByDesc('effective_from')
-            ->get(['tld', 'provider_id', 'operation', 'price_minor']);
-
-        $data = [];
-        foreach ($extensions as $ext) {
-            $byOperation = [];
-            foreach ($prices as $price) {
-                if ($price->tld === $ext->tld && $price->provider_id === $ext->default_registrar_id) {
-                    $byOperation[$price->operation] ??= (int) $price->price_minor;
-                }
-            }
-            if (! isset($byOperation['register'])) {
-                continue;
-            }
-            $data[] = [
-                'tld' => $ext->tld,
-                'name' => '.'.$ext->tld,
-                'featured' => (bool) $ext->is_featured,
-                'allows_transfer_in' => (bool) $ext->allows_transfer_in,
-                'currency' => $currency,
-                'register_minor' => $byOperation['register'],
-                'renew_minor' => $byOperation['renew'] ?? null,
-                'transfer_minor' => $ext->allows_transfer_in ? ($byOperation['transfer'] ?? null) : null,
-            ];
-        }
+        $data = $this->domainCatalog->prices($this->org($request), $filters['currency'] ?? 'PEN', $tlds);
 
         return $this->cached($request, $data);
     }
