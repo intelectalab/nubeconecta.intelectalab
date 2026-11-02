@@ -9,6 +9,8 @@ use App\Modules\Catalog\Http\Controllers\ProductCategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\ProductAddonController;
 use App\Modules\Catalog\Http\Controllers\ProductListingController;
+use App\Modules\Catalog\Http\Controllers\ServiceTypeController;
+use App\Modules\Catalog\Http\Controllers\ServiceTypeFieldController;
 use App\Modules\Catalog\Http\Controllers\HostingSpecController;
 use App\Modules\Catalog\Http\Controllers\VpsSpecController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +34,14 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     $crud('plans', PlanController::class, 'catalog.plan');
     $crud('plan-prices', PlanPriceController::class, 'catalog.plan_price');
     $crud('product-listings', ProductListingController::class, 'catalog.product_listing');
+    $crud('service-types', ServiceTypeController::class, 'catalog.service_type');
+
+    Route::post('service-types/{id}/activate', [ServiceTypeController::class, 'activate'])->whereUuid('id')->middleware('permission:catalog.service_type.update')->name('service-types.activate');
+    Route::post('service-types/{id}/archive', [ServiceTypeController::class, 'archive'])->whereUuid('id')->middleware('permission:catalog.service_type.update')->name('service-types.archive');
+    Route::get('service-types/{id}/fields', [ServiceTypeFieldController::class, 'index'])->whereUuid('id')->middleware('permission:catalog.service_type.view')->name('service-types.fields.index');
+    Route::post('service-types/{id}/fields', [ServiceTypeFieldController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.service_type.update', 'idempotency:optional'])->name('service-types.fields.store');
+    Route::patch('service-types/{id}/fields/{field}', [ServiceTypeFieldController::class, 'update'])->whereUuid('id')->whereUuid('field')->middleware('permission:catalog.service_type.update')->name('service-types.fields.update');
+    Route::delete('service-types/{id}/fields/{field}', [ServiceTypeFieldController::class, 'destroy'])->whereUuid('id')->whereUuid('field')->middleware('permission:catalog.service_type.update')->name('service-types.fields.destroy');
 
     Route::get('products/{id}/addons', [ProductAddonController::class, 'index'])->whereUuid('id')->middleware('permission:catalog.product.view')->name('products.addons.index');
     Route::post('products/{id}/addons', [ProductAddonController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.product.update', 'idempotency:optional'])->name('products.addons.store');
