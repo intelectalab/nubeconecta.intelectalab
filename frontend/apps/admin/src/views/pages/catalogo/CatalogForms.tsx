@@ -7,7 +7,7 @@
  *   (POST /plan-prices); el backend cierra la anterior en esa fecha.
  */
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { currentPrice, isProblem, newIdempotencyKey, PLAN_CYCLES, CYCLE_LABELS, type Currency, type Plan, type PlanInput, type Product, type ProductCategory, type ProductInput } from '@hub/api';
+import { currentPrice, isProblem, newIdempotencyKey, PLAN_CYCLES, CYCLE_LABELS, type Currency, type HostingSpecInput, type Plan, type PlanInput, type Product, type ProductCategory, type ProductInput, type VpsSpecInput } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
@@ -126,6 +126,12 @@ export function ProductForm({ product, categories, defaultCategoryId, onClose, o
             {f.toggle('export_eligible', 'Elegible para exportación (sin IGV)')}
             {product ? f.toggle('is_active', 'Activo') : null}
           </div>
+          {product ? (
+            <>
+              <HostingSpecSection product={product} />
+              <VpsSpecSection product={product} />
+            </>
+          ) : null}
           <div className="err" role="alert">
             {msg}
           </div>
@@ -411,6 +417,216 @@ function BundleItemsSection({ plan }: { plan: Plan }) {
           </button>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+/** Ficha técnica de hosting; los atributos JSON extra se conservan en el servidor. */
+function HostingSpecSection({ product }: { product: Product }) {
+  const { toast } = useApp();
+  const can = useCan();
+  const editable = can('catalog.product.update');
+  const spec = useLoad(() => catalogApi.products.hostingSpec.get(product.id), [product.id]);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const data = spec.data;
+    setVals({
+      whm_package: data?.whm_package ?? '',
+      disk_mb: data?.disk_mb == null ? '' : String(data.disk_mb),
+      bandwidth_mb: data?.bandwidth_mb == null ? '' : String(data.bandwidth_mb),
+      email_accounts: data?.email_accounts == null ? '' : String(data.email_accounts),
+      databases: data?.databases == null ? '' : String(data.databases),
+      websites: data?.websites == null ? '' : String(data.websites),
+      preferred_node_id: data?.preferred_node_id ?? '',
+    });
+  }, [spec.data]);
+  const set = (key: string) => (value: string) => setVals((current) => ({ ...current, [key]: value }));
+  const numberOrNull = (value: string) => value.trim() === '' ? null : Number(value);
+  const save = async () => {
+    const whmPackage = vals.whm_package?.trim() ?? '';
+    if (!whmPackage) {
+      toast('Falta el paquete WHM', 'Ingrese el nombre del paquete requerido.', 'err');
+      return;
+    }
+    setBusy(true);
+    try {
+      const input: HostingSpecInput = {
+        whm_package: whmPackage,
+        disk_mb: numberOrNull(vals.disk_mb ?? ''),
+        bandwidth_mb: numberOrNull(vals.bandwidth_mb ?? ''),
+        email_accounts: numberOrNull(vals.email_accounts ?? ''),
+        databases: numberOrNull(vals.databases ?? ''),
+        websites: numberOrNull(vals.websites ?? ''),
+        preferred_node_id: vals.preferred_node_id?.trim() || null,
+        ...(spec.data ? { version: spec.data.version } : {}),
+      };
+      if (spec.data) Object.assign(input, { extra_resources: spec.data.extra_resources });
+      await catalogApi.products.hostingSpec.upsert(product.id, input);
+      toast('Ficha de hosting guardada', product.name);
+      spec.reload();
+    } catch (e) {
+      if (isProblem(e) && (e.status === 409 || e.status === 422)) spec.reload();
+      toast('No se pudo guardar la ficha de hosting', isProblem(e) && e.status === 422 ? `Revise los campos de la ficha. ${errorText(e)}` : errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await catalogApi.products.hostingSpec.remove(product.id);
+      toast('Ficha de hosting quitada', product.name);
+      spec.reload();
+    } catch (e) {
+      toast('No se pudo quitar la ficha de hosting', errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const field = (key: string, label: string, type = 'text', hint?: string, required = false) => (
+    <label className="field" key={key}>
+      {label}{required ? ' *' : ''}
+      <input className="input" type={type} step={type === 'number' ? 1 : undefined} value={vals[key] ?? ''} disabled={!editable || busy} onChange={(e) => set(key)(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />
+      {hint ? <small className="hint">{hint}</small> : null}
+    </label>
+  );
+  return (
+    <section aria-label="Ficha técnica de hosting" style={{ marginTop: 20 }}>
+      <h3>Ficha técnica de hosting</h3>
+      {spec.loading ? <Spinner centered label="Cargando ficha de hosting" /> : spec.error ? (
+        <Note kind="warn" icon="tri" role="alert">
+          No se pudo cargar la ficha de hosting: {errorText(spec.error)}{' '}
+          <button type="button" className="btn sm" onClick={spec.reload}>Reintentar</button>
+        </Note>
+      ) : (
+        <>
+          <div className="form-grid">
+            {field('whm_package', 'Paquete WHM', 'text', undefined, true)}
+            {field('disk_mb', 'Disco (MB)', 'number')}
+            {field('bandwidth_mb', 'Transferencia (MB)', 'number')}
+            {field('email_accounts', 'Cuentas de correo', 'number')}
+            {field('databases', 'Bases de datos', 'number')}
+            {field('websites', 'Sitios web', 'number')}
+            {field('preferred_node_id', 'Nodo preferido', 'text', 'UUID del nodo (opcional)')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button type="button" className="btn primary" disabled={!editable || busy} onClick={() => void save()}>Guardar ficha</button>
+            {spec.data ? <button type="button" className="btn" disabled={!editable || busy} onClick={() => void remove()}>Quitar ficha</button> : null}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Ficha de VPS; la lista de sistemas operativos se edita como texto separado por comas. */
+function VpsSpecSection({ product }: { product: Product }) {
+  const { toast } = useApp();
+  const can = useCan();
+  const editable = can('catalog.product.update');
+  const spec = useLoad(() => catalogApi.products.vpsSpec.get(product.id), [product.id]);
+  const [vals, setVals] = useState<Record<string, string | boolean>>({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const data = spec.data;
+    setVals({
+      vcpu: data ? String(data.vcpu) : '', ram_mb: data ? String(data.ram_mb) : '', disk_gb: data ? String(data.disk_gb) : '',
+      transfer_gb: data?.transfer_gb == null ? '' : String(data.transfer_gb), os_options: data?.os_options.join(', ') ?? '',
+      is_managed: data?.is_managed ?? false, location: data?.location ?? '', cpu_model: data?.cpu_model ?? '',
+      disk_type: data?.disk_type ?? '', provider_id: data?.provider_id ?? '', provider_plan_ref: data?.provider_plan_ref ?? '',
+    });
+  }, [spec.data]);
+  const set = (key: string) => (value: string | boolean) => setVals((current) => ({ ...current, [key]: value }));
+  const save = async () => {
+    const vcpu = Number(vals.vcpu);
+    const ramMb = Number(vals.ram_mb);
+    const diskGb = Number(vals.disk_gb);
+    const providerId = String(vals.provider_id ?? '').trim();
+    const providerPlanRef = String(vals.provider_plan_ref ?? '').trim();
+    if (!Number.isInteger(vcpu) || vcpu < 1 || !Number.isInteger(ramMb) || ramMb <= 0 || !Number.isInteger(diskGb) || diskGb <= 0 || !providerId || !providerPlanRef) {
+      toast('Ficha de VPS incompleta', 'Indique vCPU, RAM, disco, UUID del proveedor y referencia del plan válidos.', 'err');
+      return;
+    }
+    setBusy(true);
+    try {
+      const diskType = String(vals.disk_type ?? '');
+      const transfer = String(vals.transfer_gb ?? '').trim();
+      const input: VpsSpecInput = {
+        vcpu, ram_mb: ramMb, disk_gb: diskGb,
+        transfer_gb: transfer === '' ? null : Number(transfer),
+        os_options: String(vals.os_options ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+        is_managed: vals.is_managed === true,
+        location: String(vals.location ?? '').trim() || null,
+        cpu_model: String(vals.cpu_model ?? '').trim() || null,
+        disk_type: diskType ? diskType as NonNullable<VpsSpecInput['disk_type']> : null,
+        provider_id: providerId, provider_plan_ref: providerPlanRef,
+        ...(spec.data ? { version: spec.data.version } : {}),
+      };
+      await catalogApi.products.vpsSpec.upsert(product.id, input);
+      toast('Ficha de VPS guardada', product.name);
+      spec.reload();
+    } catch (e) {
+      if (isProblem(e) && (e.status === 409 || e.status === 422)) spec.reload();
+      toast('No se pudo guardar la ficha de VPS', isProblem(e) && e.status === 422 ? `Revise los campos de la ficha. ${errorText(e)}` : errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await catalogApi.products.vpsSpec.remove(product.id);
+      toast('Ficha de VPS quitada', product.name);
+      spec.reload();
+    } catch (e) {
+      toast('No se pudo quitar la ficha de VPS', errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const field = (key: string, label: string, type = 'text', hint?: string, required = false) => (
+    <label className="field" key={key}>
+      {label}{required ? ' *' : ''}
+      <input className="input" type={type} step={type === 'number' ? 1 : undefined} value={String(vals[key] ?? '')} disabled={!editable || busy} onChange={(e) => set(key)(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />
+      {hint ? <small className="hint">{hint}</small> : null}
+    </label>
+  );
+  return (
+    <section aria-label="Ficha técnica de VPS" style={{ marginTop: 20 }}>
+      <h3>Ficha técnica de VPS</h3>
+      {spec.loading ? <Spinner centered label="Cargando ficha de VPS" /> : spec.error ? (
+        <Note kind="warn" icon="tri" role="alert">
+          No se pudo cargar la ficha de VPS: {errorText(spec.error)}{' '}
+          <button type="button" className="btn sm" onClick={spec.reload}>Reintentar</button>
+        </Note>
+      ) : (
+        <>
+          <div className="form-grid">
+            {field('vcpu', 'vCPU', 'number', undefined, true)}
+            {field('ram_mb', 'RAM (MB)', 'number', undefined, true)}
+            {field('disk_gb', 'Disco (GB)', 'number', undefined, true)}
+            {field('transfer_gb', 'Transferencia (GB)', 'number')}
+            {field('location', 'Ubicación')}
+            {field('cpu_model', 'Modelo de CPU')}
+            <label className="field">Tipo de disco
+              <select className="select" value={String(vals.disk_type ?? '')} disabled={!editable || busy} onChange={(e) => set('disk_type')(e.target.value)}>
+                <option value="">Sin especificar</option><option value="ssd">SSD</option><option value="nvme">NVMe</option><option value="hdd">HDD</option>
+              </select>
+            </label>
+            {field('provider_id', 'Proveedor', 'text', 'UUID del proveedor', true)}
+            {field('provider_plan_ref', 'Referencia del plan', 'text', undefined, true)}
+            {field('os_options', 'Sistemas operativos', 'text', 'Separados por comas')}
+            <label className="field">Administrado
+              <span><input type="checkbox" checked={vals.is_managed === true} disabled={!editable || busy} onChange={(e) => set('is_managed')(e.target.checked)} /> Sí</span>
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button type="button" className="btn primary" disabled={!editable || busy} onClick={() => void save()}>Guardar ficha</button>
+            {spec.data ? <button type="button" className="btn" disabled={!editable || busy} onClick={() => void remove()}>Quitar ficha</button> : null}
+          </div>
+        </>
+      )}
     </section>
   );
 }

@@ -3,7 +3,7 @@
  * Tipos tomados de los modelos reales (ModelResource): columnas de la tabla más relaciones cargadas.
  * `cost_minor`/`cost_currency` solo llegan con el permiso finance.cost.view.
  */
-import { newIdempotencyKey, toQuery, type HttpClient } from './http';
+import { newIdempotencyKey, toQuery, isProblem, type HttpClient } from './http';
 import type { Currency, CursorPage, ListParams } from './customers';
 
 export type BillingType = 'recurring' | 'one_time';
@@ -105,6 +105,29 @@ export interface BundleItemInput {
   quantity: number;
 }
 
+export interface HostingPackageSpec {
+  id: string; product_id: string;
+  disk_mb: number | null; bandwidth_mb: number | null; email_accounts: number | null;
+  databases: number | null; websites: number | null; whm_package: string;
+  preferred_node_id: string | null; extra_resources: Record<string, unknown>; version: number;
+}
+export interface HostingSpecInput {
+  disk_mb?: number | null; bandwidth_mb?: number | null; email_accounts?: number | null;
+  databases?: number | null; websites?: number | null; whm_package: string;
+  preferred_node_id?: string | null; version?: number;
+}
+export interface VpsPlanSpec {
+  id: string; product_id: string;
+  vcpu: number; ram_mb: number; disk_gb: number; transfer_gb: number | null;
+  os_options: string[]; is_managed: boolean; location: string | null; cpu_model: string | null;
+  disk_type: 'ssd' | 'nvme' | 'hdd' | null; provider_id: string; provider_plan_ref: string; version: number;
+}
+export interface VpsSpecInput {
+  vcpu: number; ram_mb: number; disk_gb: number; transfer_gb?: number | null;
+  os_options?: string[]; is_managed?: boolean; location?: string | null; cpu_model?: string | null;
+  disk_type?: 'ssd' | 'nvme' | 'hdd' | null; provider_id: string; provider_plan_ref: string; version?: number;
+}
+
 export interface Product extends Audit {
   id: string;
   code: string;
@@ -175,6 +198,8 @@ export function createCatalogApi(http: HttpClient) {
   const products = crud<Product, ProductInput>(http, 'products');
   const plans = crud<Plan, PlanInput>(http, 'plans');
   const encProduct = (productId: string) => `/api/v1/admin/products/${enc(productId)}/addons`;
+  const encHostingSpec = (productId: string) => `/api/v1/admin/products/${enc(productId)}/hosting-spec`;
+  const encVpsSpec = (productId: string) => `/api/v1/admin/products/${enc(productId)}/vps-spec`;
   const encBundleItems = (planId: string) => `/api/v1/admin/plans/${enc(planId)}/bundle-items`;
   return {
     categories: crud<ProductCategory, ProductCategoryInput>(http, 'product-categories'),
@@ -188,6 +213,24 @@ export function createCatalogApi(http: HttpClient) {
         update: (productId: string, addonId: string, input: Pick<ProductAddon, 'is_required' | 'version'>) =>
           http.patch<Envelope<ProductAddon>>(`${encProduct(productId)}/${enc(addonId)}`, input).then((r) => r.data),
         remove: (productId: string, addonId: string) => http.delete<void>(`${encProduct(productId)}/${enc(addonId)}`),
+      },
+      hostingSpec: {
+        get: (productId: string) =>
+          http.get<Envelope<HostingPackageSpec>>(encHostingSpec(productId)).then((r) => r.data).catch((e) => {
+            if (isProblem(e) && e.status === 404) return null; throw e;
+          }),
+        upsert: (productId: string, input: HostingSpecInput) =>
+          http.put<Envelope<HostingPackageSpec>>(encHostingSpec(productId), input).then((r) => r.data),
+        remove: (productId: string) => http.delete<void>(encHostingSpec(productId)),
+      },
+      vpsSpec: {
+        get: (productId: string) =>
+          http.get<Envelope<VpsPlanSpec>>(encVpsSpec(productId)).then((r) => r.data).catch((e) => {
+            if (isProblem(e) && e.status === 404) return null; throw e;
+          }),
+        upsert: (productId: string, input: VpsSpecInput) =>
+          http.put<Envelope<VpsPlanSpec>>(encVpsSpec(productId), input).then((r) => r.data),
+        remove: (productId: string) => http.delete<void>(encVpsSpec(productId)),
       },
     },
     plans: {
