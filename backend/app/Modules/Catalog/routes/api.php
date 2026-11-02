@@ -9,6 +9,8 @@ use App\Modules\Catalog\Http\Controllers\ProductCategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\ProductAddonController;
 use App\Modules\Catalog\Http\Controllers\ProductListingController;
+use App\Modules\Catalog\Http\Controllers\HostingSpecController;
+use App\Modules\Catalog\Http\Controllers\VpsSpecController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,6 +37,13 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('products/{id}/addons', [ProductAddonController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.product.update', 'idempotency:optional'])->name('products.addons.store');
     Route::patch('products/{id}/addons/{addon}', [ProductAddonController::class, 'update'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.update');
     Route::delete('products/{id}/addons/{addon}', [ProductAddonController::class, 'destroy'])->whereUuid('id')->whereUuid('addon')->middleware('permission:catalog.product.update')->name('products.addons.destroy');
+
+    Route::get('products/{id}/hosting-spec', [HostingSpecController::class, 'show'])->whereUuid('id')->middleware('permission:catalog.product.view')->name('products.hosting-spec.show');
+    Route::put('products/{id}/hosting-spec', [HostingSpecController::class, 'upsert'])->whereUuid('id')->middleware('permission:catalog.product.update')->name('products.hosting-spec.upsert');
+    Route::delete('products/{id}/hosting-spec', [HostingSpecController::class, 'destroy'])->whereUuid('id')->middleware('permission:catalog.product.update')->name('products.hosting-spec.destroy');
+    Route::get('products/{id}/vps-spec', [VpsSpecController::class, 'show'])->whereUuid('id')->middleware('permission:catalog.product.view')->name('products.vps-spec.show');
+    Route::put('products/{id}/vps-spec', [VpsSpecController::class, 'upsert'])->whereUuid('id')->middleware('permission:catalog.product.update')->name('products.vps-spec.upsert');
+    Route::delete('products/{id}/vps-spec', [VpsSpecController::class, 'destroy'])->whereUuid('id')->middleware('permission:catalog.product.update')->name('products.vps-spec.destroy');
 
     Route::get('plans/{id}/bundle-items', [BundleItemController::class, 'index'])->whereUuid('id')->middleware('permission:catalog.plan.view')->name('plans.bundle-items.index');
     Route::post('plans/{id}/bundle-items', [BundleItemController::class, 'store'])->whereUuid('id')->middleware(['permission:catalog.plan.update', 'idempotency:optional'])->name('plans.bundle-items.store');

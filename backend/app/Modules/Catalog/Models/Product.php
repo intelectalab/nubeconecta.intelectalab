@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -60,5 +61,15 @@ class Product extends Model
     public function addons(): HasMany
     {
         return $this->hasMany(ProductAddon::class, 'product_id')->orderBy('created_at');
+    }
+
+    public function hostingSpec(): HasOne
+    {
+        return $this->hasOne(HostingPackageSpec::class, 'product_id');
+    }
+
+    public function vpsSpec(): HasOne
+    {
+        return $this->hasOne(VpsPlanSpec::class, 'product_id');
     }
 }
