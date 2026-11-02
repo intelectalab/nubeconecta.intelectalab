@@ -194,9 +194,61 @@ function crud<T, I>(http: HttpClient, path: string) {
   };
 }
 
+/* ───────────────────────── Tipos de servicio (constructor sin código) ───────────────────────── */
+
+export type I18nText = Record<string, string>;
+export type ServiceTypeStatus = 'draft' | 'active' | 'archived';
+export type ServiceTypeSaleMode = 'online' | 'quote_only';
+export type ServiceComponentKind =
+  | 'server' | 'hosting' | 'domain' | 'dns' | 'cdn' | 'email' | 'bulk_email' | 'ssl_certificate'
+  | 'database' | 'storage' | 'wordpress_site' | 'custom_system' | 'moodle_platform' | 'license' | 'other';
+export type FieldType = 'text' | 'number' | 'select' | 'date' | 'file' | 'checkbox';
+export type FilledBy = 'customer' | 'staff';
+
+export interface DeliveryTask {
+  title: I18nText;
+  role?: string | null;
+  due_days?: number | null;
+  checklist?: string[];
+}
+export interface FieldOption {
+  value: string;
+  label: I18nText;
+}
+export interface ServiceTypeField {
+  id: string; service_type_id: string; key: string; label: I18nText; help_text: I18nText;
+  field_type: FieldType; options: FieldOption[]; validation: Record<string, unknown>;
+  is_required: boolean; filled_by: FilledBy; position: number; is_active: boolean; version: number;
+}
+export interface ServiceType {
+  id: string; code: string; name: I18nText; description: I18nText; icon: string | null;
+  category_id: string; brand_ids: string[]; status: ServiceTypeStatus; sale_mode: ServiceTypeSaleMode;
+  requires_contract: boolean; default_provider_id: string | null; component_kind: ServiceComponentKind | null;
+  delivery_tasks: DeliveryTask[]; portal_fields: string[]; activated_at: string | null; archived_at: string | null;
+  version: number; fields?: ServiceTypeField[];
+}
+export interface ServiceTypeInput {
+  code?: string; name?: I18nText; description?: I18nText; icon?: string | null;
+  category_id?: string; brand_ids?: string[]; sale_mode?: ServiceTypeSaleMode; requires_contract?: boolean;
+  default_provider_id?: string | null; component_kind?: ServiceComponentKind | null;
+  delivery_tasks?: DeliveryTask[]; portal_fields?: string[];
+}
+export interface ServiceTypeFieldInput {
+  key?: string; label?: I18nText; help_text?: I18nText; field_type?: FieldType;
+  options?: FieldOption[]; validation?: Record<string, unknown>; is_required?: boolean;
+  filled_by?: FilledBy; position?: number; is_active?: boolean;
+}
+export interface ServiceTypeFilters {
+  [key: string]: string | undefined;
+  status?: ServiceTypeStatus | '';
+  category_id?: string;
+}
+
 export function createCatalogApi(http: HttpClient) {
   const products = crud<Product, ProductInput>(http, 'products');
   const plans = crud<Plan, PlanInput>(http, 'plans');
+  const serviceTypes = crud<ServiceType, ServiceTypeInput>(http, 'service-types');
+  const encServiceType = (id: string) => `/api/v1/admin/service-types/${enc(id)}`;
   const encProduct = (productId: string) => `/api/v1/admin/products/${enc(productId)}/addons`;
   const encHostingSpec = (productId: string) => `/api/v1/admin/products/${enc(productId)}/hosting-spec`;
   const encVpsSpec = (productId: string) => `/api/v1/admin/products/${enc(productId)}/vps-spec`;
@@ -241,6 +293,21 @@ export function createCatalogApi(http: HttpClient) {
         update: (planId: string, itemId: string, input: Pick<BundleItem, 'quantity' | 'version'>) =>
           http.patch<Envelope<BundleItem>>(`${encBundleItems(planId)}/${enc(itemId)}`, input).then((r) => r.data),
         remove: (planId: string, itemId: string) => http.delete<void>(`${encBundleItems(planId)}/${enc(itemId)}`),
+      },
+    },
+    serviceTypes: {
+      ...serviceTypes,
+      activate: (id: string, version: number) =>
+        http.post<Envelope<ServiceType>>(`${encServiceType(id)}/activate`, { version }).then((r) => r.data),
+      archive: (id: string, version: number) =>
+        http.post<Envelope<ServiceType>>(`${encServiceType(id)}/archive`, { version }).then((r) => r.data),
+      fields: {
+        list: (id: string) => http.get<Envelope<ServiceTypeField[]>>(`${encServiceType(id)}/fields`).then((r) => r.data),
+        create: (id: string, input: ServiceTypeFieldInput) =>
+          http.post<Envelope<ServiceTypeField>>(`${encServiceType(id)}/fields`, input).then((r) => r.data),
+        update: (id: string, fieldId: string, version: number, input: ServiceTypeFieldInput) =>
+          http.patch<Envelope<ServiceTypeField>>(`${encServiceType(id)}/fields/${enc(fieldId)}`, { ...input, version }).then((r) => r.data),
+        remove: (id: string, fieldId: string) => http.delete<void>(`${encServiceType(id)}/fields/${enc(fieldId)}`),
       },
     },
     prices: crud<PlanPrice, PlanPriceInput>(http, 'plan-prices'),

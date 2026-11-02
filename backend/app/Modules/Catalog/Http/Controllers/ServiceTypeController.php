@@ -149,8 +149,8 @@ final class ServiceTypeController
             'component_kind' => ['sometimes', 'nullable', Rule::in(self::COMPONENT_KINDS)],
             'delivery_tasks' => ['sometimes', 'array'], 'delivery_tasks.*.title' => ['required_with:delivery_tasks.*', 'array'],
             'delivery_tasks.*.title.es' => ['required_with:delivery_tasks.*.title', 'string', 'min:1'],
-            'delivery_tasks.*.title.en' => ['sometimes', 'string'], 'delivery_tasks.*.role' => ['sometimes', 'string'],
-            'delivery_tasks.*.due_days' => ['sometimes', 'integer', 'min:0'],
+            'delivery_tasks.*.title.en' => ['sometimes', 'nullable', 'string'], 'delivery_tasks.*.role' => ['sometimes', 'nullable', 'string'],
+            'delivery_tasks.*.due_days' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'delivery_tasks.*.checklist' => ['sometimes', 'array'], 'delivery_tasks.*.checklist.*' => ['string'],
             'portal_fields' => ['sometimes', 'array'], 'portal_fields.*' => ['string', 'regex:/^[a-z][a-z0-9_]*$/'],
         ];
