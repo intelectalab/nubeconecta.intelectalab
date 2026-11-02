@@ -15,7 +15,7 @@ $loadSecret = static function (string $key): void {
     putenv($key.'='.$value);
 };
 
-foreach (['APP_KEY', 'DB_PASSWORD', 'HUB_DB_APP_PASSWORD', 'REDIS_PASSWORD', 'MAIL_PASSWORD'] as $key) {
+foreach (['APP_KEY', 'DB_PASSWORD', 'HUB_DB_APP_PASSWORD', 'REDIS_PASSWORD', 'MAIL_PASSWORD', 'HUB_VAULT_KEY'] as $key) {
     $loadSecret($key);
 }
 
