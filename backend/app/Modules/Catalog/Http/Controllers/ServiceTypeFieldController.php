@@ -104,8 +104,8 @@ final class ServiceTypeFieldController
         $required = $creating ? 'required' : 'sometimes';
         return [
             'key' => $creating ? [$required, 'string', 'regex:/^[a-z][a-z0-9_]*$/', Rule::unique('service_type_fields', 'key')->where('service_type_id', $serviceType->id)] : ['prohibited'],
-            'label' => [$required, 'array'], 'label.es' => [$creating ? 'required' : 'required_with:label', 'string', 'min:1'], 'label.en' => ['sometimes', 'string'],
-            'help_text' => ['sometimes', 'array'], 'help_text.es' => ['sometimes', 'string'], 'help_text.en' => ['sometimes', 'string'],
+            'label' => [$required, 'array'], 'label.es' => [$creating ? 'required' : 'required_with:label', 'string', 'min:1'], 'label.en' => ['sometimes', 'nullable', 'string'],
+            'help_text' => ['sometimes', 'array'], 'help_text.es' => ['sometimes', 'nullable', 'string'], 'help_text.en' => ['sometimes', 'nullable', 'string'],
             'field_type' => [$creating ? 'required' : 'prohibited', Rule::in(['text', 'number', 'select', 'date', 'file', 'checkbox'])],
             'options' => ['sometimes', 'array'], 'validation' => ['sometimes', 'array'],
             'is_required' => ['sometimes', 'boolean'], 'filled_by' => ['sometimes', Rule::in(['customer', 'staff'])],

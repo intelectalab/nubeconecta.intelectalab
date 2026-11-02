@@ -139,8 +139,8 @@ final class ServiceTypeController
         return [
             'code' => [$required, 'string', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', Rule::unique('service_types', 'code')->where('organization_id', $org)->ignore($model?->id)],
             'status' => ['prohibited'], 'activated_at' => ['prohibited'], 'archived_at' => ['prohibited'],
-            'name' => [$required, 'array'], 'name.es' => [$model === null ? 'required' : 'required_with:name', 'string', 'min:1'], 'name.en' => ['sometimes', 'string'],
-            'description' => ['sometimes', 'array'], 'description.es' => ['sometimes', 'string'], 'description.en' => ['sometimes', 'string'],
+            'name' => [$required, 'array'], 'name.es' => [$model === null ? 'required' : 'required_with:name', 'string', 'min:1'], 'name.en' => ['sometimes', 'nullable', 'string'],
+            'description' => ['sometimes', 'array'], 'description.es' => ['sometimes', 'nullable', 'string'], 'description.en' => ['sometimes', 'nullable', 'string'],
             'icon' => ['sometimes', 'nullable', 'string'],
             'category_id' => [$required, 'uuid', Rule::exists('product_categories', 'id')->where('organization_id', $org)],
             'brand_ids' => ['sometimes', 'array'], 'brand_ids.*' => ['uuid', Rule::exists('brands', 'id')->where('organization_id', $org)],
