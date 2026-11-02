@@ -13,7 +13,7 @@ import { useViewState } from '../../../app/storage';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
 import { Sheet } from '../../../components/Modal';
-import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Switch, Tabs, Toolbar } from '../../../components/ui';
+import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Skeleton, Spinner, Switch, Tabs, Toolbar } from '../../../components/ui';
 import { errorText, moneyMinor, useCan, useLoad, useLookups } from '../clientes/shared';
 import { PlanForm, ProductForm } from './CatalogForms';
 import { catalogApi } from './shared';
@@ -174,8 +174,8 @@ export default function CatalogList({ param }: { param?: string | null }) {
         label="Categorías"
         style={{ marginBottom: 14 }}
       />
-      <section className="card">
-        <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} productos`}>
+      <section className="card" aria-busy={res.loading}>
+        <Toolbar count={res.loading ? <Spinner size="sm" /> : `${rows.length}${meta?.has_more ? '+' : ''} productos`}>
           <SearchBox
             value={q}
             onChange={(v) => {
@@ -204,7 +204,9 @@ export default function CatalogList({ param }: { param?: string | null }) {
               </button>
             </Note>
           </div>
-        ) : !res.loading && !rows.length ? (
+        ) : res.loading ? (
+          <Skeleton variant="table" rows={6} />
+        ) : !rows.length ? (
           <EmptyState title="Sin productos" text={q || st ? 'Ajuste la búsqueda o los filtros.' : 'Esta categoría aún no tiene productos.'} />
         ) : (
           <>
@@ -329,7 +331,7 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
           {errorText(res.error)}
         </Note>
       ) : !p ? (
-        <p className="sub">Cargando…</p>
+        <Spinner centered label="Cargando ficha del producto" />
       ) : (
         <>
           <Kv
@@ -351,7 +353,7 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
               <button type="button" className="btn sm" onClick={addons.reload}>Reintentar</button>
             </Note>
           ) : addons.loading ? (
-            <p className="sub">Cargando complementos…</p>
+            <Spinner centered label="Cargando complementos" />
           ) : addons.data?.length ? (
             <div style={{ display: 'grid', gap: 8 }}>
               {addons.data.map((addon) => {
@@ -374,10 +376,13 @@ function ProductSheet({ id, onClose, onChanged }: { id: string; onClose: () => v
               <SearchBox value={addonQuery} onChange={(value) => { setAddonQuery(value); setAddonSelection(''); }} placeholder="Buscar producto activo…" label="Buscar productos complemento" />
               <label className="field">
                 Producto complemento
-                <select className="select" value={addonSelection} disabled={addonProducts.loading || !addonOptions.length} onChange={(e) => setAddonSelection(e.target.value)}>
-                  <option value="">{addonProducts.loading ? 'Cargando…' : addonOptions.length ? 'Seleccione un producto' : 'Sin productos disponibles'}</option>
-                  {addonOptions.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
-                </select>
+                <div className="loading-control">
+                  <select className="select" value={addonSelection} disabled={addonProducts.loading || !addonOptions.length} aria-busy={addonProducts.loading} onChange={(e) => setAddonSelection(e.target.value)}>
+                    <option value="">{addonOptions.length ? 'Seleccione un producto' : 'Sin productos disponibles'}</option>
+                    {addonOptions.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
+                  </select>
+                  {addonProducts.loading ? <Spinner size="sm" label="Cargando productos complemento" /> : null}
+                </div>
               </label>
               <button type="button" className="btn sm primary" disabled={!addonSelection || busy !== null} onClick={() => void attachAddon()}>
                 <Icon name="plus" size="sm" /> Agregar

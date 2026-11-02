@@ -282,6 +282,60 @@ export function Legend({ items }: { items: [string, ReactNode][] }) {
 }
 
 /* =================== Estados =================== */
+export type SkeletonVariant = 'table' | 'detail';
+
+export interface SkeletonProps {
+  /** Forma del contenido que se está cargando. */
+  variant?: SkeletonVariant;
+  /** Cantidad de filas o bloques a mostrar. */
+  rows?: number;
+  className?: string;
+  style?: CSSProperties;
+}
+
+/** Indicador de carga para listas, tablas y bloques de ficha. */
+export function Skeleton({ variant = 'table', rows = 5, className, style }: SkeletonProps) {
+  const count = Math.max(1, Math.floor(rows));
+  const tableWidths = [
+    ['42%', '18%', '24%', '16%', '62%'],
+    ['55%', '24%', '18%', '28%', '48%'],
+    ['36%', '20%', '30%', '14%', '72%'],
+    ['48%', '16%', '22%', '24%', '56%'],
+  ];
+  const detailWidths = ['34%', '58%', '44%', '68%', '50%'];
+
+  return (
+    <div className={['loading-skeleton', `loading-skeleton--${variant}`, className].filter(Boolean).join(' ')} aria-busy="true" role="status" aria-label="Cargando" style={style}>
+      <span className="sr-only">Cargando</span>
+      {variant === 'table'
+        ? Array.from({ length: count }, (_, i) => (
+            <div key={i} className="loading-skeleton__table-row" aria-hidden="true">
+              {tableWidths[i % tableWidths.length].map((width, j) => <span key={j} className="skel loading-skeleton__bar" style={{ width }} />)}
+            </div>
+          ))
+        : Array.from({ length: count }, (_, i) => (
+            <div key={i} className="loading-skeleton__detail-row" aria-hidden="true">
+              <span className="skel loading-skeleton__bar loading-skeleton__bar--label" style={{ width: detailWidths[i % detailWidths.length] }} />
+              <span className="skel loading-skeleton__bar" style={{ width: i % 2 ? '74%' : '88%' }} />
+            </div>
+          ))}
+    </div>
+  );
+}
+
+export interface SpinnerProps {
+  size?: 'sm' | 'md';
+  /** Centra el spinner como bloque dentro de su contenedor. */
+  centered?: boolean;
+  label?: string;
+  className?: string;
+}
+
+/** Indicador de carga para acciones puntuales o fichas individuales. */
+export function Spinner({ size = 'md', centered = false, label = 'Cargando', className }: SpinnerProps) {
+  return <span className={['spinner', `spinner--${size}`, centered ? 'spinner--centered' : '', className].filter(Boolean).join(' ')} role="status" aria-label={label}><span className="sr-only">{label}</span></span>;
+}
+
 export function EmptyState({ title, text, action, icon = 'search' }: { title: string; text?: ReactNode; action?: ReactNode; icon?: string }) {
   return (
     <div className="empty">

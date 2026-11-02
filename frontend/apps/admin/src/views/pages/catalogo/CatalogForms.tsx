@@ -11,7 +11,7 @@ import { currentPrice, isProblem, newIdempotencyKey, PLAN_CYCLES, CYCLE_LABELS, 
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
-import { EmptyState, Note, SearchBox, Switch } from '../../../components/ui';
+import { EmptyState, Note, SearchBox, Spinner, Switch } from '../../../components/ui';
 import { errorText, fieldErrors, useCan, useLoad, useLookups } from '../clientes/shared';
 import { catalogApi } from './shared';
 
@@ -135,7 +135,7 @@ export function ProductForm({ product, categories, defaultCategoryId, onClose, o
             Cancelar
           </button>
           <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? 'Guardando…' : product ? 'Guardar cambios' : 'Crear producto'}
+            {busy ? <><Spinner size="sm" label="Guardando producto" /> Guardando…</> : product ? 'Guardar cambios' : 'Crear producto'}
           </button>
         </div>
       </form>
@@ -271,7 +271,7 @@ export function PlanForm({ product, plan: initialPlan, onClose, onSaved }: PlanF
             {plan && !initialPlan ? 'Cerrar' : 'Cancelar'}
           </button>
           <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? 'Guardando…' : plan ? 'Guardar' : 'Crear plan'}
+            {busy ? <><Spinner size="sm" label="Guardando plan" /> Guardando…</> : plan ? 'Guardar' : 'Crear plan'}
           </button>
         </div>
       </form>
@@ -369,7 +369,7 @@ function BundleItemsSection({ plan }: { plan: Plan }) {
           <button type="button" className="btn sm" onClick={items.reload}>Reintentar</button>
         </Note>
       ) : items.loading ? (
-        <p className="sub">Cargando componentes…</p>
+        <Spinner centered label="Cargando componentes del paquete" />
       ) : items.data?.length ? (
         <div style={{ display: 'grid', gap: 8 }}>
           {items.data.map((item) => {
@@ -394,10 +394,13 @@ function BundleItemsSection({ plan }: { plan: Plan }) {
           <SearchBox value={query} onChange={(value) => { setQuery(value); setSelection(''); }} placeholder="Buscar plan…" label="Buscar planes componente" />
           <label className="field">
             Plan componente
-            <select className="select" value={selection} disabled={candidates.loading || !options.length} onChange={(e) => setSelection(e.target.value)}>
-              <option value="">{candidates.loading ? 'Cargando…' : options.length ? 'Seleccione un plan' : 'Sin planes disponibles'}</option>
-              {options.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
-            </select>
+            <div className="loading-control">
+              <select className="select" value={selection} disabled={candidates.loading || !options.length} aria-busy={candidates.loading} onChange={(e) => setSelection(e.target.value)}>
+                <option value="">{options.length ? 'Seleccione un plan' : 'Sin planes disponibles'}</option>
+                {options.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</option>)}
+              </select>
+              {candidates.loading ? <Spinner size="sm" label="Cargando planes componente" /> : null}
+            </div>
           </label>
           <label className="field">
             Cantidad
