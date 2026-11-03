@@ -13,6 +13,8 @@ use App\Modules\Catalog\Http\Controllers\ServiceTypeController;
 use App\Modules\Catalog\Http\Controllers\ServiceTypeFieldController;
 use App\Modules\Catalog\Http\Controllers\HostingSpecController;
 use App\Modules\Catalog\Http\Controllers\VpsSpecController;
+use App\Modules\Catalog\Http\Controllers\DomainExtensionController;
+use App\Modules\Catalog\Http\Controllers\DomainTldPriceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,6 +37,8 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     $crud('plan-prices', PlanPriceController::class, 'catalog.plan_price');
     $crud('product-listings', ProductListingController::class, 'catalog.product_listing');
     $crud('service-types', ServiceTypeController::class, 'catalog.service_type');
+    $crud('domain-extensions', DomainExtensionController::class, 'catalog.domain_extension');
+    $crud('domain-tld-prices', DomainTldPriceController::class, 'catalog.domain_tld_price');
 
     Route::post('service-types/{id}/activate', [ServiceTypeController::class, 'activate'])->whereUuid('id')->middleware('permission:catalog.service_type.update')->name('service-types.activate');
     Route::post('service-types/{id}/archive', [ServiceTypeController::class, 'archive'])->whereUuid('id')->middleware('permission:catalog.service_type.update')->name('service-types.archive');
