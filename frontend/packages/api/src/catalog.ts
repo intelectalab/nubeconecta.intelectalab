@@ -244,10 +244,28 @@ export interface ServiceTypeFilters {
   category_id?: string;
 }
 
+export interface DomainExtension {
+  id: string; tld: string; default_registrar_id: string; min_margin_percent: number | null;
+  sellable_online: boolean; allows_transfer_in: boolean; is_featured: boolean; sort_order: number;
+  is_active: boolean; version: number;
+}
+export type DomainExtensionInput = Partial<Pick<DomainExtension,
+  'tld' | 'default_registrar_id' | 'min_margin_percent' | 'sellable_online' | 'allows_transfer_in' | 'is_featured' | 'sort_order' | 'is_active'>>;
+export type DomainTldOperation = 'register' | 'renew' | 'transfer' | 'restore';
+export interface DomainTldPrice {
+  id: string; tld: string; provider_id: string; operation: DomainTldOperation; years: number;
+  cost_minor: number; cost_currency: string; price_minor: number; currency: 'PEN' | 'USD';
+  effective_from: string; effective_to: string | null; domain_extension_id: string | null; version: number;
+}
+export type DomainTldPriceInput = Partial<Pick<DomainTldPrice,
+  'tld' | 'provider_id' | 'operation' | 'years' | 'cost_minor' | 'cost_currency' | 'price_minor' | 'currency' | 'effective_from' | 'effective_to' | 'domain_extension_id'>>;
+
 export function createCatalogApi(http: HttpClient) {
   const products = crud<Product, ProductInput>(http, 'products');
   const plans = crud<Plan, PlanInput>(http, 'plans');
   const serviceTypes = crud<ServiceType, ServiceTypeInput>(http, 'service-types');
+  const domainExtensions = crud<DomainExtension, DomainExtensionInput>(http, 'domain-extensions');
+  const domainTldPrices = crud<DomainTldPrice, DomainTldPriceInput>(http, 'domain-tld-prices');
   const encServiceType = (id: string) => `/api/v1/admin/service-types/${enc(id)}`;
   const encProduct = (productId: string) => `/api/v1/admin/products/${enc(productId)}/addons`;
   const encHostingSpec = (productId: string) => `/api/v1/admin/products/${enc(productId)}/hosting-spec`;
@@ -310,6 +328,8 @@ export function createCatalogApi(http: HttpClient) {
         remove: (id: string, fieldId: string) => http.delete<void>(`${encServiceType(id)}/fields/${enc(fieldId)}`),
       },
     },
+    domainExtensions,
+    domainTldPrices,
     prices: crud<PlanPrice, PlanPriceInput>(http, 'plan-prices'),
     listings: crud<ProductListing, ProductListingInput>(http, 'product-listings'),
   };

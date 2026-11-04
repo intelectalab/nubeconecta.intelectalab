@@ -17,6 +17,7 @@ import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Skeleton, Spin
 import { errorText, moneyMinor, useCan, useLoad, useLookups } from '../clientes/shared';
 import { PlanForm, ProductForm } from './CatalogForms';
 import { ServiceTypesPanel } from './ServiceTypes';
+import { DomainsPanel } from './Domains';
 import { catalogApi } from './shared';
 
 const PER = 50;
@@ -40,7 +41,7 @@ export default function CatalogList({ param }: { param?: string | null }) {
   const [form, setForm] = useState<{ product?: Product } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [mode, setMode] = useViewState<'productos' | 'tipos'>('cat.mode', 'productos');
+  const [mode, setMode] = useViewState<'productos' | 'tipos' | 'dominios'>('cat.mode', 'productos');
 
   const cats = useLoad(() => catalogApi.categories.list({ size: 100, sort: 'sort_order' }).then((r) => r.data), []);
   const categories = cats.data ?? [];
@@ -146,10 +147,18 @@ export default function CatalogList({ param }: { param?: string | null }) {
 
   const tabs = [{ id: '', label: 'Todas' }, ...categories.map((c) => ({ id: c.id, label: c.name }))];
 
+  if (mode === 'dominios') {
+    return <>
+      <PageHead crumbs={[[ 'Comercial', 'catalogo' ], ['Catálogo']]} title="Catálogo" sub="Productos, tipos de servicio y dominios" />
+      <Tabs tabs={[{ id: 'productos', label: 'Productos' }, { id: 'tipos', label: 'Tipos de servicio' }, { id: 'dominios', label: 'Dominios' }]} value={mode} onChange={setMode} label="Tipo de catálogo" style={{ marginBottom: 14 }} />
+      <DomainsPanel />
+    </>;
+  }
+
   if (mode === 'tipos') {
     return <>
       <PageHead crumbs={[[ 'Comercial', 'catalogo' ], ['Catálogo']]} title="Catálogo" sub="Productos y tipos de servicio" />
-      <Tabs tabs={[{ id: 'productos', label: 'Productos' }, { id: 'tipos', label: 'Tipos de servicio' }]} value={mode} onChange={setMode} label="Tipo de catálogo" style={{ marginBottom: 14 }} />
+      <Tabs tabs={[{ id: 'productos', label: 'Productos' }, { id: 'tipos', label: 'Tipos de servicio' }, { id: 'dominios', label: 'Dominios' }]} value={mode} onChange={setMode} label="Tipo de catálogo" style={{ marginBottom: 14 }} />
       <ServiceTypesPanel />
     </>;
   }
@@ -169,7 +178,7 @@ export default function CatalogList({ param }: { param?: string | null }) {
           ) : null
         }
       />
-      <Tabs tabs={[{ id: 'productos', label: 'Productos' }, { id: 'tipos', label: 'Tipos de servicio' }]} value={mode} onChange={setMode} label="Tipo de catálogo" style={{ marginBottom: 14 }} />
+      <Tabs tabs={[{ id: 'productos', label: 'Productos' }, { id: 'tipos', label: 'Tipos de servicio' }, { id: 'dominios', label: 'Dominios' }]} value={mode} onChange={setMode} label="Tipo de catálogo" style={{ marginBottom: 14 }} />
       {cats.error ? (
         <Note kind="warn" icon="tri" role="alert">
           No se pudieron cargar las categorías: {errorText(cats.error)}
