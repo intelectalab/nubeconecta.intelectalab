@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Support;
 
 use App\Models\User;
+use App\Modules\Settings\Models\BusinessHour;
+use App\Modules\Settings\Models\Holiday;
+use App\Shared\Organization\CurrentOrganization;
+use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Str;
 use Tests\Feature\Identity\IdentityTestCase;
@@ -51,6 +55,24 @@ final class SupportTest extends IdentityTestCase
             'is_test' => true, 'test_reason' => 'Prueba automatizada.',
         ])->assertCreated()->assertJsonPath('data.is_test', true)->json('data.id');
         $this->deleteJson("/api/v1/admin/complaints/{$complaint}", ['version' => 1])->assertNoContent();
+    }
+
+    public function test_complaint_due_date_skips_weekends_and_holidays_when_calendar_configured(): void
+    {
+        app(CurrentOrganization::class)->set($this->admin->organization_id);
+        foreach (range(1, 5) as $weekday) {
+            BusinessHour::query()->create(['calendar' => 'default', 'timezone' => 'America/Lima', 'weekday' => $weekday, 'opens_at' => '09:00', 'closes_at' => '18:00']);
+        }
+        Holiday::query()->create(['country' => 'PE', 'date' => '2026-11-04', 'name' => 'Feriado de prueba', 'recurring' => false]);
+        Carbon::setTestNow('2026-11-02 10:00:00'); // lunes; +5 habiles salta el feriado (mie 04) y el fin de semana -> mar 10
+        try {
+            $this->postJson('/api/v1/admin/complaints', [
+                'brand_id' => $this->brand, 'complaint_type' => 'claim', 'consumer_name' => 'Plazo Habil', 'consumer_document_type' => 'dni', 'consumer_document_number' => '11112222',
+                'consumer_address' => 'Lima', 'consumer_email' => 'plazo@example.test', 'service_description' => 'Servicio', 'detail' => 'Detalle.', 'consumer_request' => 'Pedido.', 'response_days' => 5,
+            ])->assertCreated()->assertJsonPath('data.due_at', fn ($value) => is_string($value) && str_starts_with($value, '2026-11-10'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function actAs(User $user): void

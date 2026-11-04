@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Support\Http\Controllers;
 
+use App\Modules\Settings\Services\BusinessCalendar;
 use App\Modules\Support\Http\Resources\ComplaintResource;
 use App\Modules\Support\Http\Resources\ComplaintResponseResource;
 use App\Modules\Support\Models\Complaint;
 use App\Modules\Support\Models\ComplaintResponse;
 use App\Modules\Support\Models\Ticket;
 use App\Shared\Audit\AuditLogger;
+use Carbon\CarbonInterface;
 use App\Shared\Concurrency\VersionGuard;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
@@ -51,14 +53,29 @@ final class ComplaintController
             $number = (int) Complaint::query()->where('brand_id', $data['brand_id'])->max('number') + 1;
             $number = max($number, (int) DB::table('complaint_deletions')->where('brand_id', $data['brand_id'])->max('number') + 1);
             $received = now();
+            $due = $this->dueDate($received, (int) $data['response_days']);
             DB::table('code_sequences')->insertOrIgnore(['organization_id' => $org, 'entity' => 'ticket', 'prefix' => 'TIC', 'padding' => 6, 'next_value' => 1]);
-            $ticket = Ticket::query()->create(['number' => DB::selectOne('select hub_next_code(?, ?) as code', [$org, 'ticket'])->code, 'brand_id' => $data['brand_id'], 'customer_id' => $data['customer_id'] ?? null, 'type' => 'complaint', 'status' => 'open', 'priority' => 'high', 'channel' => 'web_form', 'subject' => 'Libro de Reclamaciones: '.$data['complaint_type'].' #'.$number, 'resolution_due_at' => $received->copy()->addDays((int) $data['response_days'])]);
+            $ticket = Ticket::query()->create(['number' => DB::selectOne('select hub_next_code(?, ?) as code', [$org, 'ticket'])->code, 'brand_id' => $data['brand_id'], 'customer_id' => $data['customer_id'] ?? null, 'type' => 'complaint', 'status' => 'open', 'priority' => 'high', 'channel' => 'web_form', 'subject' => 'Libro de Reclamaciones: '.$data['complaint_type'].' #'.$number, 'resolution_due_at' => $due]);
             $testMark = ($data['is_test'] ?? false) ? ['test_marked_at' => now(), 'test_marked_by' => auth()->id()] : [];
-            $record = Complaint::query()->create($data + ['number' => $number, 'code' => strtoupper($brand->code).'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT), 'received_at' => $received, 'due_at' => $received->copy()->addDays((int) $data['response_days']), 'ticket_id' => $ticket->id] + $testMark);
+            $record = Complaint::query()->create($data + ['number' => $number, 'code' => strtoupper($brand->code).'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT), 'received_at' => $received, 'due_at' => $due, 'ticket_id' => $ticket->id] + $testMark);
             $this->audit->record('complaint.created', 'complaint', $record->id, null, $record->refresh()->attributesToArray());
             return $record;
         }); } catch (QueryException $exception) { $state = (string) ($exception->errorInfo[0] ?? $exception->getCode()); if ($state === '23503') throw ProblemException::validation(['reference' => ['La referencia indicada no existe.']]); throw $exception; }
         return (new ComplaintResource($complaint))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Vencimiento legal del reclamo (Ley 31435: 15 dias habiles). Usa el
+     * calendario de dias habiles del negocio (fines de semana y feriados) si
+     * esta configurado; si no, cae a dias calendario para no bloquear el registro.
+     */
+    private function dueDate(CarbonInterface $from, int $days): CarbonInterface
+    {
+        try {
+            return app(BusinessCalendar::class)->addBusinessDays($from, $days);
+        } catch (\RuntimeException) {
+            return $from->copy()->addDays($days);
+        }
     }
 
     public function update(Request $request, string $id): ComplaintResource
