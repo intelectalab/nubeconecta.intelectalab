@@ -8,7 +8,7 @@ export type TicketChannel = 'email' | 'portal' | 'whatsapp' | 'phone' | 'interna
 export type TicketMessageChannel = 'email' | 'portal' | 'whatsapp' | 'phone' | 'internal';
 
 export interface TicketMessage {
-  id: string; ticket_id: string; author_type: string; author_user_id: string | null; author_contact_id: string | null;
+  id: string; ticket_id: string; author_type: string; author_user_id: string | null; author_contact_id: string | null; author_name: string | null;
   channel: TicketMessageChannel; body: string; is_internal: boolean; created_at: string; version: number;
 }
 export interface Ticket {

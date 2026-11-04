@@ -51,7 +51,7 @@ export default function TicketDetail({ id }: { id: string }) {
         <section className="card" style={{ marginBottom: 16 }}>
           <div className="card-h"><h2 className="sec">Conversación</h2><Chip>{statusLabel(detail.data.status)}</Chip></div>
           <ol className="thread" aria-label="Mensajes del ticket">{(detail.data.messages ?? []).map((m) => <li key={m.id} className={`msg ${m.is_internal ? 'nota' : m.author_type === 'staff' ? 'agente' : 'cliente'}`}>
-            <div className="mh"><span className="av"><Icon name={m.is_internal ? 'lock' : 'msg'} size="sm" /></span><b>{m.author_type === 'staff' ? 'Equipo de soporte' : 'Cliente'}</b><span>{m.is_internal ? 'Nota interna' : m.channel}</span><time>{fmt(m.created_at)}</time></div><p>{m.body}</p>
+            <div className="mh"><span className="av"><Icon name={m.is_internal ? 'lock' : 'msg'} size="sm" /></span><b>{m.author_name ?? (m.author_type === 'staff' ? 'Equipo de soporte' : 'Cliente')}</b><span>{m.is_internal ? 'Nota interna' : m.channel}</span><time>{fmt(m.created_at)}</time></div><p>{m.body}</p>
           </li>)}</ol>
           {!detail.data.messages?.length ? <div className="card-b sub">Todavía no hay mensajes.</div> : null}
           {messageWrite ? <form className="composer" onSubmit={send}><label className="field">{internal ? 'Nota interna' : 'Respuesta al cliente'}<textarea className="textarea" required rows={5} value={body} onChange={(e) => setBody(e.target.value)} /></label>

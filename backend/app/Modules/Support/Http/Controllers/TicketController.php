@@ -38,7 +38,7 @@ final class TicketController
         return CursorPagination::respond($query, $request, ['number', 'created_at', 'updated_at'], TicketResource::class, '-created_at');
     }
 
-    public function show(string $id): TicketResource { return new TicketResource(Ticket::query()->whereNull('deleted_at')->with('messages')->findOrFail($id)); }
+    public function show(string $id): TicketResource { return new TicketResource(Ticket::query()->whereNull('deleted_at')->with(['messages.authorUser:id,name', 'messages.authorContact:id,name'])->findOrFail($id)); }
 
     public function store(Request $request): JsonResponse
     {
@@ -105,6 +105,7 @@ final class TicketController
             $this->audit->record('ticket.message.created', 'ticket', $ticket->id, null, ['message_id' => $message->id]);
             return $message;
         });
+        $message->setRelation('authorUser', auth()->user());
         return (new TicketMessageResource($message))->response()->setStatusCode(201);
     }
 
