@@ -182,6 +182,7 @@ function OrderSheet({ id, onClose, onChanged }: { id: string; onClose: () => voi
   const res = useLoad(() => ordersApi.get(id), [id]);
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [reason, setReason] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const idem = useRef({ approve: newIdempotencyKey(), cancel: newIdempotencyKey() });
@@ -221,8 +222,11 @@ function OrderSheet({ id, onClose, onChanged }: { id: string; onClose: () => voi
       title={o ? `Pedido ${o.number}` : 'Pedido'}
       sub={o ? <Chip kind={ORDER_CHIP[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Chip> : undefined}
       footer={
-        canApprove || canCancel ? (
+        canApprove || canCancel || (!!o && o.status === 'draft' && can('orders.order.update')) ? (
           <>
+            {!!o && o.status === 'draft' && can('orders.order.update') ? (
+              <button type="button" className="btn" disabled={busy} onClick={() => setEditing(true)}>Editar</button>
+            ) : null}
             {canCancel && !cancelling ? (
               <button type="button" className="btn" disabled={busy} onClick={() => setCancelling(true)}>
                 Anular
@@ -237,6 +241,19 @@ function OrderSheet({ id, onClose, onChanged }: { id: string; onClose: () => voi
         ) : undefined
       }
     >
+      {editing && o ? (
+        <OrderForm
+          order={o}
+          onClose={() => setEditing(false)}
+          onConflict={() => res.reload()}
+          onSaved={(updated) => {
+            setEditing(false);
+            res.setData(updated);
+            onChanged();
+            toast('Pedido actualizado', `${updated.number} · ${moneyMinor(updated.total_minor, updated.currency)}`);
+          }}
+        />
+      ) : null}
       {res.error ? (
         <Note kind="warn" icon="tri" role="alert">
           {errorText(res.error)}

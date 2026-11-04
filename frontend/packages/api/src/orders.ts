@@ -65,6 +65,27 @@ export interface OrderInput {
   items: { plan_id: string; quantity?: number; description?: string | null }[];
 }
 
+export interface OrderPreviewLine {
+  product_id: string;
+  plan_id: string;
+  description: string;
+  quantity: string;
+  unit_price_minor: number;
+  amount_minor: number;
+  config?: Record<string, unknown>;
+  taxed?: boolean;
+}
+
+export interface OrderPreview {
+  currency: Currency;
+  tax_rate_percent: string;
+  subtotal_minor: number;
+  taxable_minor: number;
+  tax_minor: number;
+  total_minor: number;
+  items: OrderPreviewLine[];
+}
+
 export interface OrderFilters {
   status?: OrderStatus | '';
   customer_id?: string;
@@ -87,7 +108,9 @@ export function createOrdersApi(http: HttpClient) {
     list: (params: ListParams & { filter?: OrderFilters } = {}) =>
       http.get<CursorPage<Order>>(`${base}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
     get: (id: string) => http.get<Envelope<Order>>(`${base}/${enc(id)}`).then(unwrap),
+    preview: (input: OrderInput) => http.post<Envelope<OrderPreview>>(`${base}/totals-preview`, input).then(unwrap),
     create: (input: OrderInput, idempotencyKey = newIdempotencyKey()) => http.post<Envelope<Order>>(base, input, { idempotencyKey }).then(unwrap),
+    update: (id: string, version: number, input: OrderInput) => http.patch<Envelope<Order>>(`${base}/${enc(id)}`, { ...input, version }).then(unwrap),
     approve: (id: string, version?: number, idempotencyKey = newIdempotencyKey()) =>
       http.post<Envelope<Order>>(`${base}/${enc(id)}/approve`, version === undefined ? {} : { version }, { idempotencyKey }).then(unwrap),
     cancel: (id: string, reason: string, version?: number, idempotencyKey = newIdempotencyKey()) =>

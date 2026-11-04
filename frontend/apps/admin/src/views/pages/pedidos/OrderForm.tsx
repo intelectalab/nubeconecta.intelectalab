@@ -20,18 +20,32 @@ interface Line {
   quantity: string;
 }
 
-export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () => void; onSaved: (o: Order) => void; initialCustomer?: Customer }) {
+export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order }: { onClose: () => void; onSaved: (o: Order) => void; onConflict?: () => void; initialCustomer?: Customer; order?: Order }) {
   const [customer, setCustomer] = useState<Customer | null>(initialCustomer ?? null);
   const [cq, setCq] = useState('');
   const [cqDeb, setCqDeb] = useState('');
-  const [currency, setCurrency] = useState<Currency>(initialCustomer?.currency ?? 'PEN');
-  const [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<Line[]>([{ key: 1, plan_id: '', quantity: '1' }]);
+  const [currency, setCurrency] = useState<Currency>(order?.currency ?? initialCustomer?.currency ?? 'PEN');
+  const [notes, setNotes] = useState(order?.notes ?? '');
+  const [lines, setLines] = useState<Line[]>(() => order ? order.items.filter((i) => i.config?.kind !== 'setup_fee' && i.plan_id).map((i, n) => ({ key: n + 1, plan_id: i.plan_id!, quantity: String(i.quantity) })) : [{ key: 1, plan_id: '', quantity: '1' }]);
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<Awaited<ReturnType<typeof ordersApi.preview>> | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const idem = useRef(newIdempotencyKey());
   const seq = useRef(2);
+  const previewSeq = useRef(0);
+
+  useEffect(() => {
+    if (order && !initialCustomer) {
+      let active = true;
+      void customersApi.get(order.customer_id).then((c) => { if (active) setCustomer(c); }).catch(() => {
+        if (active) setErrs((e) => ({ ...e, customer_id: 'No se pudo cargar el cliente del pedido.' }));
+      });
+      return () => { active = false; };
+    }
+  }, [order, initialCustomer]);
 
   useEffect(() => {
     const t = setTimeout(() => setCqDeb(cq.trim()), 300);
@@ -59,6 +73,34 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
     return p && q > 0 ? a + Math.round(p.price_minor * q) + p.setup_fee_minor : a;
   }, 0);
 
+  const validLines = lines.filter((l) => l.plan_id && Number(l.quantity.replace(',', '.')) > 0);
+  const previewItems = validLines.map((l) => ({ plan_id: l.plan_id, quantity: Number(l.quantity.replace(',', '.')) }));
+  const previewKey = JSON.stringify({ customer: customer?.id, currency, items: previewItems });
+  useEffect(() => {
+    const requestId = ++previewSeq.current;
+    if (!customer || !previewItems.length) {
+      setPreview(null);
+      setPreviewLoading(false);
+      setPreviewFailed(false);
+      return;
+    }
+    setPreview(null);
+    setPreviewLoading(true);
+    setPreviewFailed(false);
+    const timer = window.setTimeout(() => {
+      void ordersApi.preview({ customer_id: customer.id, currency, items: previewItems }).then((result) => {
+        if (previewSeq.current === requestId) { setPreview(result); setPreviewFailed(false); }
+      }).catch(() => {
+        if (previewSeq.current === requestId) { setPreview(null); setPreviewFailed(true); }
+      }).finally(() => {
+        if (previewSeq.current === requestId) setPreviewLoading(false);
+      });
+    }, 400);
+    return () => { window.clearTimeout(timer); };
+    // previewKey captures the normalized request payload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+
   const setLine = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
   const submit = async (ev: FormEvent) => {
@@ -81,13 +123,11 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
     setErrs({});
     setMsg(null);
     try {
-      const o = await ordersApi.create(
-        { customer_id: customer.id, currency, notes: notes.trim() || null, items: items.map((l) => ({ plan_id: l.plan_id, quantity: Number(l.quantity.replace(',', '.')) })) },
-        idem.current,
-      );
+      const input = { customer_id: customer.id, currency, notes: notes.trim() || null, items: items.map((l) => ({ plan_id: l.plan_id, quantity: Number(l.quantity.replace(',', '.')) })) };
+      const o = order ? await ordersApi.update(order.id, order.version, input) : await ordersApi.create(input, idem.current);
       onSaved(o);
     } catch (e) {
-      if (isProblem(e) && e.status >= 400 && e.status < 500) idem.current = newIdempotencyKey();
+      if (!order && isProblem(e) && e.status >= 400 && e.status < 500) idem.current = newIdempotencyKey();
       // Los índices del backend son sobre las líneas enviadas (sin las vacías).
       const fe = fieldErrors(e);
       const out: Record<string, string> = {};
@@ -96,7 +136,8 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
         out[m ? `line.${items[Number(m[1])]?.key}.${m[2]}` : k] = v;
       }
       setErrs(out);
-      setMsg(isProblem(e) && e.status === 422 ? 'Revise los campos marcados.' : errorText(e));
+      if (order && isProblem(e) && e.status === 409) onConflict?.();
+      setMsg(isProblem(e) && e.status === 422 ? 'Revise los campos marcados.' : isProblem(e) && e.status === 409 ? `${errorText(e)} Recargue la ficha del pedido e inténtelo de nuevo.` : errorText(e));
     } finally {
       setBusy(false);
     }
@@ -105,7 +146,7 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
   const err = (k: string) => (errs[k] ? <span className="err">{errs[k]}</span> : null);
 
   return (
-    <Modal open onClose={onClose} title="Nuevo pedido" sub="El precio se congela al crear el pedido; el total con IGV lo calcula el sistema." wide bare>
+    <Modal open onClose={onClose} title={order ? `Editar pedido ${order.number}` : 'Nuevo pedido'} sub="El precio y los totales con IGV los calcula el sistema." wide bare>
       <form onSubmit={(e) => void submit(e)} noValidate style={{ display: 'contents' }}>
         <div className="modal-b">
           <div className="form-grid">
@@ -117,7 +158,7 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
                   <span className="sub">
                     {customer.code} · {docOf(customer)} · {customer.tax_treatment === 'export' ? 'Exportación' : 'Gravado'}
                   </span>
-                  <button
+                  {!order ? <button
                     type="button"
                     className="btn sm"
                     onClick={() => {
@@ -126,7 +167,7 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
                     }}
                   >
                     Cambiar
-                  </button>
+                  </button> : null}
                 </div>
               ) : (
                 <>
@@ -214,10 +255,12 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
               <Icon name="plus" size="sm" />
               Agregar línea
             </button>
-            <span className="sub">
-              Subtotal estimado (sin IGV): <b>{moneyMinor(estimate, currency)}</b>
+            <span className="sub" aria-live="polite">
+              {previewLoading ? <span>Calculando… </span> : null}
+              {preview ? <>Subtotal: <b>{moneyMinor(preview.subtotal_minor, currency)}</b> · IGV ({Number(preview.tax_rate_percent)}%): <b>{moneyMinor(preview.tax_minor, currency)}</b> · Total: <b>{moneyMinor(preview.total_minor, currency)}</b></> : <>Subtotal estimado: <b>{moneyMinor(estimate, currency)}</b></>}
             </span>
           </div>
+          {previewFailed ? <small className="hint">No se pudo calcular el total; se validará al guardar.</small> : null}
           <label className="field full" htmlFor="of-notes" style={{ marginTop: 12 }}>
             Notas
             <textarea className="input" id="of-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -231,7 +274,7 @@ export function OrderForm({ onClose, onSaved, initialCustomer }: { onClose: () =
             Cancelar
           </button>
           <button className="btn primary" type="submit" disabled={busy || !customer}>
-            {busy ? 'Creando…' : 'Crear pedido'}
+            {busy ? (order ? 'Guardando…' : 'Creando…') : (order ? 'Guardar cambios' : 'Crear pedido')}
           </button>
         </div>
       </form>
