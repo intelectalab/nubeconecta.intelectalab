@@ -189,7 +189,9 @@ final class OrderService
                 'product_id' => $product->id, 'plan_id' => $plan->id, 'quantity' => $quantity,
                 'description' => $item['description'] ?? "{$product->name} · {$plan->name}",
                 'unit_price_minor' => $price->price_minor,
-                'config' => ($item['config'] ?? []) + ['cycle' => $plan->cycle, 'plan_price_id' => $price->id, 'tax' => $tax],
+                // Las claves reservadas (impuesto, ciclo, precio, tipo) las fija el servidor; el config del
+                // cliente no puede sobrescribirlas (evita, p. ej., marcar como exenta una linea gravada).
+                'config' => array_diff_key($item['config'] ?? [], array_flip(['cycle', 'plan_price_id', 'tax', 'kind'])) + ['cycle' => $plan->cycle, 'plan_price_id' => $price->id, 'tax' => $tax],
                 'amount_minor' => OrderTotals::lineAmount($quantity, $price->price_minor), 'taxed' => $taxed,
             ];
             if ($price->setup_fee_minor > 0) {

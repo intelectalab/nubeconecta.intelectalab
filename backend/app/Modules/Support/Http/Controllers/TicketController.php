@@ -47,7 +47,7 @@ final class TicketController
             'customer_id' => ['nullable', 'uuid', Rule::exists('customers', 'id')->where('organization_id', $org)], 'contact_id' => ['nullable', 'uuid', Rule::exists('contacts', 'id')->where('organization_id', $org)],
             'brand_id' => ['nullable', 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)], 'type' => ['sometimes', Rule::in(self::TYPES)],
             'priority' => ['sometimes', Rule::in(self::PRIORITIES)], 'channel' => ['required', Rule::in(self::CHANNELS)], 'subject' => ['required', 'string', 'max:500'],
-            'assignee_id' => ['nullable', 'uuid', Rule::exists('users', 'id')], 'department' => ['nullable', 'string', 'max:120'], 'category' => ['nullable', 'string', 'max:120'], 'level' => ['sometimes', 'integer', 'between:1,3'],
+            'assignee_id' => ['nullable', 'uuid', Rule::exists('users', 'id')->where('organization_id', $org)], 'department' => ['nullable', 'string', 'max:120'], 'category' => ['nullable', 'string', 'max:120'], 'level' => ['sometimes', 'integer', 'between:1,3'],
             'custom' => ['sometimes', 'array'], 'resolution_due_at' => ['nullable', 'date'],
         ]);
         try {
@@ -65,7 +65,7 @@ final class TicketController
     {
         $ticket = Ticket::query()->whereNull('deleted_at')->findOrFail($id);
         $org = app(CurrentOrganization::class)->id();
-        $data = $request->validate(['version' => ['required', 'integer', 'min:1'], 'type' => ['sometimes', Rule::in(self::TYPES)], 'status' => ['sometimes', Rule::in(self::STATUSES)], 'priority' => ['sometimes', Rule::in(self::PRIORITIES)], 'subject' => ['sometimes', 'string', 'max:500'], 'assignee_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')], 'customer_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('customers', 'id')->where('organization_id', $org)], 'contact_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('contacts', 'id')->where('organization_id', $org)], 'brand_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)], 'department' => ['sometimes', 'nullable', 'string', 'max:120'], 'category' => ['sometimes', 'nullable', 'string', 'max:120'], 'level' => ['sometimes', 'integer', 'between:1,3'], 'custom' => ['sometimes', 'array'], 'resolution_due_at' => ['sometimes', 'nullable', 'date']]);
+        $data = $request->validate(['version' => ['required', 'integer', 'min:1'], 'type' => ['sometimes', Rule::in(self::TYPES)], 'status' => ['sometimes', Rule::in(self::STATUSES)], 'priority' => ['sometimes', Rule::in(self::PRIORITIES)], 'subject' => ['sometimes', 'string', 'max:500'], 'assignee_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('organization_id', $org)], 'customer_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('customers', 'id')->where('organization_id', $org)], 'contact_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('contacts', 'id')->where('organization_id', $org)], 'brand_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)], 'department' => ['sometimes', 'nullable', 'string', 'max:120'], 'category' => ['sometimes', 'nullable', 'string', 'max:120'], 'level' => ['sometimes', 'integer', 'between:1,3'], 'custom' => ['sometimes', 'array'], 'resolution_due_at' => ['sometimes', 'nullable', 'date']]);
         try {
             DB::transaction(function () use ($ticket, $data): void {
                 VersionGuard::check($ticket, $data['version']);
