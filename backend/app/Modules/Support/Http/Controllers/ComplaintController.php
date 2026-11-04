@@ -53,8 +53,8 @@ final class ComplaintController
             $received = now();
             DB::table('code_sequences')->insertOrIgnore(['organization_id' => $org, 'entity' => 'ticket', 'prefix' => 'TIC', 'padding' => 6, 'next_value' => 1]);
             $ticket = Ticket::query()->create(['number' => DB::selectOne('select hub_next_code(?, ?) as code', [$org, 'ticket'])->code, 'brand_id' => $data['brand_id'], 'customer_id' => $data['customer_id'] ?? null, 'type' => 'complaint', 'status' => 'open', 'priority' => 'high', 'channel' => 'web_form', 'subject' => 'Libro de Reclamaciones: '.$data['complaint_type'].' #'.$number, 'resolution_due_at' => $received->copy()->addDays((int) $data['response_days'])]);
-            $record = Complaint::query()->create($data + ['number' => $number, 'code' => strtoupper($brand->code).'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT), 'received_at' => $received, 'due_at' => $received->copy()->addDays((int) $data['response_days']), 'ticket_id' => $ticket->id]);
-            if ($record->is_test) { $record->test_marked_at = now(); $record->test_marked_by = auth()->id(); $record->test_reason = $data['test_reason']; $record->save(); }
+            $testMark = ($data['is_test'] ?? false) ? ['test_marked_at' => now(), 'test_marked_by' => auth()->id()] : [];
+            $record = Complaint::query()->create($data + ['number' => $number, 'code' => strtoupper($brand->code).'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT), 'received_at' => $received, 'due_at' => $received->copy()->addDays((int) $data['response_days']), 'ticket_id' => $ticket->id] + $testMark);
             $this->audit->record('complaint.created', 'complaint', $record->id, null, $record->refresh()->attributesToArray());
             return $record;
         }); } catch (QueryException $exception) { $state = (string) ($exception->errorInfo[0] ?? $exception->getCode()); if ($state === '23503') throw ProblemException::validation(['reference' => ['La referencia indicada no existe.']]); throw $exception; }

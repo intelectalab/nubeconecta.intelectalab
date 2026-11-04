@@ -43,6 +43,16 @@ final class SupportTest extends IdentityTestCase
         $this->getJson('/api/v1/admin/complaints/'.Str::uuid())->assertNotFound();
     }
 
+    public function test_test_complaint_can_be_created_and_deleted(): void
+    {
+        $complaint = $this->postJson('/api/v1/admin/complaints', [
+            'brand_id' => $this->brand, 'complaint_type' => 'grievance', 'consumer_name' => 'QA Prueba', 'consumer_document_type' => 'dni', 'consumer_document_number' => '87654321',
+            'consumer_address' => 'Lima', 'consumer_email' => 'qa@example.test', 'service_description' => 'Servicio', 'detail' => 'Detalle.', 'consumer_request' => 'Pedido.', 'response_days' => 10,
+            'is_test' => true, 'test_reason' => 'Prueba automatizada.',
+        ])->assertCreated()->assertJsonPath('data.is_test', true)->json('data.id');
+        $this->deleteJson("/api/v1/admin/complaints/{$complaint}", ['version' => 1])->assertNoContent();
+    }
+
     private function actAs(User $user): void
     {
         $this->flushSession();
