@@ -62,6 +62,21 @@ final class OrderController
         return (new OrderResource($order->load(['items', 'customer'])))->response()->setStatusCode(201);
     }
 
+    public function preview(Request $request): JsonResponse
+    {
+        $data = $request->validate($this->orders->rules());
+
+        return response()->json(['data' => $this->orders->preview($data)]);
+    }
+
+    public function update(Request $request, string $id): OrderResource
+    {
+        $data = $request->validate($this->orders->updateRules());
+        $order = $this->orders->updateDraft(Order::query()->findOrFail($id), $data);
+
+        return new OrderResource($order->load(['items', 'customer']));
+    }
+
     public function show(string $id): OrderResource
     {
         return new OrderResource(Order::query()->with(['items', 'customer'])->findOrFail($id));

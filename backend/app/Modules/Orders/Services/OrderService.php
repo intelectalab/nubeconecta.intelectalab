@@ -50,6 +50,24 @@ final class OrderService
         ];
     }
 
+    public function updateRules(): array
+    {
+        $org = $this->organization->id();
+
+        return [
+            'version' => ['required', 'integer'],
+            'customer_id' => ['sometimes', 'uuid', Rule::exists('customers', 'id')->where('organization_id', $org)->whereNull('deleted_at')],
+            'brand_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)->whereNull('deleted_at')],
+            'currency' => ['sometimes', 'nullable', Rule::in(['PEN', 'USD'])],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.plan_id' => ['required', 'uuid', Rule::exists('plans', 'id')->where('organization_id', $org)->whereNull('deleted_at')],
+            'items.*.quantity' => ['sometimes', 'numeric', 'gt:0', 'max:100000', 'decimal:0,3'],
+            'items.*.description' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'items.*.config' => ['sometimes', 'array'],
+        ];
+    }
+
     /** @param array<string, mixed> $data */
     public function create(array $data, ?string $idempotencyKey): Order
     {
@@ -60,28 +78,108 @@ final class OrderService
         $currency = $data['currency'] ?? $customer->currency;
         $brand = $data['brand_id'] ?? $customer->origin_brand_id;
         $rate = $this->taxRate();
-        $export = $customer->tax_treatment === 'export';
+        $lines = $this->resolveLines($data['items'], $customer, $currency, $brand, $rate);
+        $totals = OrderTotals::compute($lines, $rate);
 
+        return DB::transaction(function () use ($customer, $currency, $brand, $data, $lines, $totals, $idempotencyKey): Order {
+            $order = new Order;
+            $order->forceFill([
+                'number' => $this->nextNumber(), 'customer_id' => $customer->id, 'brand_id' => $brand, 'currency' => $currency,
+                'notes' => $data['notes'] ?? null, 'total_minor' => $totals['total_minor'], 'status' => 'draft', 'channel' => 'sales',
+                'requested_by' => Auth::id(), 'idempotency_key' => $idempotencyKey,
+            ])->save();
+            foreach ($lines as $line) {
+                $item = new OrderItem;
+                $item->forceFill([
+                    'order_id' => $order->id, 'product_id' => $line['product_id'], 'plan_id' => $line['plan_id'],
+                    'description' => $line['description'], 'quantity' => $line['quantity'], 'unit_price_minor' => $line['unit_price_minor'],
+                    'currency' => $currency, 'config' => $line['config'],
+                ])->save();
+            }
+            $this->audit->record('order.created', 'order', $order->id, null, $order->refresh()->attributesToArray() + ['totals' => $totals], [], $customer->id);
+            OrderCreated::dispatch($order->organization_id, $order->id, $customer->id);
+
+            return $order;
+        });
+    }
+
+    /** @param array<string, mixed> $data @return array<string, mixed> */
+    public function preview(array $data): array
+    {
+        $customer = Customer::query()->findOrFail($data['customer_id']);
+        if ($customer->status !== 'active') {
+            throw ProblemException::validation(['customer_id' => ['El cliente está inactivo.']]);
+        }
+        $currency = $data['currency'] ?? $customer->currency;
+        $brand = $data['brand_id'] ?? $customer->origin_brand_id;
+        $rate = $this->taxRate();
+        $lines = $this->resolveLines($data['items'], $customer, $currency, $brand, $rate);
+        $totals = OrderTotals::compute($lines, $rate);
+
+        return ['currency' => trim((string) $currency), 'tax_rate_percent' => $rate, 'items' => $lines] + $totals;
+    }
+
+    /** @param array<string, mixed> $data */
+    public function updateDraft(Order $order, array $data): Order
+    {
+        return DB::transaction(function () use ($order, $data): Order {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+            VersionGuard::check($order, $data['version']);
+            if ($order->status !== 'draft') {
+                throw new ProblemException(409, 'invalid_transition', "Solo se edita un pedido en borrador (estado actual: {$order->status}).", ['status' => $order->status]);
+            }
+            $before = $order->attributesToArray() + ['items' => $order->items()->get()->toArray()];
+            $customer = Customer::query()->findOrFail($data['customer_id'] ?? $order->customer_id);
+            if ($customer->status !== 'active') {
+                throw ProblemException::validation(['customer_id' => ['El cliente está inactivo.']]);
+            }
+            $currency = array_key_exists('currency', $data) ? ($data['currency'] ?? $customer->currency) : $order->currency;
+            $brand = array_key_exists('brand_id', $data) ? $data['brand_id'] : $order->brand_id;
+            $rate = $this->taxRate();
+            $lines = $this->resolveLines($data['items'], $customer, $currency, $brand, $rate);
+            $totals = OrderTotals::compute($lines, $rate);
+            $order->forceFill([
+                'customer_id' => $customer->id, 'brand_id' => $brand, 'currency' => $currency,
+                'notes' => array_key_exists('notes', $data) ? $data['notes'] : $order->notes,
+                'total_minor' => $totals['total_minor'],
+            ])->save();
+            $order->items()->delete();
+            foreach ($lines as $line) {
+                $item = new OrderItem;
+                $item->forceFill([
+                    'order_id' => $order->id, 'product_id' => $line['product_id'], 'plan_id' => $line['plan_id'],
+                    'description' => $line['description'], 'quantity' => $line['quantity'], 'unit_price_minor' => $line['unit_price_minor'],
+                    'currency' => $currency, 'config' => $line['config'],
+                ])->save();
+            }
+            $after = $order->refresh()->attributesToArray() + ['items' => $order->items()->get()->toArray(), 'totals' => $totals];
+            $this->audit->record('order.updated', 'order', $order->id, $before, $after, [], $customer->id);
+
+            return $order;
+        });
+    }
+
+    /** @param list<array<string, mixed>> $items @return list<array<string, mixed>> */
+    private function resolveLines(array $items, Customer $customer, string $currency, ?string $brand, string $rate): array
+    {
+        $export = $customer->tax_treatment === 'export';
         $lines = [];
         $errors = [];
-        foreach (array_values($data['items']) as $i => $item) {
+        foreach (array_values($items) as $i => $item) {
             /** @var Plan|null $plan */
             $plan = Plan::query()->with('product')->find($item['plan_id']);
             $product = $plan?->product;
             if ($plan === null || $product === null || ! $plan->is_active || ! $product->is_active) {
                 $errors["items.{$i}.plan_id"] = ['El plan o su producto no está activo.'];
-
                 continue;
             }
             if ($product->brand_id !== null && $product->brand_id !== $brand) {
                 $errors["items.{$i}.plan_id"] = ['El producto no se vende en la marca del pedido.'];
-
                 continue;
             }
             $price = $this->prices->current($plan->id, $currency);
             if ($price === null) {
                 $errors["items.{$i}.plan_id"] = ["El plan no tiene precio vigente en {$currency}."];
-
                 continue;
             }
             $quantity = (string) ($item['quantity'] ?? '1');
@@ -106,28 +204,8 @@ final class OrderService
         if ($errors !== []) {
             throw ProblemException::validation($errors);
         }
-        $totals = OrderTotals::compute($lines, $rate);
 
-        return DB::transaction(function () use ($customer, $currency, $brand, $data, $lines, $totals, $idempotencyKey): Order {
-            $order = new Order;
-            $order->forceFill([
-                'number' => $this->nextNumber(), 'customer_id' => $customer->id, 'brand_id' => $brand, 'currency' => $currency,
-                'notes' => $data['notes'] ?? null, 'total_minor' => $totals['total_minor'], 'status' => 'draft', 'channel' => 'sales',
-                'requested_by' => Auth::id(), 'idempotency_key' => $idempotencyKey,
-            ])->save();
-            foreach ($lines as $line) {
-                $item = new OrderItem;
-                $item->forceFill([
-                    'order_id' => $order->id, 'product_id' => $line['product_id'], 'plan_id' => $line['plan_id'],
-                    'description' => $line['description'], 'quantity' => $line['quantity'], 'unit_price_minor' => $line['unit_price_minor'],
-                    'currency' => $currency, 'config' => $line['config'],
-                ])->save();
-            }
-            $this->audit->record('order.created', 'order', $order->id, null, $order->refresh()->attributesToArray() + ['totals' => $totals], [], $customer->id);
-            OrderCreated::dispatch($order->organization_id, $order->id, $customer->id);
-
-            return $order;
-        });
+        return $lines;
     }
 
     public function approve(Order $order, ?int $version): Order

@@ -108,6 +108,49 @@ final class OrdersTest extends IdentityTestCase
         $this->assertSame('export', $exp['items'][0]['config']['tax']['treatment']);
     }
 
+    public function test_draft_can_be_edited_and_totals_are_recalculated(): void
+    {
+        $order = $this->order();
+        $response = $this->patchJson('/api/v1/admin/orders/'.$order['id'], [
+            'version' => $order['version'],
+            'notes' => 'Ajuste solicitado',
+            'items' => [['plan_id' => $this->monthly, 'quantity' => 3]],
+        ])->assertOk();
+
+        $response->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.notes', 'Ajuste solicitado')
+            ->assertJsonPath('data.subtotal_minor', 5970)
+            ->assertJsonPath('data.tax_minor', 1075)
+            ->assertJsonPath('data.total_minor', 7045)
+            ->assertJsonCount(1, 'data.items');
+        $this->assertSame(['order.created', 'order.updated'], DB::table('audit_events')->where('entity_type', 'order')->orderBy('chain_seq')->pluck('action')->all());
+    }
+
+    public function test_non_draft_order_cannot_be_edited(): void
+    {
+        $order = $this->order(['items' => [['plan_id' => $this->monthly]]]);
+        $this->postJson('/api/v1/admin/orders/'.$order['id'].'/approve', ['version' => $order['version']], $this->key())->assertOk();
+
+        $this->assertProblem($this->patchJson('/api/v1/admin/orders/'.$order['id'], [
+            'version' => 2,
+            'items' => [['plan_id' => $this->monthly, 'quantity' => 2]],
+        ]), 409, 'invalid_transition');
+    }
+
+    public function test_totals_preview_matches_created_order(): void
+    {
+        $body = [
+            'customer_id' => $this->customer,
+            'items' => [['plan_id' => $this->monthly, 'quantity' => 2], ['plan_id' => $this->hourly, 'quantity' => 1.5]],
+        ];
+        $preview = $this->postJson('/api/v1/admin/orders/totals-preview', $body)->assertOk()->json('data');
+        $order = $this->postJson('/api/v1/admin/orders', $body, $this->key())->assertCreated()->json('data');
+
+        $this->assertSame($order['subtotal_minor'], $preview['subtotal_minor']);
+        $this->assertSame($order['tax_minor'], $preview['tax_minor']);
+        $this->assertSame($order['total_minor'], $preview['total_minor']);
+    }
+
     public function test_state_machine_idempotency_and_events(): void
     {
         Event::fake([OrderApproved::class, OrderCancelled::class]);
