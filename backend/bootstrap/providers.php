@@ -11,6 +11,7 @@ return [
     App\Modules\WebConnector\WebConnectorServiceProvider::class,
     App\Modules\Customers\CustomersServiceProvider::class,
     App\Modules\Catalog\CatalogServiceProvider::class,
+    App\Modules\Support\SupportServiceProvider::class,
     App\Modules\Orders\OrdersServiceProvider::class,
     // Services antes que Billing: ambos escuchan OrderApproved y la factura inicial enlaza los servicios.
     App\Modules\Services\ServicesServiceProvider::class,

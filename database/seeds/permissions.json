@@ -6421,6 +6421,56 @@
       "description": "Ver proyectos internos",
       "scope": "staff",
       "operations": 2
+    },
+    {
+      "code": "helpdesk.complaint.create",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "complaint",
+      "action": "create",
+      "description": "Registrar hojas del Libro de Reclamaciones.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.complaint.delete",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "complaint",
+      "action": "delete",
+      "description": "Eliminar una hoja marcada como prueba con registro de auditoría.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.complaint.respond",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "complaint",
+      "action": "respond",
+      "description": "Registrar la respuesta oficial enviada al consumidor.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.complaint.update",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "complaint",
+      "action": "update",
+      "description": "Actualizar el estado de una hoja del Libro de Reclamaciones.",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "helpdesk.complaint.view",
+      "module_key": "helpdesk",
+      "module": "HLP",
+      "entity": "complaint",
+      "action": "view",
+      "description": "Ver hojas del Libro de Reclamaciones y sus respuestas.",
+      "scope": "staff",
+      "operations": 2
     }
   ]
 }
