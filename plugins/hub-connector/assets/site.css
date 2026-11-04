@@ -257,6 +257,21 @@ html { background: var(--hub-navy); }
 /* Dominios: resultados de ?q= */
 .hub-sec .hub-dsearch__title { font-size: clamp(1.3rem, 2.6vw, 1.6rem); }
 .hub-dsearch__list .hub-dsearch__domain { font-size: 1.1rem; }
+/* Resultados de disponibilidad en columnas alineadas: dominio | estado | precio | accion.
+   Grid con columnas fijas y columna explicita por celda para que el precio oculto
+   (Registrado / No verificado) no corra el boton a la columna del precio. */
+.hub-dsearch__list li[data-hub-row] { display: grid; grid-template-columns: minmax(0, 1fr) 10.5em 7em 11em; align-items: center; gap: 10px 16px; }
+.hub-dsearch__list li[data-hub-row] .hub-dsearch__domain { grid-column: 1; }
+.hub-dsearch__list li[data-hub-row] .hub-dsearch__state { grid-column: 2; justify-self: start; }
+.hub-dsearch__list li[data-hub-row] .hub-dsearch__cost { grid-column: 3; justify-self: end; }
+.hub-dsearch__list li[data-hub-row] .hub-dsearch__action { grid-column: 4; justify-self: end; text-align: right; }
+@media (max-width: 640px) {
+    .hub-dsearch__list li[data-hub-row] { grid-template-columns: 1fr auto; row-gap: 4px; }
+    .hub-dsearch__list li[data-hub-row] .hub-dsearch__domain { grid-column: 1 / -1; }
+    .hub-dsearch__list li[data-hub-row] .hub-dsearch__state { grid-column: 1; justify-self: start; }
+    .hub-dsearch__list li[data-hub-row] .hub-dsearch__cost { grid-column: 2; justify-self: end; }
+    .hub-dsearch__list li[data-hub-row] .hub-dsearch__action { grid-column: 1 / -1; justify-self: start; text-align: left; }
+}
 .hub-dsearch__results .hub-button { border-radius: 999px; padding: 12px 24px; }
 .hub-dsearch__results .hub-button:hover { background: var(--hub-blue-600); text-decoration: none; }
 .hub-dsearch__results .hub-button:focus-visible { outline: 3px solid var(--hub-yellow); outline-offset: 2px; }
