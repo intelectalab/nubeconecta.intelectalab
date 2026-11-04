@@ -28,6 +28,36 @@ export interface TicketMessageInput {
   author_type?: 'staff'; channel: TicketMessageChannel; body: string; is_internal?: boolean; in_reply_to?: string | null;
 }
 export interface TicketFilters { status?: TicketStatus | ''; priority?: TicketPriority | ''; assignee_id?: string; }
+export type ComplaintType = 'claim' | 'grievance';
+export type ComplaintDocumentType = 'dni' | 'ce' | 'passport' | 'ruc';
+export type ComplaintStatus = 'received' | 'in_progress' | 'answered' | 'closed';
+export type ComplaintCurrency = 'PEN' | 'USD';
+export interface ComplaintResponse {
+  id: string; complaint_id: string; body: string; template_id: string | null; previewed_at: string;
+  responded_by: string | null; sent_to_email: string; sent_at: string; file_id: string | null; is_final: boolean;
+}
+export interface Complaint {
+  id: string; brand_id: string; number: number; code: string; complaint_type: ComplaintType;
+  consumer_name: string; consumer_document_type: ComplaintDocumentType; consumer_document_number: string;
+  consumer_address: string; consumer_email: string; consumer_phone: string | null; is_minor: boolean;
+  guardian_name: string | null; customer_id: string | null; service_id: string | null; service_description: string;
+  amount_minor: number | null; currency: ComplaintCurrency | null; detail: string; consumer_request: string;
+  status: ComplaintStatus; received_at: string; response_days: number; due_at: string; ticket_id: string;
+  answered_at: string | null; closed_at: string | null; is_test: boolean; test_reason: string | null;
+  version: number; responses: ComplaintResponse[];
+}
+export interface ComplaintInput {
+  brand_id: string; wp_site_id?: string | null; complaint_type: ComplaintType; consumer_name: string;
+  consumer_document_type: ComplaintDocumentType; consumer_document_number: string; consumer_address: string;
+  consumer_email: string; consumer_phone?: string | null; is_minor?: boolean; guardian_name?: string | null;
+  customer_id?: string | null; service_id?: string | null; service_description: string; amount_minor?: number | null;
+  currency?: ComplaintCurrency | null; detail: string; consumer_request: string; response_days: number;
+  is_test?: boolean; test_reason?: string | null;
+}
+export interface ComplaintResponseInput {
+  body: string; body_html: string; previewed_at: string; template_id?: string | null; file_id?: string | null; is_final?: boolean;
+}
+export interface ComplaintFilters { status?: ComplaintStatus | ''; brand_id?: string; }
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
@@ -48,8 +78,20 @@ function crud<T, I>(http: HttpClient) {
 
 export function createSupportApi(http: HttpClient) {
   const tickets = crud<Ticket, TicketInput>(http);
+  const complaints = {
+    list: (params: ListParams & { filter?: ComplaintFilters } = {}) => {
+      const f = params.filter;
+      return http.get<CursorPage<Complaint>>(`/api/v1/admin/complaints${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, status: f?.status || undefined, brand_id: f?.brand_id || undefined })}`);
+    },
+    get: (id: string) => http.get<Envelope<Complaint>>(`/api/v1/admin/complaints/${enc(id)}`).then((r) => r.data),
+    create: (input: ComplaintInput) => http.post<Envelope<Complaint>>('/api/v1/admin/complaints', input).then((r) => r.data),
+    update: (id: string, version: number, input: Partial<Pick<Complaint, 'status' | 'is_test' | 'test_reason'>>) => http.patch<Envelope<Complaint>>(`/api/v1/admin/complaints/${enc(id)}`, { ...input, version }).then((r) => r.data),
+    remove: (id: string, version: number) => http.delete<void>(`/api/v1/admin/complaints/${enc(id)}`, { version }),
+    responses: { add: (complaintId: string, input: ComplaintResponseInput) => http.post<Envelope<ComplaintResponse>>(`/api/v1/admin/complaints/${enc(complaintId)}/responses`, input).then((r) => r.data) },
+  };
   return {
     tickets,
+    complaints,
     messages: { add: (ticketId: string, input: TicketMessageInput) => http.post<Envelope<TicketMessage>>(`/api/v1/admin/tickets/${enc(ticketId)}/messages`, input).then((r) => r.data) },
   };
 }

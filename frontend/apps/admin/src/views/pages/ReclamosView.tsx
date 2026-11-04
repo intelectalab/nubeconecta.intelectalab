@@ -1,476 +1,162 @@
-/**
- * Vista «reclamos» (#reclamos, #reclamos/<id>) — Libro de Reclamaciones (prototipo vReclamos3 l.3239,
- * que usa vReclamos2 l.2684 / vReclamos l.2203 para el registro interno).
- * Pestañas: Registro interno (KPIs, plazo administrable, tabla con marca de prueba y eliminación)
- * y Vista pública (hoja virtual por marca). param = id de hoja abre su panel lateral.
- */
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { isProblem, type Complaint, type ComplaintDocumentType, type ComplaintInput, type ComplaintStatus, type ComplaintType } from '@hub/api';
 import { useApp } from '../../app/context';
-import { useViewState } from '../../app/storage';
 import type { ViewProps } from '../../app/routes';
 import { Icon } from '../../components/Icon';
-import { Modal } from '../../components/Modal';
-import { BrandTag, Chip, EmptyState, Note, PageHead, SearchBox, Select, StatLine, Tabs, type Crumb } from '../../components/ui';
-import { BRANDS, RECL, TODAY, WPS, diffD, fD, fDs, fRecl, iso, norm, plural, reclCfg, reclDue, reclHot, reclLeft, type BrandId } from '../../data';
-import ReclSheet from './soporte/ReclSheet';
-import { PubDoc, PubForm } from './soporte/ReclPublic';
-import { mwStyle, type ReclX } from './soporte/shared';
+import { Chip, EmptyState, Note, PageHead, Select, Skeleton } from '../../components/ui';
+import { errorText, useCan, useLoad, useLookups } from './clientes/shared';
+import { supportApi } from './soporte/api';
 
-type Tab = 'interno' | 'publica';
-const CRUMBS: Crumb[] = [['Soporte', 'reclamos'], ['Libro de Reclamaciones', 'reclamos']];
-
-function ReclBar({ r }: { r: ReclX }) {
-  if (r.st === 'Respondido')
-    return (
-      <Chip kind="ok" icon="check">
-        Respondido {r.respDate ? fDs(r.respDate) : ''}
-      </Chip>
-    );
-  const l = reclLeft(r);
-  const tot = reclCfg.plazo;
-  const u = Math.min(100, Math.max(0, (1 - l / tot) * 100));
-  const hab = reclCfg.unit === 'hábiles';
-  return (
-    <div className="sla">
-      <div className="bar thin">
-        <i className={l < 0 ? 'l4' : l <= 3 ? 'l3' : l <= 7 ? 'l2' : 'l1'} style={{ width: `${l < 0 ? 100 : u}%` }} />
-      </div>
-      <small style={{ color: l < 0 ? 'var(--danger-text)' : l <= 3 ? 'var(--high-text)' : 'var(--muted)', fontWeight: l <= 3 ? 700 : 500 }}>
-        {l < 0 ? `Vencido hace ${-l} d` : l === 0 ? 'Vence hoy' : `${l} ${l === 1 ? 'día' : 'días'} ${hab ? (l === 1 ? 'hábil' : 'hábiles') : 'calendario'} · vence ${fD(reclDue(r))}`}
-      </small>
-    </div>
-  );
-}
+const STATUS: [ComplaintStatus, string][] = [['received', 'Recibido'], ['in_progress', 'En atención'], ['answered', 'Respondido'], ['closed', 'Cerrado']];
+const statusLabel = (s: ComplaintStatus) => STATUS.find(([value]) => value === s)?.[1] ?? s;
+const dateTime = (s: string | null) => s ? new Date(s).toLocaleString('es-PE') : '—';
+const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const bodyHtml = (value: string) => value.split(/\r?\n\s*\r?\n/).map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, '<br>')}</p>`).join('');
 
 export default function ReclamosView({ param }: ViewProps) {
-  const { brand, toast, refresh } = useApp();
-  const [tab, setTab] = useViewState<Tab>('rcl.tab', 'interno');
-  const [q, setQ] = useViewState<string>('rcl.q', '');
-  const [st, setSt] = useViewState<string>('rcl.st', '');
-  const [pubBrand, setPubBrand] = useViewState<BrandId>('rcl.pubBrand', 'ap');
-  const [pubDoc, setPubDoc] = useViewState<string | null>('rcl.pubDoc', null);
-  const [openId, setOpenId] = useState<string | null>(() => (param && RECL.some((x) => x.id === param) ? param : null));
-  const [plazoTxt, setPlazoTxt] = useState(String(reclCfg.plazo));
-  const [testId, setTestId] = useState<string | null>(null);
-  const [testOk, setTestOk] = useState(false);
-  const [testErr, setTestErr] = useState('');
-  const [delId, setDelId] = useState<string | null>(null);
-  const [delTxt, setDelTxt] = useState('');
+  return param ? <ComplaintDetail id={param} /> : <ComplaintInbox />;
+}
 
-  const curTab: Tab = openId ? 'interno' : tab;
-  const all = fRecl(brand) as ReclX[];
-  const nq = norm(q);
-  const rows = all
-    .filter((r) => (!nq || norm(r.id).includes(nq) || norm(r.nombre).includes(nq) || norm(r.det).includes(nq)) && (!st || r.st === st))
-    .sort((a, b) => Number(a.st === 'Respondido') - Number(b.st === 'Respondido') || reclLeft(a) - reclLeft(b));
-  const hot = reclHot(brand);
-  const openR = openId ? (RECL.find((x) => x.id === openId) as ReclX | undefined) : undefined;
-  const testR = testId ? RECL.find((x) => x.id === testId) : undefined;
-  const delR = delId ? RECL.find((x) => x.id === delId) : undefined;
+function ComplaintInbox() {
+  const { toast, navigate } = useApp();
+  const can = useCan();
+  const { brands } = useLookups();
+  const [status, setStatus] = useState<ComplaintStatus | ''>('');
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [isMinor, setIsMinor] = useState(false);
+  const list = useLoad(() => supportApi.complaints.list({ size: 50, filter: { status } }), [status]);
+  const rows = list.data?.data ?? [];
 
-  const tabs = (
-    <Tabs<Tab>
-      label="Vistas del Libro"
-      value={curTab}
-      onChange={(k) => {
-        setTab(k);
-        setOpenId(null);
-      }}
-      tabs={[
-        { id: 'interno', label: 'Registro interno', count: all.length },
-        { id: 'publica', label: 'Vista pública' },
-      ]}
-    />
-  );
-
-  const commitPlazo = () => {
-    const v = Math.round(+plazoTxt);
-    if (v === reclCfg.plazo) return;
-    if (!(v >= 1 && v <= 60)) {
-      setPlazoTxt(String(reclCfg.plazo));
-      toast('Plazo no válido', 'Ingrese entre 1 y 60 días.', 'err');
-      return;
-    }
-    reclCfg.plazo = v;
-    setPlazoTxt(String(v));
-    toast('Plazo actualizado', `${v} días ${reclCfg.unit} · recuerde validarlo con asesoría legal`, 'warn');
-    refresh();
+  const create = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setBusy(true);
+    const form = new FormData(e.currentTarget);
+    const amount = String(form.get('amount_minor') ?? '').trim();
+    const minor = form.get('is_minor') === 'on';
+    const isTest = form.get('is_test') === 'on';
+    const input: ComplaintInput = {
+      brand_id: String(form.get('brand_id') ?? ''), complaint_type: String(form.get('complaint_type')) as ComplaintType,
+      consumer_name: String(form.get('consumer_name') ?? '').trim(), consumer_document_type: String(form.get('consumer_document_type')) as ComplaintDocumentType,
+      consumer_document_number: String(form.get('consumer_document_number') ?? '').trim(), consumer_address: String(form.get('consumer_address') ?? '').trim(),
+      consumer_email: String(form.get('consumer_email') ?? '').trim(), consumer_phone: String(form.get('consumer_phone') ?? '').trim() || null,
+      is_minor: minor, guardian_name: String(form.get('guardian_name') ?? '').trim() || null,
+      service_description: String(form.get('service_description') ?? '').trim(), amount_minor: amount ? Number(amount) : null,
+      currency: amount ? String(form.get('currency')) as 'PEN' | 'USD' : null,
+      detail: String(form.get('detail') ?? '').trim(), consumer_request: String(form.get('consumer_request') ?? '').trim(),
+      response_days: Number(form.get('response_days')), is_test: isTest,
+      test_reason: isTest ? String(form.get('test_reason') ?? '').trim() : null,
+    };
+    try {
+      const complaint = await supportApi.complaints.create(input);
+      toast('Hoja creada', complaint.code);
+      setCreating(false); list.reload(); navigate('reclamos', complaint.id);
+    } catch (err) { toast(isProblem(err) && err.status === 422 ? 'Revise los campos' : 'No se pudo crear la hoja', errorText(err), 'err'); }
+    finally { setBusy(false); }
   };
 
-  /* ---------- Vista pública ---------- */
-  if (curTab === 'publica') {
-    const r = pubDoc ? (RECL.find((x) => x.id === pubDoc) as ReclX | undefined) : undefined;
-    const host = (WPS.find((w) => w.brand === pubBrand) || { host: '' }).host;
-    return (
-      <>
-        <PageHead
-          crumbs={CRUMBS}
-          title="Libro de Reclamaciones"
-          sub="Así ve el consumidor la hoja virtual en la web de cada marca ([hub_libro_reclamaciones]). Los envíos desde aquí son simulados y se marcan como prueba."
-          actions={
-            <label className="field" style={{ minWidth: 220 }}>
-              Marca
-              <select
-                className="select"
-                value={pubBrand}
-                onChange={(e) => {
-                  setPubBrand(e.target.value as BrandId);
-                  setPubDoc(null);
-                }}
-              >
-                {BRANDS.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          }
-        />
-        {tabs}
-        <div style={{ paddingTop: 14 }}>
-          <div className="mw lr-web" style={mwStyle(pubBrand)}>
-            <div className="mw-bar">
-              <i />
-              <i />
-              <i />
-              <span>https://{host}/libro-de-reclamaciones</span>
-            </div>
-            <div className="mw-sec">
-              {r ? (
-                <PubDoc
-                  r={r}
-                  onNew={() => setPubDoc(null)}
-                  onSeeInternal={() => {
-                    setTab('interno');
-                    setPubDoc(null);
-                    setOpenId(r.id);
-                  }}
-                />
-              ) : (
-                <PubForm key={pubBrand} brand={pubBrand} onCreated={(id) => setPubDoc(id)} />
-              )}
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  /* ---------- Registro interno ---------- */
-  return (
-    <>
-      <PageHead
-        crumbs={CRUMBS}
-        title="Libro de Reclamaciones"
-        sub="Hojas de reclamación virtuales recibidas desde las webs de cada marca. Correlativo independiente por marca."
-        actions={
-          <button type="button" className="btn" onClick={() => toast('Registro exportado', `libro-reclamaciones_${iso(TODAY)}.xlsx (simulado)`, 'info')}>
-            <Icon name="download" size="sm" />
-            Exportar registro
-          </button>
-        }
-      />
-      {tabs}
-      <div style={{ height: 14 }} />
-      {hot.length ? (
-        <Note kind="warn" icon="tri" role="alert" style={{ marginBottom: 16 }}>
-          <b>
-            {hot.length} {hot.length === 1 ? 'hoja vence' : 'hojas vencen'} en 3 días o menos:
-          </b>{' '}
-          {hot.slice(0, 3).map((r, i) => (
-            <span key={r.id}>
-              {i ? ', ' : ''}
-              <span className="mono">{r.id}</span>
-            </span>
-          ))}
-          {hot.length > 3 ? '…' : ''}. Responda antes del plazo.
-        </Note>
-      ) : null}
-      <div className="grid g-2" style={{ marginBottom: 16, alignItems: 'start' }}>
-        <StatLine
-          style={{ marginBottom: 0 }}
-          items={[
-            { label: 'Recibidos (30 d)', value: all.filter((r) => diffD(TODAY, r.date) <= 30).length },
-            { label: 'Pendientes', value: all.filter((r) => r.st !== 'Respondido').length },
-            { label: 'Por vencer (≤ 3 d)', value: hot.length, tone: 'high' },
-            { label: 'Reclamos / quejas', value: `${all.filter((r) => r.tipo === 'Reclamo').length} / ${all.filter((r) => r.tipo === 'Queja').length}` },
-          ]}
-        />
-        <div className="card">
-          <div className="card-b" style={{ paddingTop: 12 }}>
-            <div className="field">
-              <span>
-                Plazo de respuesta{' '}
-                <Chip kind="warn" style={{ width: 'max-content' }}>
-                  administrable (confirmar con asesoría legal)
-                </Chip>
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="input"
-                  style={{ width: 90 }}
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={plazoTxt}
-                  aria-label="Plazo en días"
-                  onChange={(e) => setPlazoTxt(e.target.value)}
-                  onBlur={commitPlazo}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitPlazo();
-                  }}
-                />
-                <select
-                  className="select"
-                  style={{ width: 'auto' }}
-                  aria-label="Tipo de días"
-                  value={reclCfg.unit}
-                  onChange={(e) => {
-                    reclCfg.unit = e.target.value as 'hábiles' | 'calendario';
-                    refresh();
-                  }}
-                >
-                  <option>hábiles</option>
-                  <option>calendario</option>
-                </select>
-                <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--muted)' }}>días</span>
-              </div>
-            </div>
-          </div>
-        </div>
+  return <>
+    <PageHead crumbs={ [['Soporte', 'tickets'], ['Libro de Reclamaciones', 'reclamos']] } title="Libro de Reclamaciones" sub="Hojas recibidas y respuestas oficiales." actions={can('helpdesk.complaint.create') ? <button className="btn primary" type="button" onClick={() => setCreating((v) => !v)}><Icon name="plus" size="sm" /> Nueva hoja</button> : null} />
+    {creating ? <form className="card card-b" onSubmit={create} style={{ display: 'grid', gap: 14, marginBottom: 16 }}>
+      <h2 className="sec">Datos de la hoja</h2>
+      <div className="grid g-3">
+        <label className="field">Marca<select className="select" name="brand_id" required defaultValue=""><option value="" disabled>Seleccione una marca</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+        <label className="field">Tipo<select className="select" name="complaint_type"><option value="claim">Reclamo</option><option value="grievance">Queja</option></select></label>
+        <label className="field">Plazo de respuesta (días)<input className="input" name="response_days" type="number" min="1" max="365" defaultValue="30" required /></label>
       </div>
-      <section className="card">
-        <div className="toolbar">
-          <SearchBox value={q} onChange={setQ} placeholder="Correlativo, consumidor o detalle…" label="Buscar hojas" />
-          <Select value={st} onChange={setSt} label="Estado" options={[['', 'Todos los estados'], 'Nuevo', 'En atención', 'Respondido']} />
-          <span className="count">{plural(rows.length, 'hoja', 'hojas')}</span>
-        </div>
-        {rows.length ? (
-          <div className="tw">
-            <table className="t">
-              <thead>
-                <tr>
-                  <th>Correlativo</th>
-                  <th>Marca</th>
-                  <th>Tipo</th>
-                  <th>Consumidor</th>
-                  <th>Detalle</th>
-                  <th>Fecha</th>
-                  <th>Plazo restante</th>
-                  <th>Estado</th>
-                  <th className="r">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className={r.test ? 'is-test' : undefined}>
-                    <td>
-                      <a
-                        className="rowlink mono"
-                        href={`#reclamos/${encodeURIComponent(r.id)}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setOpenId(r.id);
-                        }}
-                      >
-                        {r.id}
-                      </a>
-                      {r.test ? (
-                        <>
-                          {' '}
-                          <Chip kind="warn">Prueba</Chip>
-                        </>
-                      ) : null}
-                    </td>
-                    <td>
-                      <BrandTag brand={r.brand} />
-                    </td>
-                    <td>
-                      <Chip kind={r.tipo === 'Reclamo' ? 'high' : 'outline'}>{r.tipo}</Chip>
-                    </td>
-                    <td className="nw">
-                      {r.nombre}
-                      <div className="sub">DNI {r.dni}</div>
-                    </td>
-                    <td style={{ minWidth: 200 }} className="sub">
-                      {r.det}
-                    </td>
-                    <td className="num nw">{fD(r.date)}</td>
-                    <td style={{ minWidth: 160 }}>
-                      <ReclBar r={r} />
-                    </td>
-                    <td>
-                      <Chip kind={r.st === 'Respondido' ? 'ok' : r.st === 'Nuevo' ? 'info' : 'warn'}>{r.st}</Chip>
-                    </td>
-                    <td className="r nw">
-                      {r.test ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn sm ghost"
-                            onClick={() => {
-                              r.test = false;
-                              toast('Marca de prueba quitada', r.id, 'info');
-                              refresh();
-                            }}
-                          >
-                            Quitar marca
-                          </button>{' '}
-                          <button
-                            type="button"
-                            className="btn sm danger"
-                            onClick={() => {
-                              setDelTxt('');
-                              setDelId(r.id);
-                            }}
-                          >
-                            <Icon name="trash" size="sm" />
-                            Eliminar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="btn sm"
-                            onClick={() => {
-                              setTestOk(false);
-                              setTestErr('');
-                              setTestId(r.id);
-                            }}
-                          >
-                            Marcar como prueba
-                          </button>{' '}
-                          <button type="button" className="btn sm" disabled aria-describedby={`why-${r.id}`}>
-                            <Icon name="trash" size="sm" />
-                            Eliminar
-                          </button>
-                          <div className="why" id={`why-${r.id}`}>
-                            Registro real: se conserva por obligación legal.
-                          </div>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <EmptyState
-            title="Sin hojas"
-            text="Ninguna hoja coincide con los filtros."
-            action={
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => {
-                  setQ('');
-                  setSt('');
-                }}
-              >
-                Limpiar filtros
-              </button>
-            }
-          />
-        )}
-      </section>
-
-      {openR ? <ReclSheet key={openR.id} r={openR} onClose={() => setOpenId(null)} /> : null}
-
-      <Modal
-        open={!!testR}
-        onClose={() => setTestId(null)}
-        title="Marcar como prueba"
-        footer={
-          <>
-            <button type="button" className="btn" onClick={() => setTestId(null)}>
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn primary"
-              onClick={() => {
-                if (!testR) return;
-                if (!testOk) {
-                  setTestErr('Debe confirmar que es un registro de prueba.');
-                  return;
-                }
-                testR.test = true;
-                setTestId(null);
-                toast('Marcado como prueba', testR.id, 'warn');
-                refresh();
-              }}
-            >
-              Marcar como prueba
-            </button>
-          </>
-        }
-      >
-        <p style={{ margin: 0 }}>
-          Marque como prueba <b>solo</b> hojas creadas por el equipo para probar el formulario. Una hoja real de un consumidor no debe marcarse ni eliminarse.
-        </p>
-        <label className="check" style={{ marginTop: 10 }}>
-          <input
-            type="checkbox"
-            checked={testOk}
-            onChange={(e) => {
-              setTestOk(e.target.checked);
-              if (e.target.checked) setTestErr('');
-            }}
-          />
-          <span>
-            Confirmo que <span className="mono">{testR?.id}</span> fue creada por el equipo
-          </span>
-        </label>
-        <span className="err" role={testErr ? 'alert' : undefined}>
-          {testErr}
-        </span>
-      </Modal>
-
-      <Modal
-        open={!!delR}
-        onClose={() => setDelId(null)}
-        title="Eliminar registro de prueba"
-        sub={<span className="mono">{delR?.id}</span>}
-        initialFocus="#delConf"
-        footer={
-          <>
-            <button type="button" className="btn" onClick={() => setDelId(null)}>
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn danger"
-              disabled={delTxt.trim() !== 'ELIMINAR'}
-              onClick={() => {
-                if (!delR || delTxt.trim() !== 'ELIMINAR') return;
-                if (!delR.test) {
-                  toast('No se puede eliminar', 'Solo se eliminan registros marcados como prueba.', 'err');
-                  return;
-                }
-                RECL.splice(RECL.indexOf(delR), 1);
-                setDelId(null);
-                toast('Registro de prueba eliminado', delR.id, 'warn');
-                refresh();
-              }}
-            >
-              Eliminar definitivamente
-            </button>
-          </>
-        }
-      >
-        <Note kind="warn" icon="tri">
-          Esta acción no se puede deshacer. El correlativo no se reutiliza.
-        </Note>
-        <label className="field" htmlFor="delConf" style={{ marginTop: 12 }}>
-          <span>
-            Escriba <b className="mono">ELIMINAR</b> para confirmar
-          </span>
-          <input className="input mono" id="delConf" autoComplete="off" value={delTxt} onChange={(e) => setDelTxt(e.target.value)} />
-        </label>
-      </Modal>
-    </>
-  );
+      <h3 className="sec">Datos del consumidor</h3>
+      <div className="grid g-3">
+        <label className="field">Nombre completo<input className="input" name="consumer_name" maxLength={255} required /></label>
+        <label className="field">Tipo de documento<select className="select" name="consumer_document_type"><option value="dni">DNI</option><option value="ce">Carné de extranjería</option><option value="passport">Pasaporte</option><option value="ruc">RUC</option></select></label>
+        <label className="field">Número de documento<input className="input" name="consumer_document_number" maxLength={40} required /></label>
+        <label className="field">Correo<input className="input" name="consumer_email" type="email" maxLength={255} required /></label>
+        <label className="field">Teléfono<input className="input" name="consumer_phone" maxLength={50} /></label>
+        <label className="field">Domicilio<input className="input" name="consumer_address" maxLength={1000} required /></label>
+      </div>
+      <label className="check"><input type="checkbox" name="is_minor" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} /> El consumidor es menor de edad</label>
+      <label className="field">Nombre del padre, madre o tutor (si es menor)<input className="input" name="guardian_name" maxLength={255} required={isMinor} /></label>
+      <h3 className="sec">Servicio y solicitud</h3>
+      <label className="field">Producto o servicio<input className="input" name="service_description" required /></label>
+      <div className="grid g-3">
+        <label className="field">Importe en céntimos (opcional)<input className="input" name="amount_minor" type="number" min="0" step="1" /></label>
+        <label className="field">Moneda<select className="select" name="currency"><option value="PEN">PEN</option><option value="USD">USD</option></select></label>
+      </div>
+      <label className="field">Detalle de los hechos<textarea className="textarea" name="detail" rows={4} required /></label>
+      <label className="field">Pedido del consumidor<textarea className="textarea" name="consumer_request" rows={3} required /></label>
+      <label className="check"><input type="checkbox" name="is_test" /> Crear como registro de prueba</label>
+      <label className="field">Motivo de prueba (obligatorio si se marca)<input className="input" name="test_reason" maxLength={1000} /></label>
+      <div><button className="btn primary" disabled={busy || brands.length === 0}>{busy ? 'Creando…' : 'Crear hoja'}</button>{' '}<button className="btn" type="button" onClick={() => setCreating(false)}>Cancelar</button>{brands.length === 0 ? <span className="sub"> No hay marcas disponibles para seleccionar.</span> : null}</div>
+    </form> : null}
+    <section className="card" aria-busy={list.loading}>
+      <div className="toolbar"><Select value={status} onChange={(v) => setStatus(v as ComplaintStatus | '')} label="Estado" options={[['', 'Todos los estados'], ...STATUS]} /><span className="count">{rows.length} {rows.length === 1 ? 'hoja' : 'hojas'}</span></div>
+      {list.error ? <div className="card-b"><Note kind="warn" role="alert">No se pudieron cargar las hojas: {errorText(list.error)} <button className="btn sm" type="button" onClick={list.reload}>Reintentar</button></Note></div>
+        : list.loading ? <Skeleton variant="table" rows={6} />
+          : rows.length ? <div className="tw"><table className="t"><thead><tr><th>Código</th><th>Tipo</th><th>Consumidor</th><th>Detalle</th><th>Recepción / vence</th><th>Estado</th><th /></tr></thead><tbody>{rows.map((c) => <tr key={c.id}>
+            <td><button type="button" className="rowlink mono" onClick={() => navigate('reclamos', c.id)}>{c.code}</button>{c.is_test ? <div><Chip kind="warn">Prueba</Chip></div> : null}</td>
+            <td>{c.complaint_type === 'claim' ? 'Reclamo' : 'Queja'}</td><td>{c.consumer_name}<div className="sub">{c.consumer_document_type.toUpperCase()} {c.consumer_document_number}</div></td>
+            <td className="sub">{c.detail}</td><td className="nw">{dateTime(c.received_at)}<div className="sub">Vence {dateTime(c.due_at)}</div></td><td><Chip kind={c.status === 'answered' || c.status === 'closed' ? 'ok' : c.status === 'received' ? 'info' : 'warn'}>{statusLabel(c.status)}</Chip></td>
+            <td>{can('helpdesk.complaint.view') ? <button className="btn sm" type="button" onClick={() => navigate('reclamos', c.id)}>Ver</button> : null}</td>
+          </tr>)}</tbody></table></div> : <EmptyState title="Sin hojas" text="No hay hojas que coincidan con este estado." />}
+    </section>
+  </>;
 }
+
+function ComplaintDetail({ id }: { id: string }) {
+  const { navigate, toast } = useApp();
+  const can = useCan();
+  const detail = useLoad(() => supportApi.complaints.get(id), [id]);
+  const [reply, setReply] = useState('');
+  const [preview, setPreview] = useState<{ body: string; previewedAt: string } | null>(null);
+  const [testReason, setTestReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const c = detail.data;
+  const update = async (input: Partial<Pick<Complaint, 'status' | 'is_test' | 'test_reason'>>, success: string) => {
+    if (!c) return;
+    setBusy(true);
+    try { await supportApi.complaints.update(c.id, c.version, input); toast(success); detail.reload(); }
+    catch (err) { toast(isProblem(err) && err.status === 422 ? 'Revise los campos' : 'No se pudo actualizar', errorText(err), 'err'); if (isProblem(err) && (err.status === 409 || err.code === 'version_conflict')) detail.reload(); }
+    finally { setBusy(false); }
+  };
+  const sendResponse = async () => {
+    if (!c || !preview) return;
+    setBusy(true);
+    try {
+      await supportApi.complaints.responses.add(c.id, { body: preview.body, body_html: bodyHtml(preview.body), previewed_at: preview.previewedAt, is_final: true });
+      toast('Respuesta oficial registrada', c.consumer_email); setReply(''); setPreview(null); detail.reload();
+    } catch (err) { toast(isProblem(err) && err.status === 422 ? 'Revise los campos' : 'No se pudo registrar la respuesta', errorText(err), 'err'); if (isProblem(err) && (err.status === 409 || err.code === 'version_conflict')) detail.reload(); }
+    finally { setBusy(false); }
+  };
+  const remove = async () => {
+    if (!c || !c.is_test || !window.confirm(`¿Eliminar la hoja de prueba ${c.code}? Esta acción no se puede deshacer.`)) return;
+    setBusy(true);
+    try { await supportApi.complaints.remove(c.id, c.version); toast('Hoja de prueba eliminada', c.code, 'warn'); navigate('reclamos'); }
+    catch (err) { toast(isProblem(err) && err.status === 422 ? 'Revise los campos' : 'No se pudo eliminar', errorText(err), 'err'); if (isProblem(err) && (err.status === 409 || err.code === 'version_conflict')) detail.reload(); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <div className="phead"><div><button className="btn sm ghost" type="button" onClick={() => navigate('reclamos')}><Icon name="cl" size="sm" /> Volver a hojas</button><h1>{c?.code ?? 'Detalle de hoja'}</h1>{c ? <p>{c.number} · {c.complaint_type === 'claim' ? 'Reclamo' : 'Queja'} · Recibido {dateTime(c.received_at)}</p> : null}</div></div>
+    {detail.error ? <Note kind="warn" role="alert">No se pudo cargar la hoja: {errorText(detail.error)} <button className="btn sm" type="button" onClick={detail.reload}>Reintentar</button></Note>
+      : detail.loading || !c ? <Skeleton variant="table" rows={5} /> : <>
+        <section className="card" style={{ marginBottom: 16 }}><div className="card-h"><h2 className="sec">Estado y gestión</h2><Chip kind={c.status === 'answered' || c.status === 'closed' ? 'ok' : 'warn'}>{statusLabel(c.status)}</Chip></div>
+          <div className="card-b" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+            {can('helpdesk.complaint.update') ? <label className="field">Cambiar estado<select className="select" value={c.status} disabled={busy} onChange={(e) => void update({ status: e.target.value as ComplaintStatus }, 'Estado actualizado')}>
+              <option value={c.status}>{statusLabel(c.status)}</option>{c.status === 'received' ? <option value="in_progress">En atención</option> : null}{c.status === 'answered' ? <option value="closed">Cerrar</option> : null}</select></label> : null}
+            {c.is_test ? <Chip kind="warn">Registro de prueba{c.test_reason ? `: ${c.test_reason}` : ''}</Chip> : null}
+            {can('helpdesk.complaint.update') && !c.is_test ? <><label className="field">Motivo para marcar como prueba<input className="input" value={testReason} onChange={(e) => setTestReason(e.target.value)} maxLength={1000} /></label><button className="btn" type="button" disabled={busy || !testReason.trim()} onClick={() => void update({ is_test: true, test_reason: testReason.trim() }, 'Marcada como prueba')}>Marcar como prueba</button></> : null}
+            {c.is_test && can('helpdesk.complaint.delete') ? <button className="btn danger" type="button" disabled={busy} onClick={() => void remove()}><Icon name="trash" size="sm" /> Eliminar prueba</button> : null}
+            <span className="sub">Plazo: {c.response_days} días · vence {dateTime(c.due_at)} · ticket {c.ticket_id}</span>
+          </div>
+        </section>
+        <section className="card" style={{ marginBottom: 16 }}><div className="card-h"><h2 className="sec">Datos del consumidor</h2></div><div className="card-b" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+          <Info label="Nombre" value={c.consumer_name} /><Info label="Documento" value={`${c.consumer_document_type.toUpperCase()} ${c.consumer_document_number}`} /><Info label="Correo" value={c.consumer_email} /><Info label="Teléfono" value={c.consumer_phone} /><Info label="Domicilio" value={c.consumer_address} /><Info label="Menor de edad" value={c.is_minor ? `Sí · tutor: ${c.guardian_name ?? '—'}` : 'No'} /><Info label="Servicio" value={c.service_description} /><Info label="Importe" value={c.amount_minor === null ? null : `${(c.amount_minor / 100).toFixed(2)} ${c.currency ?? ''}`} />
+          <div style={{ gridColumn: '1 / -1' }}><small className="sub">Detalle</small><p style={{ whiteSpace: 'pre-wrap' }}>{c.detail}</p></div><div style={{ gridColumn: '1 / -1' }}><small className="sub">Pedido del consumidor</small><p style={{ whiteSpace: 'pre-wrap' }}>{c.consumer_request}</p></div>
+        </div></section>
+        <section className="card" style={{ marginBottom: 16 }}><div className="card-h"><h2 className="sec">Respuestas oficiales</h2></div>
+          {c.responses.length ? <ol className="thread" aria-label="Respuestas oficiales">{c.responses.map((r) => <li key={r.id} className="msg agente"><div className="mh"><b>Respuesta oficial</b><time>{dateTime(r.sent_at)}</time></div><p style={{ whiteSpace: 'pre-wrap' }}>{r.body}</p><div className="sub">Enviada a {r.sent_to_email}{r.is_final ? ' · Final' : ''}</div></li>)}</ol> : <div className="card-b sub">Todavía no hay respuestas registradas.</div>}
+          {can('helpdesk.complaint.respond') && c.status !== 'answered' && c.status !== 'closed' ? <form className="composer" onSubmit={(e) => { e.preventDefault(); setPreview({ body: reply.trim(), previewedAt: new Date().toISOString() }); }}><label className="field">Respuesta al consumidor<textarea className="textarea" rows={5} required value={reply} onChange={(e) => { setReply(e.target.value); setPreview(null); }} /></label><div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn" type="submit" disabled={!reply.trim()}>Previsualizar respuesta</button></div></form> : null}
+          {preview ? <div className="card-b" style={{ borderTop: '1px solid var(--line)' }}><h3 className="sec">Vista previa · {dateTime(preview.previewedAt)}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{preview.body}</p><button className="btn primary" type="button" disabled={busy} onClick={() => void sendResponse()}>{busy ? 'Registrando…' : 'Registrar y enviar respuesta oficial'}</button>{' '}<button className="btn" type="button" onClick={() => setPreview(null)}>Editar</button></div> : null}
+        </section>
+      </>}
+  </>;
+}
+
+function Info({ label, value }: { label: string; value: string | null }) { return <div><small className="sub">{label}</small><div>{value || '—'}</div></div>; }
