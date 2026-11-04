@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Sales\Http\Controllers\LeadController;
+use App\Modules\Sales\Http\Controllers\QuoteController;
 use App\Modules\Sales\Http\Controllers\WebSubmissionLeadController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,16 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff'])->group(function (): void {
+    Route::get('quotes', [QuoteController::class, 'index'])->middleware('permission:sales.quote.view')->name('quotes.index');
+    Route::post('quotes', [QuoteController::class, 'store'])->middleware(['permission:sales.quote.create', 'idempotency'])->name('quotes.store');
+    Route::get('quotes/{id}', [QuoteController::class, 'show'])->whereUuid('id')->middleware('permission:sales.quote.view')->name('quotes.show');
+    Route::patch('quotes/{id}', [QuoteController::class, 'update'])->whereUuid('id')->middleware('permission:sales.quote.update')->name('quotes.update');
+    Route::post('quotes/{id}/send', [QuoteController::class, 'send'])->whereUuid('id')->middleware('permission:sales.quote.update')->name('quotes.send');
+    Route::post('quotes/{id}/accept', [QuoteController::class, 'accept'])->whereUuid('id')->middleware('permission:sales.quote.update')->name('quotes.accept');
+    Route::post('quotes/{id}/reject', [QuoteController::class, 'reject'])->whereUuid('id')->middleware('permission:sales.quote.update')->name('quotes.reject');
+    Route::post('quotes/{id}/expire', [QuoteController::class, 'expire'])->whereUuid('id')->middleware('permission:sales.quote.update')->name('quotes.expire');
+    Route::delete('quotes/{id}', [QuoteController::class, 'destroy'])->whereUuid('id')->middleware('permission:sales.quote.delete')->name('quotes.destroy');
+
     Route::get('leads', [LeadController::class, 'index'])->middleware('permission:sales.lead.view')->name('leads.index');
     Route::post('leads', [LeadController::class, 'store'])->middleware(['permission:sales.lead.create', 'idempotency:optional'])->name('leads.store');
     Route::get('leads/board', [LeadController::class, 'board'])->middleware('permission:sales.lead.view')->name('leads.board');
