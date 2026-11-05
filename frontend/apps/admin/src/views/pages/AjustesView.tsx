@@ -1,422 +1,143 @@
-/**
- * Vista «ajustes» (#ajustes) — Cobranza y SLA (prototipo vAjustes,
- * seqRowsHtml, simHtml y handlers seqAdd/seqDel/saveCfg/onField; l.1911-1925,
- * l.3455-3457 y l.3477-3483).
- *
- * Diferencias tomadas de la especificación (docs/modulos):
- *  - M-BIL / M-CFG: el recargo por mora es configurable (porcentaje o monto,
- *    días de gracia, tope y dónde se emite); el prototipo lo fijaba en 5 %.
- *    Una secuencia sin etapas advierte «no se enviarán avisos» y quitar la
- *    etapa de suspensión pide confirmación reforzada.
- *  - M-HLP: los valores iniciales del SLA del kit (crítica 1 h/4 h, alta
- *    4 h/1 día, media 8 h/3 días, baja 1 día/5 días) difieren de los del
- *    prototipo; se ofrecen con «Cargar valores iniciales del kit». La solución
- *    no puede ser menor que la primera respuesta (422 en la especificación).
- *    Solo el administrador edita el SLA; finanzas edita la cobranza.
- */
+import { useMemo, useState } from 'react';
+import { isProblem, type BusinessHourInterval, type BusinessHours, type Holiday, type HolidayInput, type SettingDefinition, type SettingValue } from '@hub/api';
 import { useApp } from '../../app/context';
-import { useViewState } from '../../app/storage';
+import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { EmptyState, Note, PageHead, PrioChip, Switch } from '../../components/ui';
-import { ACTS, CHS, DIAS, SEQ, SEV, SLA, TODAY, actSev, addD, fD, fTk, fromIso, moneyRaw, slaLeft, type Cur, type SeqStep, type Sev } from '../../data';
+import { EmptyState, Note, PageHead, Select, Skeleton, Switch } from '../../components/ui';
+import { errorText, settingsApi, useCan, useLoad } from './configuracion/shared';
 
-/* ---------- Recargo por mora (M-BIL; valores de ejemplo a confirmar) ---------- */
-interface MoraCfg {
-  on: boolean;
-  tipo: 'pct' | 'monto';
-  valor: number;
-  gracia: number;
-  tope: number;
-  en: 'Nota de débito' | 'Siguiente factura';
-}
-const MORA: MoraCfg = { on: true, tipo: 'pct', valor: 5, gracia: 1, tope: 50, en: 'Nota de débito' };
-/** Valores iniciales del SLA según M-HLP (primera respuesta en min, solución en h). */
-const SLA_KIT: Record<Sev, { fr: number; res: number }> = { critica: { fr: 60, res: 4 }, alta: { fr: 240, res: 24 }, media: { fr: 480, res: 72 }, baja: { fr: 1440, res: 120 } };
-const SEVS = Object.keys(SLA) as Sev[];
+const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const HOLIDAY_INPUT: HolidayInput = { country: 'PE', date: '', name: '', recurring: false };
+const emptyHours: BusinessHours = { calendar: 'default', timezone: 'America/Lima', version: 0, intervals: [] };
 
-const relOf = (s: SeqStep) => (s.off < 0 ? 'antes' : s.off === 0 ? 'dia' : 'despues');
-const when = (s: SeqStep) => (s.off < 0 ? -s.off + ' días antes' : s.off === 0 ? 'Día del vencimiento' : s.off + ' días después');
-const moraAmt = (amt: number) => {
-  if (!MORA.on) return 0;
-  const v = MORA.tipo === 'pct' ? (amt * MORA.valor) / 100 : MORA.valor;
-  return Math.min(v, (amt * MORA.tope) / 100);
-};
-
-interface Sim {
-  due: string;
-  amt: string;
-  cur: Cur;
-}
-
-function Simulator({ sim }: { sim: Sim }) {
-  const due = sim.due ? fromIso(sim.due) : TODAY;
-  const amt = +sim.amt || 0;
-  const st = SEQ.slice().sort((a, b) => a.off - b.off);
-  if (!st.length) return <EmptyState title="Secuencia vacía" text="Agregue al menos una etapa." />;
-  const graceDay = Math.max(1, MORA.gracia);
-  return (
-    <>
-      <ol className="tl">
-        {st.map((s, i) => {
-          const d = addD(due, s.off);
-          const k = actSev(s.act);
-          return (
-            <li key={i}>
-              <span className={`nd ${k === 'danger' ? 'bad' : k === 'warn' ? 'now' : ''}`} />
-              <div className="w">
-                <b>{s.act}</b>
-                <span>
-                  {DIAS[d.getDay()].slice(0, 3)} {fD(d)}
-                </span>
-              </div>
-              <small>
-                {when(s)} · {s.ch}
-                {/débito/.test(s.act)
-                  ? MORA.on
-                    ? ` · recargo ${MORA.tipo === 'pct' ? MORA.valor + ' %' : moneyRaw(MORA.valor, sim.cur)}: ${moneyRaw(moraAmt(amt), sim.cur)}${s.off < graceDay ? ` · se emite tras ${graceDay} ${graceDay === 1 ? 'día' : 'días'} de gracia` : ''}`
-                    : ' · recargo por mora desactivado'
-                  : ''}
-                {/Suspender/.test(s.act) ? ' · se pausa si hay compromiso' : ''}
-              </small>
-            </li>
-          );
-        })}
-      </ol>
-      <Note style={{ marginTop: 6 }}>
-        {st.length} etapas · primer contacto {fD(addD(due, st[0].off))} · última acción {fD(addD(due, st[st.length - 1].off))}. Monto simulado {moneyRaw(amt, sim.cur)}.
-      </Note>
-    </>
-  );
+function messageFor(e: unknown) {
+  if (isProblem(e) && e.status === 422) return 'Revise los campos.';
+  return errorText(e);
 }
 
 export default function AjustesView() {
-  const { role, brand, toast, refresh, dialogs } = useApp();
-  const [sim, setSim] = useViewState<Sim>('aj.sim', { due: '2026-11-15', amt: '349', cur: 'PEN' });
-  const canSla = role === 'Administrador';
-  const canDun = role === 'Administrador' || role === 'Finanzas';
-  const tks = fTk(brand).filter((t) => t.status !== 'Resuelto');
-  const slaBad = SEVS.filter((k) => SLA[k].res * 60 < SLA[k].fr);
+  const { toast } = useApp();
+  const can = useCan();
+  const canSettingsView = can('settings.setting.view');
+  const canBusinessView = can('settings.business_hours.view');
+  const canHolidayView = can('settings.holiday.view');
+  const canHolidayCreate = can('settings.holiday.create');
+  const canHolidayUpdate = can('settings.holiday.update');
+  const canHolidayDelete = can('settings.holiday.delete');
+  const [hoursDraft, setHoursDraft] = useState<BusinessHours | null>(null);
+  const [savingHours, setSavingHours] = useState(false);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [holidayBusy, setHolidayBusy] = useState(false);
 
-  const setStep = (s: SeqStep, f: 'n' | 'rel' | 'act' | 'ch', v: string) => {
-    if (f === 'act' || f === 'ch') s[f] = v;
-    else {
-      let n = Math.max(0, Math.min(120, f === 'n' ? Math.round(+v || 0) : Math.abs(s.off)));
-      const rel = f === 'rel' ? v : relOf(s);
-      if (f === 'rel' && rel !== 'dia' && n === 0) n = 1;
-      s.off = rel === 'antes' ? -n : rel === 'dia' ? 0 : n;
-    }
-    refresh();
+  const hours = useLoad<BusinessHours>(() => (canBusinessView ? settingsApi.businessHours.get('default') : Promise.resolve(emptyHours)), [canBusinessView]);
+  const holidayList = useLoad<{ data: Holiday[] }>(() => (canHolidayView ? settingsApi.holidays.list() : Promise.resolve({ data: [] })), [canHolidayView]);
+  const settings = useLoad<{ data: SettingDefinition[]; meta: { total: number } }>(() => (canSettingsView ? settingsApi.settings.list() : Promise.resolve({ data: [], meta: { total: 0 } })), [canSettingsView]);
+  const holidays = holidayList.data?.data ?? [];
+  const billingSettings = useMemo(() => (settings.data?.data ?? []).filter((s) => /^(billing\.|collections\.)/.test(s.key) && (/collections_inbox_days|late_fee\.|dunning\.default_sequence/.test(s.key))), [settings.data]);
+  const currentHours = hoursDraft ?? hours.data ?? emptyHours;
+
+  const updateIntervals = (weekday: number, transform: (rows: BusinessHourInterval[]) => BusinessHourInterval[]) => {
+    const next = { ...currentHours, intervals: [...currentHours.intervals] };
+    const rows = next.intervals.filter((i) => i.weekday === weekday);
+    const updated = transform(rows).map((r) => ({ ...r, weekday }));
+    next.intervals = next.intervals.filter((i) => i.weekday !== weekday).concat(updated);
+    setHoursDraft(next);
   };
-  const addStep = () => {
-    SEQ.push({ off: 5, act: 'Escalar a ejecutivo', ch: 'Llamada' });
-    refresh();
-    toast('Etapa agregada', 'Ajuste el momento, la acción y el canal.', 'info');
-    window.setTimeout(() => {
-      const l = document.querySelectorAll<HTMLInputElement>('#seqRows .seq-row input');
-      l[l.length - 1]?.focus();
-    }, 0);
-  };
-  const delStep = (k: number) => {
-    const s = SEQ[k];
-    const susp = /Suspender/.test(s.act);
-    const left = SEQ.filter((x, i) => i !== k && /Suspender/.test(x.act)).length;
-    dialogs.confirm({
-      title: 'Quitar etapa',
-      body: (
-        <>
-          <p style={{ margin: 0 }}>
-            ¿Quitar la etapa «{s.act}» ({s.off < 0 ? -s.off + ' días antes' : s.off === 0 ? 'día del vencimiento' : s.off + ' días después'})?
-          </p>
-          {susp && !left ? (
-            <Note kind="warn" icon="tri">
-              Es la única etapa de suspensión: los servicios con deuda dejarán de suspenderse automáticamente.
-            </Note>
-          ) : null}
-          {SEQ.length === 1 ? (
-            <Note kind="warn" icon="tri">
-              La secuencia quedará vacía: no se enviarán avisos.
-            </Note>
-          ) : null}
-        </>
-      ),
-      okLabel: 'Quitar',
-      danger: true,
-      onOk: () => {
-        SEQ.splice(k, 1);
-        toast('Etapa quitada', '', 'warn');
-        refresh();
-      },
-    });
-  };
-  const setSla = (k: Sev, f: 'fr' | 'res' | 'h' | 'esc', v: string) => {
-    if (f === 'fr' || f === 'res') SLA[k][f] = Math.max(1, Math.round(+v) || 1);
-    else SLA[k][f] = v;
-    refresh();
-  };
-  const loadKit = () =>
-    dialogs.confirm({
-      title: 'Cargar valores iniciales del kit',
-      body: (
-        <>
-          <p style={{ margin: 0 }}>Se reemplazarán los tiempos de primera respuesta y solución por los valores iniciales de la especificación (M-HLP):</p>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13 }}>
-            <li>Crítica: 1 h / 4 h</li>
-            <li>Alta: 4 h / 1 día</li>
-            <li>Media: 8 h / 3 días</li>
-            <li>Baja: 1 día / 5 días</li>
-          </ul>
-          <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Deben confirmarse con gerencia antes de la puesta en marcha.</p>
-        </>
-      ),
-      okLabel: 'Cargar valores',
-      onOk: () => {
-        SEVS.forEach((k) => Object.assign(SLA[k], SLA_KIT[k]));
-        toast('Valores iniciales cargados', 'Recuerde guardar los cambios.', 'info');
-        refresh();
-      },
-    });
-  const save = () => {
-    if (slaBad.length) {
-      toast('SLA inválido', `En ${slaBad.map((k) => SEV[k].l).join(', ')} la solución es menor que la primera respuesta.`, 'err');
-      return;
-    }
-    if (MORA.on && !(MORA.valor > 0)) {
-      toast('Recargo por mora inválido', 'Ingrese un valor mayor que 0 o desactive el recargo.', 'err');
-      return;
-    }
-    toast('Configuración guardada', `${SEQ.length} etapas de cobranza · SLA actualizado`);
-  };
-  const setMora = (p: Partial<MoraCfg>) => {
-    Object.assign(MORA, p);
-    refresh();
+  const saveHours = async () => {
+    setSavingHours(true);
+    try {
+      const saved = await settingsApi.businessHours.put('default', { version: currentHours.version, timezone: currentHours.timezone || 'America/Lima', intervals: currentHours.intervals.map(({ weekday, opens_at, closes_at }) => ({ weekday, opens_at, closes_at })) });
+      hours.setData(saved);
+      setHoursDraft(null);
+      toast('Horario guardado', 'Se actualizó el calendario de atención.');
+    } catch (e) {
+      toast('No se pudo guardar el horario', messageFor(e), 'err');
+      if (isProblem(e) && e.status === 409) { setHoursDraft(null); hours.reload(); }
+    } finally { setSavingHours(false); }
   };
 
-  return (
-    <>
-      <PageHead
-        crumbs={[['Configuración', 'ajustes'], ['Cobranza y SLA', 'ajustes']]}
-        title="Cobranza y SLA"
-        sub="Secuencia de avisos de cobranza y acuerdos de nivel de servicio."
-        actions={
-          <button type="button" className="btn primary" onClick={save}>
-            <Icon name="check" size="sm" />
-            Guardar cambios
-          </button>
-        }
-      />
-      {!canDun ? (
-        <Note kind="warn" icon="lock" style={{ marginBottom: 16 }}>
-          El rol {role} solo puede consultar estos ajustes.
-        </Note>
-      ) : null}
-      <div className="split side-wide" style={{ marginBottom: 16 }}>
-        <section className="card" aria-labelledby="hSeqE">
-          <div className="card-h">
-            <h2 className="sec" id="hSeqE">
-              Secuencia de avisos de cobranza
-            </h2>
-            <button type="button" className="btn sm" onClick={addStep} disabled={!canDun}>
-              <Icon name="plus" size="sm" />
-              Agregar etapa
-            </button>
-          </div>
-          <div className="card-b">
-            {!SEQ.length ? (
-              <Note kind="warn" icon="tri">
-                La secuencia no tiene etapas: no se enviarán avisos.
-              </Note>
-            ) : null}
-            <div id="seqRows">
-              {SEQ.map((s, k) => {
-                const rel = relOf(s);
-                return (
-                  <div className="seq-row" role="group" aria-label={`Etapa ${k + 1}`} key={k}>
-                    <input className="input n" type="number" min={0} max={120} value={Math.abs(s.off)} onChange={(e) => setStep(s, 'n', e.target.value)} aria-label="Días" disabled={rel === 'dia' || !canDun} />
-                    <select className="select" value={rel} onChange={(e) => setStep(s, 'rel', e.target.value)} aria-label="Momento" disabled={!canDun}>
-                      <option value="antes">días antes del venc.</option>
-                      <option value="dia">el día del venc.</option>
-                      <option value="despues">días después del venc.</option>
-                    </select>
-                    <select className="select act" value={s.act} onChange={(e) => setStep(s, 'act', e.target.value)} aria-label="Acción" disabled={!canDun}>
-                      {ACTS.map((a) => (
-                        <option key={a}>{a}</option>
-                      ))}
-                    </select>
-                    <select className="select chn" value={s.ch} onChange={(e) => setStep(s, 'ch', e.target.value)} aria-label="Canal" disabled={!canDun}>
-                      {CHS.map((a) => (
-                        <option key={a}>{a}</option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn sm icon" onClick={() => delStep(k)} aria-label={`Quitar etapa ${k + 1}`} title="Quitar etapa" disabled={!canDun}>
-                      <Icon name="trash" size="sm" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '10px 0 0' }}>
-              Las etapas se ordenan por momento al ejecutarse. Las suspensiones y recargos se pausan automáticamente si existe un compromiso de pago vigente.
-            </p>
-          </div>
-          <div className="card-h" style={{ borderTop: '1px solid var(--border)' }}>
-            <h2 className="sec">Recargo por mora</h2>
-            <span className="sub">se aplica en la etapa «Emitir nota de débito por mora»</span>
-          </div>
-          <div className="card-b">
-            <div className="form-grid">
-              <div className="field full">
-                <Switch checked={MORA.on} onChange={(v) => setMora({ on: v })} disabled={!canDun}>
-                  Cobrar recargo por mora
-                </Switch>
-              </div>
-              {MORA.on ? (
-                <>
-                  <label className="field" htmlFor="mrTipo">
-                    Tipo
-                    <select id="mrTipo" className="select" value={MORA.tipo} onChange={(e) => setMora({ tipo: e.target.value as MoraCfg['tipo'] })} disabled={!canDun}>
-                      <option value="pct">Porcentaje del saldo</option>
-                      <option value="monto">Monto fijo</option>
-                    </select>
-                  </label>
-                  <label className="field" htmlFor="mrVal">
-                    {MORA.tipo === 'pct' ? 'Porcentaje (%)' : 'Monto (moneda del comprobante)'}
-                    <input id="mrVal" className="input" type="number" min={0} step="0.5" value={MORA.valor} onChange={(e) => setMora({ valor: Math.max(0, +e.target.value || 0) })} disabled={!canDun} />
-                  </label>
-                  <label className="field" htmlFor="mrGr">
-                    Días de gracia
-                    <input id="mrGr" className="input" type="number" min={0} max={60} value={MORA.gracia} onChange={(e) => setMora({ gracia: Math.max(0, Math.min(60, Math.round(+e.target.value) || 0)) })} disabled={!canDun} />
-                  </label>
-                  <label className="field" htmlFor="mrTope">
-                    Tope (% del saldo)
-                    <input id="mrTope" className="input" type="number" min={1} max={100} value={MORA.tope} onChange={(e) => setMora({ tope: Math.max(1, Math.min(100, Math.round(+e.target.value) || 1)) })} disabled={!canDun} />
-                  </label>
-                  <label className="field full" htmlFor="mrEn">
-                    Se emite en
-                    <select id="mrEn" className="select" value={MORA.en} onChange={(e) => setMora({ en: e.target.value as MoraCfg['en'] })} disabled={!canDun}>
-                      <option>Nota de débito</option>
-                      <option>Siguiente factura</option>
-                    </select>
-                  </label>
-                </>
-              ) : null}
-            </div>
-            <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '10px 0 0' }}>Puede desactivarse por cliente o contrato. Valores iniciales de ejemplo: deben confirmarse con gerencia antes de la puesta en marcha.</p>
-          </div>
-        </section>
-        <aside className="card" aria-labelledby="hSim">
-          <div className="card-h">
-            <h2 className="sec" id="hSim">
-              Simulador
-            </h2>
-            <span className="sub">se actualiza en vivo</span>
-          </div>
-          <div className="card-b" style={{ display: 'grid', gap: 12 }}>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-              <label className="field full" htmlFor="simDue">
-                Fecha de vencimiento
-                <input id="simDue" className="input" type="date" value={sim.due} onChange={(e) => setSim({ ...sim, due: e.target.value })} />
-              </label>
-              <label className="field" htmlFor="simAmt">
-                Monto
-                <input id="simAmt" className="input" type="number" min={0} step="0.01" value={sim.amt} onChange={(e) => setSim({ ...sim, amt: e.target.value })} />
-              </label>
-              <label className="field" htmlFor="simCur">
-                Moneda
-                <select id="simCur" className="select" value={sim.cur} onChange={(e) => setSim({ ...sim, cur: e.target.value as Cur })}>
-                  <option value="PEN">S/</option>
-                  <option value="USD">US$</option>
-                </select>
-              </label>
-            </div>
-            <div aria-live="polite">
-              <Simulator sim={sim} />
-            </div>
-          </div>
-        </aside>
+  const upsertHoliday = async (holiday?: Holiday) => {
+    const country = window.prompt('País (ISO alfa-2)', holiday?.country ?? HOLIDAY_INPUT.country);
+    if (country === null) return;
+    const date = window.prompt('Fecha (AAAA-MM-DD)', holiday?.date ?? '');
+    if (date === null) return;
+    const name = window.prompt('Nombre del feriado', holiday?.name ?? '');
+    if (name === null) return;
+    const recurring = window.confirm('¿Se repite cada año? Acepte para recurrente; cancele para una sola fecha.');
+    const input = { country: country.trim().toUpperCase(), date: date.trim(), name: name.trim(), recurring };
+    setHolidayBusy(true);
+    try {
+      if (holiday) await settingsApi.holidays.update(holiday.id, holiday.version, input);
+      else await settingsApi.holidays.create(input);
+      toast(holiday ? 'Feriado actualizado' : 'Feriado creado');
+      holidayList.reload();
+    } catch (e) {
+      toast('No se pudo guardar el feriado', messageFor(e), 'err');
+      if (isProblem(e) && e.status === 409) holidayList.reload();
+    } finally { setHolidayBusy(false); }
+  };
+  const removeHoliday = async (holiday: Holiday) => {
+    if (!window.confirm(`¿Eliminar «${holiday.name}» (${holiday.date})?`)) return;
+    setHolidayBusy(true);
+    try { await settingsApi.holidays.remove(holiday.id); toast('Feriado eliminado'); holidayList.reload(); }
+    catch (e) { toast('No se pudo eliminar el feriado', messageFor(e), 'err'); if (isProblem(e) && e.status === 409) holidayList.reload(); }
+    finally { setHolidayBusy(false); }
+  };
+
+  const saveSetting = async (definition: SettingDefinition, value: SettingValue) => {
+    setSavingKey(definition.key);
+    try {
+      await settingsApi.settings.put(definition.key, { scope_type: 'global', value });
+      toast('Ajuste guardado', definition.key);
+      settings.reload();
+    } catch (e) {
+      toast('No se pudo guardar el ajuste', messageFor(e), 'err');
+      if (isProblem(e) && e.status === 409) settings.reload();
+    } finally { setSavingKey(null); }
+  };
+
+  const holidayColumns: Column<Holiday>[] = [
+    { key: 'date', header: 'Fecha', render: (h) => h.date, sort: (h) => h.date },
+    { key: 'name', header: 'Nombre', render: (h) => h.name, sort: (h) => h.name },
+    { key: 'country', header: 'País', render: (h) => h.country },
+    { key: 'recurring', header: 'Recurrente', render: (h) => h.recurring ? 'Sí' : 'No' },
+    { key: 'actions', header: 'Acciones', render: (h) => <span style={{ display: 'flex', gap: 6 }}>{canHolidayUpdate ? <button className="btn sm" type="button" disabled={holidayBusy} onClick={() => void upsertHoliday(h)}>Editar</button> : null}{canHolidayDelete ? <button className="btn sm" type="button" disabled={holidayBusy} onClick={() => void removeHoliday(h)} aria-label={`Eliminar ${h.name}`}><Icon name="trash" size="sm" /></button> : null}</span> },
+  ];
+
+  return <>
+    <PageHead crumbs={[[ 'Configuración', 'ajustes' ], [ 'Cobranza y SLA', 'ajustes' ]]} title="Cobranza y SLA" sub="Horario, feriados y ajustes de cobranza que gobiernan los vencimientos." />
+
+    <section className="card" style={{ marginBottom: 16 }}>
+      <div className="card-h"><h2 className="sec">Horario de atención</h2><button className="btn primary" type="button" onClick={() => void saveHours()} disabled={!can('settings.business_hours.update') || savingHours || hours.loading || !!hours.error}><Icon name="check" size="sm" />Guardar horario</button></div>
+      <div className="card-b">
+        {!canBusinessView ? <Note kind="warn" icon="lock">No tiene permiso para consultar el horario (settings.business_hours.view).</Note> : hours.loading ? <Skeleton rows={5} /> : hours.error ? <Note kind="warn" role="alert">{messageFor(hours.error)} <button className="btn sm" onClick={hours.reload}>Reintentar</button></Note> : <>
+          <label className="field" style={{ maxWidth: 360 }}>Zona horaria<input className="input" value={currentHours.timezone ?? ''} onChange={(e) => setHoursDraft({ ...currentHours, timezone: e.target.value })} disabled={!can('settings.business_hours.update')} placeholder="America/Lima" /></label>
+          <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>{DAYS.map((day, idx) => {
+            const weekday = idx + 1;
+            const rows = currentHours.intervals.filter((i) => i.weekday === weekday);
+            return <div key={weekday} style={{ display: 'grid', gridTemplateColumns: '100px 1fr auto', alignItems: 'center', gap: 10 }}><strong>{day}</strong><div style={{ display: 'grid', gap: 6 }}>{rows.map((interval, i) => <div key={`${weekday}-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input aria-label={`${day}: apertura`} className="input" type="time" value={interval.opens_at} disabled={!can('settings.business_hours.update')} onChange={(e) => updateIntervals(weekday, (rs) => rs.map((r, j) => j === i ? { ...r, opens_at: e.target.value } : r))} /><span>a</span><input aria-label={`${day}: cierre`} className="input" type="time" value={interval.closes_at} disabled={!can('settings.business_hours.update')} onChange={(e) => updateIntervals(weekday, (rs) => rs.map((r, j) => j === i ? { ...r, closes_at: e.target.value } : r))} /><button className="btn sm" type="button" disabled={!can('settings.business_hours.update')} onClick={() => updateIntervals(weekday, (rs) => rs.filter((_, j) => j !== i))} aria-label={`Quitar tramo ${day}`}><Icon name="trash" size="sm" /></button></div>)}</div><button className="btn sm" type="button" disabled={!can('settings.business_hours.update')} onClick={() => updateIntervals(weekday, (rs) => [...rs, { weekday, opens_at: '09:00', closes_at: '18:00' }])}>Agregar tramo</button></div>;
+          })}</div>
+          <Note style={{ marginTop: 14 }}>Los feriados y los tramos de este calendario permiten calcular plazos en días hábiles del Libro de Reclamaciones.</Note>
+        </>}
       </div>
-      <section className="card" aria-labelledby="hSla">
-        <div className="card-h">
-          <h2 className="sec" id="hSla">
-            SLA de tickets por prioridad
-          </h2>
-          <span className="sub">los cambios recalculan el SLA restante de los tickets abiertos</span>
-          {canSla ? (
-            <button type="button" className="btn sm" onClick={loadKit}>
-              <Icon name="refresh" size="sm" />
-              Cargar valores iniciales del kit
-            </button>
-          ) : null}
-        </div>
-        {!canSla ? (
-          <div className="card-b" style={{ paddingBottom: 0 }}>
-            <Note icon="lock">Solo el administrador puede editar el SLA.</Note>
-          </div>
-        ) : null}
-        {slaBad.length ? (
-          <div className="card-b" style={{ paddingBottom: 0 }}>
-            <Note kind="warn" icon="tri" role="alert">
-              La solución no puede ser menor que la primera respuesta ({slaBad.map((k) => SEV[k].l).join(', ')}).
-            </Note>
-          </div>
-        ) : null}
-        <div className="tw">
-          <table className="t">
-            <thead>
-              <tr>
-                <th>Prioridad</th>
-                <th>Primera respuesta (min)</th>
-                <th>Resolución (horas)</th>
-                <th>Horario</th>
-                <th>Escalar a</th>
-                <th className="r">Tickets abiertos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SEVS.map((k) => {
-                const v = SLA[k];
-                const open = tks.filter((t) => t.prio === k);
-                const out = open.filter((t) => slaLeft(t) < 0).length;
-                const bad = slaBad.includes(k);
-                return (
-                  <tr key={k}>
-                    <td>
-                      <PrioChip p={k} />
-                    </td>
-                    <td>
-                      <input className="input" style={{ width: 110 }} type="number" min={5} value={v.fr} onChange={(e) => setSla(k, 'fr', e.target.value)} aria-label={`Primera respuesta ${SEV[k].l}`} disabled={!canSla} />
-                    </td>
-                    <td>
-                      <input
-                        className="input"
-                        style={{ width: 110 }}
-                        type="number"
-                        min={1}
-                        value={v.res}
-                        onChange={(e) => setSla(k, 'res', e.target.value)}
-                        aria-label={`Resolución ${SEV[k].l}`}
-                        aria-invalid={bad}
-                        disabled={!canSla}
-                      />
-                    </td>
-                    <td>
-                      <select className="select" style={{ width: 150 }} value={v.h} onChange={(e) => setSla(k, 'h', e.target.value)} aria-label={`Horario ${SEV[k].l}`} disabled={!canSla}>
-                        <option value="24/7">24/7</option>
-                        <option value="Hábil">Hábil (L–V 9–18)</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input className="input" style={{ width: 180 }} value={v.esc} onChange={(e) => setSla(k, 'esc', e.target.value)} aria-label={`Escalamiento ${SEV[k].l}`} disabled={!canSla} />
-                    </td>
-                    <td className="r num">
-                      {open.length} <span className="sub">({out} fuera)</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </>
-  );
+    </section>
+
+    <section className="card" style={{ marginBottom: 16 }}>
+      <div className="card-h"><h2 className="sec">Feriados</h2>{canHolidayCreate ? <button className="btn primary" type="button" disabled={holidayBusy} onClick={() => void upsertHoliday()}><Icon name="plus" size="sm" />Agregar feriado</button> : null}</div>
+      <div className="card-b">{!canHolidayView ? <Note kind="warn" icon="lock">No tiene permiso para consultar feriados (settings.holiday.view).</Note> : holidayList.loading ? <Skeleton rows={4} /> : holidayList.error ? <Note kind="warn" role="alert">{messageFor(holidayList.error)} <button className="btn sm" onClick={holidayList.reload}>Reintentar</button></Note> : <DataTable rows={holidays} rowKey={(h) => h.id} columns={holidayColumns} empty={<EmptyState title="Sin feriados" text="Agregue feriados para el calendario legal." />} />}</div>
+    </section>
+
+    <section className="card" style={{ marginBottom: 16 }}>
+      <div className="card-h"><h2 className="sec">Cobranza</h2></div>
+      <div className="card-b">{!canSettingsView ? <Note kind="warn" icon="lock">No tiene permiso para consultar ajustes (settings.setting.view).</Note> : settings.loading ? <Skeleton rows={5} /> : settings.error ? <Note kind="warn" role="alert">{messageFor(settings.error)} <button className="btn sm" onClick={settings.reload}>Reintentar</button></Note> : billingSettings.length === 0 ? <EmptyState title="Sin ajustes de cobranza" /> : <div className="form-grid">{billingSettings.map((s) => {
+        const value = s.effective ?? s.default;
+        const editable = can(s.edit_permission);
+        const busy = savingKey === s.key;
+        const label = s.key === 'billing.collections_inbox_days' ? 'Días visibles en la bandeja de cobranza' : s.key.replace(/^billing\./, '').replace(/\./g, ' · ');
+        return <div className="field" key={s.key} style={{ minWidth: 260 }}><strong>{label}</strong><small className="sub">{s.description}</small>{s.type === 'boolean' ? <Switch checked={value === true} onChange={(v) => void saveSetting(s, v)} disabled={!editable || busy}>{busy ? 'Guardando…' : 'Activado'}</Switch> : s.type === 'enum' ? <Select value={String(value ?? '')} onChange={(v) => void saveSetting(s, v === '' ? null : v)} options={[[ '', '—' ], ...(s.enum_values ?? []).map((v) => [v, v] as [string, string])]} disabled={!editable || busy} /> : ['integer', 'decimal', 'number'].includes(s.type) ? <input className="input" type="number" step={s.type === 'integer' ? 1 : 'any'} value={value == null ? '' : String(value)} disabled={!editable || busy} aria-label={label} onBlur={(e) => { if (e.target.value !== '' && Number(e.target.value) !== Number(value)) void saveSetting(s, Number(e.target.value)); }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} /> : s.type === 'json' ? <textarea className="input" rows={5} defaultValue={JSON.stringify(value ?? {}, null, 2)} aria-label={label} disabled={!editable || busy} onBlur={(e) => { try { const parsed = JSON.parse(e.target.value) as SettingValue; if (JSON.stringify(parsed) !== JSON.stringify(value)) void saveSetting(s, parsed); } catch { toast('JSON inválido', 'Revise el contenido antes de guardar.', 'err'); } }} /> : <input className="input" value={String(value ?? '')} aria-label={label} disabled={!editable || busy} onBlur={(e) => { if (e.target.value !== String(value ?? '')) void saveSetting(s, e.target.value); }} />}{!editable ? <small className="sub">Solo lectura: requiere {s.edit_permission}.</small> : null}</div>;
+      })}</div>}</div>
+    </section>
+
+    <section className="card"><div className="card-h"><h2 className="sec">SLA por severidad</h2></div><div className="card-b"><Note>La configuración de SLA requiere backend (pendiente).</Note></div></section>
+  </>;
 }
