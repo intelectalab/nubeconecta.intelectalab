@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Support\Http\Controllers\ComplaintController;
+use App\Modules\Support\Http\Controllers\Portal\PortalTicketController;
 use App\Modules\Support\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,4 +20,11 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('tickets/{id}/messages', [TicketController::class, 'addMessage'])->whereUuid('id')->middleware(['permission:helpdesk.ticket_message.create', 'idempotency:optional'])->name('tickets.messages.store');
     $crud('complaints', ComplaintController::class, 'helpdesk.complaint');
     Route::post('complaints/{id}/responses', [ComplaintController::class, 'addResponse'])->whereUuid('id')->middleware(['permission:helpdesk.complaint.respond', 'idempotency:optional'])->name('complaints.responses.store');
+});
+
+Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
+    Route::get('tickets', [PortalTicketController::class, 'index'])->middleware('permission:portal.ticket.view')->name('tickets.index');
+    Route::post('tickets', [PortalTicketController::class, 'store'])->middleware(['permission:portal.ticket.create', 'idempotency:optional'])->name('tickets.store');
+    Route::get('tickets/{id}', [PortalTicketController::class, 'show'])->whereUuid('id')->middleware('permission:portal.ticket.view')->name('tickets.show');
+    Route::post('tickets/{id}/messages', [PortalTicketController::class, 'addMessage'])->whereUuid('id')->middleware(['permission:portal.ticket.create', 'idempotency:optional'])->name('tickets.messages.store');
 });
