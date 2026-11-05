@@ -1,164 +1,64 @@
-/**
- * Vista «proveedores» (#proveedores): cuentas por proveedor, costos mensuales,
- * renovaciones y saldos prepago. Guía: vProveedores del prototipo.
- */
-import { useMemo } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { isProblem, type Provider, type ProviderAccount, type ProviderInput, type ProviderAccountInput, type ProviderType } from '@hub/api';
 import { useApp } from '../../app/context';
-import { useViewState } from '../../app/storage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { Chip, DayChip, PageHead, Select, StatLine, Toolbar } from '../../components/ui';
-import { addD, diffD, fD, fromIso, iso, moneyRaw, PACC, plural, TODAY } from '../../data';
-import type { Cur, ProviderAccount } from '../../data';
-import { NoRows } from './infraestructura/shared';
+import { Modal } from '../../components/Modal';
+import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { errorText, fDate, useCan, useLoad } from './clientes/shared';
+import { PROVIDER_STATUS_CHIP, PROVIDER_TYPE_LABEL, providersApi } from './proveedores/shared';
 
-const TYPES = ['Reseller', 'VPS', 'Cloud', 'Registrador', 'CDN', 'Mailing', 'Correo', 'Licencias'];
-const balCur = (a: ProviderAccount): Cur => (a.p === 'PoloDomains' ? 'PEN' : 'USD');
-
+const types = Object.keys(PROVIDER_TYPE_LABEL) as ProviderType[];
+const PER = 25;
 export default function ProveedoresView() {
-  const { dataVersion, refresh, toast, dialogs } = useApp();
-  const [type, setType] = useViewState('pv.type', '');
-
-  const rows = useMemo(() => PACC.filter((a) => !type || a.type === type), [type, dataVersion]);
-  const types = useMemo(() => [...new Set(PACC.map((a) => a.type))], [dataVersion]);
-  const tot = PACC.reduce((a, x) => a + x.cost, 0);
-  const ren = PACC.filter((a) => a.ren && diffD(a.ren, TODAY) <= 30);
-  const low = PACC.filter((a) => a.bal != null && a.bal < 100);
-
-  const topup = (a: ProviderAccount) =>
-    dialogs.form({
-      title: 'Recargar saldo',
-      sub: `${a.p} · ${a.acc}`,
-      fields: [{ id: 'm', label: 'Monto', type: 'number', min: 1, value: '200', req: true }],
-      submit: 'Registrar recarga',
-      validate: (v) => (+v.m > 0 ? null : 'Monto inválido.'),
-      onSubmit: (v) => {
-        a.bal = (a.bal ?? 0) + +v.m;
-        a.st = 'Activa';
-        toast('Recarga registrada', `${a.p} · nuevo saldo ${moneyRaw(a.bal, balCur(a))}`);
-        refresh();
-      },
-    });
-
-  const paid = (a: ProviderAccount) => {
-    const next = addD(a.ren || TODAY, 30);
-    dialogs.confirm({
-      title: 'Registrar pago al proveedor',
-      body: (
-        <p style={{ margin: 0 }}>
-          {a.p} · {a.acc} · {moneyRaw(a.cost, 'USD')}. La próxima renovación pasará a {fD(next)}.
-        </p>
-      ),
-      okLabel: 'Registrar',
-      onOk: () => {
-        a.ren = next;
-        toast('Pago registrado', a.p);
-        refresh();
-      },
-    });
-  };
-
-  const add = () =>
-    dialogs.form({
-      title: 'Agregar cuenta de proveedor',
-      fields: [
-        { id: 'p', label: 'Proveedor', req: true },
-        { id: 'a', label: 'Cuenta / alias', req: true },
-        { id: 't', label: 'Tipo', type: 'select', options: TYPES, value: 'Cloud' },
-        { id: 'c', label: 'Costo mensual (US$)', type: 'number', min: 0, value: '0' },
-        { id: 'r', label: 'Próxima renovación', type: 'date', value: iso(addD(TODAY, 30)) },
-      ],
-      submit: 'Agregar',
-      onSubmit: (v) => {
-        PACC.push({ id: 'PV' + PACC.length, p: v.p, acc: v.a, type: v.t, pay: 'Por definir', cost: +v.c || 0, ren: v.r ? fromIso(v.r) : null, bal: null, st: 'Activa' });
-        toast('Cuenta agregada', `${v.p} · ${v.a}`);
-        refresh();
-      },
-    });
-
-  const cols: Column<ProviderAccount>[] = [
-    { key: 'p', header: 'Proveedor', className: 'strong nw', render: (a) => a.p, sort: (a) => a.p },
-    { key: 'acc', header: 'Cuenta', render: (a) => a.acc },
-    { key: 'type', header: 'Tipo', render: (a) => <Chip kind="outline">{a.type}</Chip>, sort: (a) => a.type },
-    { key: 'pay', header: 'Medio de pago', className: 'sub nw', render: (a) => a.pay },
-    { key: 'cost', header: 'Costo mensual', align: 'r', className: 'num', render: (a) => (a.cost ? moneyRaw(a.cost, 'USD') : '—'), sort: (a) => a.cost },
-    {
-      key: 'ren',
-      header: 'Renovación',
-      className: 'nw',
-      sort: (a) => a.ren,
-      render: (a) =>
-        a.ren ? (
-          <>
-            {fD(a.ren)} <DayChip n={diffD(a.ren, TODAY)} />
-          </>
-        ) : (
-          <span className="sub">Prepago</span>
-        ),
-    },
-    {
-      key: 'bal',
-      header: 'Saldo',
-      align: 'r',
-      sort: (a) => a.bal,
-      render: (a) => {
-        if (a.bal == null) return <span className="num">—</span>;
-        const lowB = a.bal < 100;
-        return (
-          <span className={`num${lowB ? ' strong' : ''}`} style={lowB ? { color: 'var(--danger-text)' } : undefined}>
-            {moneyRaw(a.bal, balCur(a))}
-          </span>
-        );
-      },
-    },
-    { key: 'st', header: 'Estado', render: (a) => <Chip kind={a.st === 'Activa' ? 'ok' : 'warn'}>{a.st}</Chip>, sort: (a) => a.st },
-    {
-      key: 'act',
-      header: 'Acciones',
-      align: 'r',
-      className: 'nw',
-      render: (a) =>
-        a.bal != null ? (
-          <button type="button" className="btn sm" onClick={() => topup(a)}>
-            <Icon name="card" size="sm" />
-            Recargar
-          </button>
-        ) : (
-          <button type="button" className="btn sm" onClick={() => paid(a)}>
-            <Icon name="check" size="sm" />
-            Registrar pago
-          </button>
-        ),
-    },
+  const { toast, dialogs } = useApp(); const can = useCan();
+  const [type, setType] = useState(''); const [status, setStatus] = useState(''); const [origin, setOrigin] = useState(''); const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null); const [reload, setReload] = useState(0); const [form, setForm] = useState<Provider | null | 'new'>(null); const [detail, setDetail] = useState<Provider | null>(null);
+  const filter = useMemo(() => ({ type: type as ProviderType | '', status: status as 'active' | 'inactive' | '', origin: origin as 'company' | 'customer' | '' }), [type, status, origin]);
+  const res = useLoad(() => providersApi.list({ filter, q: q || undefined, cursor, size: PER, sort: 'name' }), [filter, q, cursor, reload]);
+  const rows = res.data?.data ?? []; const meta = res.data?.meta; const refresh = () => setReload(x => x + 1);
+  const remove = (p: Provider) => dialogs.confirm({ title: 'Eliminar proveedor', body: <p>¿Eliminar {p.name}?</p>, okLabel: 'Eliminar', onOk: async () => { try { await providersApi.remove(p.id, p.version); toast('Proveedor eliminado', p.name); refresh(); } catch (e) { if (isProblem(e) && e.status === 409) refresh(); toast('No se pudo eliminar', errorText(e), 'err'); } } });
+  const cols: Column<Provider>[] = [
+    { key: 'code', header: 'Código', className: 'mono nw', render: p => p.code },
+    { key: 'name', header: 'Proveedor', className: 'strong', render: p => <button className="rowlink" onClick={() => setDetail(p)}>{p.name}</button> },
+    { key: 'type', header: 'Tipo', render: p => PROVIDER_TYPE_LABEL[p.type] }, { key: 'origin', header: 'Origen', render: p => p.origin === 'customer' ? `Cliente${p.customer?.name ? ` · ${p.customer.name}` : ''}` : 'Empresa' },
+    { key: 'status', header: 'Estado', render: p => <Chip kind={PROVIDER_STATUS_CHIP[p.status]}>{p.status === 'active' ? 'Activo' : 'Inactivo'}</Chip> },
+    { key: 'cost_currency', header: 'Moneda', render: p => p.cost_currency },
+    { key: 'actions', header: 'Acciones', align: 'r', render: p => <span className="nw">{can('providers.provider.update') ? <button className="btn sm" onClick={() => setForm(p)}>Editar</button> : null} {can('providers.provider.delete') ? <button className="btn sm danger" onClick={() => remove(p)}>Eliminar</button> : null}</span> },
   ];
+  return <><PageHead crumbs={[[ 'Infraestructura', 'infra' ], ['Proveedores']]} title="Proveedores" sub="Proveedores externos y sus cuentas." actions={can('providers.provider.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm"/> Nuevo proveedor</button> : null}/>
+    <section className="card"><Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+      <Select label="Tipo" value={type} onChange={v => {setType(v);setCursor(null)}} options={[['','Todos los tipos'], ...types.map(t => [t, PROVIDER_TYPE_LABEL[t]] as [string,string])]} />
+      <Select label="Estado" value={status} onChange={v => {setStatus(v);setCursor(null)}} options={[['','Todos'],['active','Activo'],['inactive','Inactivo']]} />
+      <Select label="Origen" value={origin} onChange={v => {setOrigin(v);setCursor(null)}} options={[['','Todos'],['company','Empresa'],['customer','Cliente']]} />
+      <input className="input" aria-label="Buscar proveedores" placeholder="Buscar…" value={q} onChange={e => {setQ(e.target.value);setCursor(null)}} />
+    </Toolbar>{res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : res.loading && !res.data ? <Skeleton variant="table" rows={5}/> : !rows.length ? <EmptyState title="Sin proveedores" text="No hay proveedores que coincidan con los filtros."/> : <><DataTable columns={cols} rows={rows} rowKey={p => p.id} caption="Proveedores"/><div className="card-b" style={{display:'flex',justifyContent:'flex-end',gap:8}}><button className="btn sm" disabled={res.loading||!meta?.prev_cursor} onClick={()=>setCursor(meta?.prev_cursor??null)}>Anterior</button><button className="btn sm" disabled={res.loading||!meta?.next_cursor} onClick={()=>setCursor(meta?.next_cursor??null)}>Siguiente</button></div></>}</section>
+    {form ? <ProviderForm provider={form === 'new' ? undefined : form} onClose={()=>setForm(null)} onSaved={()=>{setForm(null);refresh()}}/> : null}
+    {detail ? <ProviderDetail provider={detail} can={can} toast={toast} onClose={()=>setDetail(null)} onChanged={refresh}/> : null}
+  </>;
+}
 
-  return (
-    <>
-      <PageHead
-        crumbs={[['Infraestructura', 'infra'], ['Proveedores', 'proveedores']]}
-        title="Proveedores"
-        sub="Cuentas por proveedor, costos mensuales, renovaciones y saldos prepago."
-        actions={
-          <button type="button" className="btn primary" onClick={add}>
-            <Icon name="plus" size="sm" />
-            Agregar cuenta
-          </button>
-        }
-      />
-      <StatLine
-        items={[
-          { label: 'Costo mensual', value: moneyRaw(tot, 'USD', 1) },
-          { label: 'Cuentas', value: PACC.length },
-          { label: 'Renuevan en 30 días', value: ren.length, tone: 'warn' },
-          { label: 'Saldos bajos (< US$ 100)', value: low.length, tone: low.length ? 'danger' : '' },
-        ]}
-      />
-      <section className="card">
-        <Toolbar count={plural(rows.length, 'cuenta', 'cuentas')}>
-          <Select label="Tipo" value={type} onChange={setType} options={[['', 'Todos los tipos'], ...types.map((t): [string, string] => [t, t])]} />
-        </Toolbar>
-        <DataTable columns={cols} rows={rows} rowKey={(a) => a.id} empty={<NoRows />} />
-      </section>
-    </>
-  );
+function ProviderForm({provider,onClose,onSaved}:{provider?:Provider;onClose:()=>void;onSaved:()=>void}) {
+  const {toast}=useApp(); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
+  const [code,S]=useState(provider?.code??''); const [name,N]=useState(provider?.name??''); const [type,T]=useState<ProviderType>(provider?.type??'hosting'); const [origin,O]=useState(provider?.origin??'company'); const [url,U]=useState(provider?.portal_url??''); const [currency,C]=useState(provider?.cost_currency??'USD'); const [status,A]=useState(provider?.status??'active'); const [customer,D]=useState(provider?.customer_id??''); const [notes,I]=useState(provider?.notes_internal??''); const [sla,L]=useState(provider?.sla_notes??'');
+  const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMsg('');const input:ProviderInput={code:code.trim(),name:name.trim(),type,origin,portal_url:url||null,cost_currency:currency,status,customer_id:origin==='customer'?(customer||null):null,notes_internal:notes||null,sla_notes:sla||null};try{if(provider)await providersApi.update(provider.id,provider.version,input);else await providersApi.create(input);toast(provider?'Proveedor actualizado':'Proveedor creado',name);onSaved()}catch(err){if(isProblem(err)&&err.status===409){setMsg(`${errorText(err)} Recargue la lista.`)}else setMsg(errorText(err))}finally{setBusy(false)}};
+  return <Modal open wide bare onClose={onClose} title={provider?'Editar proveedor':'Nuevo proveedor'}><form className="modal-b" onSubmit={e=>void submit(e)}><div className="form-grid">
+    <label className="field">Código*<input required className="input" value={code} onChange={e=>S(e.target.value)}/></label><label className="field">Nombre*<input required className="input" value={name} onChange={e=>N(e.target.value)}/></label>
+    <label className="field">Tipo*<select className="select" value={type} onChange={e=>T(e.target.value as ProviderType)}>{types.map(t=><option key={t} value={t}>{PROVIDER_TYPE_LABEL[t]}</option>)}</select></label><label className="field">Origen<select className="select" value={origin} onChange={e=>O(e.target.value as 'company'|'customer')}><option value="company">Empresa</option><option value="customer">Cliente</option></select></label>
+    <label className="field">Portal URL<input className="input" type="url" value={url} onChange={e=>U(e.target.value)}/></label><label className="field">Moneda de costo<input className="input" value={currency} onChange={e=>C(e.target.value)}/></label><label className="field">Estado<select className="select" value={status} onChange={e=>A(e.target.value as 'active'|'inactive')}><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
+    {origin==='customer'?<label className="field">ID de cliente (UUID)<input className="input" value={customer} onChange={e=>D(e.target.value)}/></label>:null}<label className="field full">Notas internas<textarea className="input" value={notes} onChange={e=>I(e.target.value)}/></label><label className="field full">Notas SLA<textarea className="input" value={sla} onChange={e=>L(e.target.value)}/></label>
+    </div><div className="err" role="alert">{msg}</div><div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>{busy?'Guardando…':'Guardar'}</button></div></form></Modal>;
+}
+
+function ProviderDetail({provider,can,toast,onClose,onChanged}:{provider:Provider;can:(p:string)=>boolean;toast:(title:string,body?:string,kind?:'info'|'warn'|'err')=>void;onClose:()=>void;onChanged:()=>void}) {
+  const {dialogs}=useApp();const [reload,setReload]=useState(0);const [form,setForm]=useState<ProviderAccount|null|'new'>(null);const [cursor,setCursor]=useState<string|null>(null);const res=useLoad(()=>can('providers.provider_account.view')?providersApi.accounts(provider.id,{cursor,size:25,sort:'label'}):Promise.resolve({data:[],meta:{next_cursor:null,prev_cursor:null,has_more:false,page_size:25},links:{next:null,prev:null}}), [provider.id,cursor,reload]);const rows=res.data?.data??[];const meta=res.data?.meta;
+  const remove=(a:ProviderAccount)=>dialogs.confirm({title:'Eliminar cuenta',body:<p>¿Eliminar la cuenta {a.label}?</p>,okLabel:'Eliminar',onOk:async()=>{try{await providersApi.removeAccount(a.id,a.version);toast('Cuenta eliminada',a.label);setReload(x=>x+1)}catch(e){if(isProblem(e)&&e.status===409)setReload(x=>x+1);toast('No se pudo eliminar',errorText(e),'err')}}});
+  const cols:Column<ProviderAccount>[]=[{key:'label',header:'Cuenta',className:'strong',render:a=>a.label},{key:'owner',header:'Titular',render:a=>a.owner==='customer'?'Cliente':'Empresa'},{key:'status',header:'Estado',render:a=><Chip kind={a.status==='active'?'ok':a.status==='suspended'?'warn':''}>{a.status}</Chip>},{key:'cost',header:'Costo',render:a=>a.cost_minor==null?'—':`${a.cost_minor} ${a.cost_currency??provider.cost_currency}`},{key:'renewal',header:'Renovación',render:a=>fDate(a.renewal_date)},{key:'actions',header:'Acciones',align:'r',render:a=><>{can('providers.provider_account.update')?<button className="btn sm" onClick={()=>setForm(a)}>Editar</button>:null} {can('providers.provider_account.delete')?<button className="btn sm danger" onClick={()=>remove(a)}>Eliminar</button>:null}</>}];
+  return <Modal open wide onClose={onClose} title={`${provider.name} · ${provider.code}`} sub={`${PROVIDER_TYPE_LABEL[provider.type]} · ${provider.origin==='customer'?'Cliente':'Empresa'} · ${provider.status}`} footer={<button className="btn" onClick={onClose}>Cerrar</button>}><div className="kv"><div>Portal</div><div>{provider.portal_url??'—'}</div><div>Moneda</div><div>{provider.cost_currency}</div><div>Notas</div><div>{provider.notes_internal??'—'}</div></div><div className="card-h"><h3 className="sec">Cuentas</h3>{can('providers.provider_account.create')?<button className="btn sm primary" onClick={()=>setForm('new')}>Agregar cuenta</button>:null}</div>{res.error?<Note kind="warn">{errorText(res.error)}</Note>:res.loading&&!res.data?<Skeleton variant="table" rows={3}/>:rows.length?<DataTable columns={cols} rows={rows} rowKey={a=>a.id} caption="Cuentas del proveedor"/>:<EmptyState title="Sin cuentas" text="Este proveedor aún no tiene cuentas."/>}<div className="card-b" style={{display:'flex',justifyContent:'flex-end',gap:8}}><button className="btn sm" disabled={!meta?.prev_cursor} onClick={()=>setCursor(meta?.prev_cursor??null)}>Anterior</button><button className="btn sm" disabled={!meta?.next_cursor} onClick={()=>setCursor(meta?.next_cursor??null)}>Siguiente</button></div>{form?<AccountForm provider={provider} account={form==='new'?undefined:form} onClose={()=>setForm(null)} onSaved={()=>{setForm(null);setReload(x=>x+1);onChanged()}} toast={toast}/>:null}</Modal>;
+}
+
+function AccountForm({provider,account,onClose,onSaved,toast}:{provider:Provider;account?:ProviderAccount;onClose:()=>void;onSaved:()=>void;toast:(title:string,body?:string)=>void}) {
+  const [label,L]=useState(account?.label??'');const [owner,O]=useState(account?.owner??'company');const [status,S]=useState(account?.status??'active');const [external,E]=useState(account?.external_account_id??'');const [renewal,R]=useState(account?.renewal_date?.slice(0,10)??'');const [cost,C]=useState(account?.cost_minor==null?'':String(account.cost_minor));const [currency,U]=useState(account?.cost_currency??provider.cost_currency);const [cycle,B]=useState(account?.billing_cycle??'');const [customer,D]=useState(account?.customer_id??'');const [msg,M]=useState('');const [busy,G]=useState(false);
+  const submit=async(e:FormEvent)=>{e.preventDefault();G(true);const input:ProviderAccountInput={label:label.trim(),owner,status,external_account_id:external||null,renewal_date:renewal||null,cost_minor:cost===''?null:Number(cost),cost_currency:currency||null,billing_cycle:cycle||null,customer_id:customer||null};try{if(account)await providersApi.updateAccount(account.id,account.version,input);else await providersApi.createAccount(provider.id,input);toast(account?'Cuenta actualizada':'Cuenta creada',label);onSaved()}catch(err){if(isProblem(err)&&err.status===409)M(`${errorText(err)} Recargue la lista.`);else M(errorText(err))}finally{G(false)}};
+  return <Modal open wide bare onClose={onClose} title={account?'Editar cuenta':'Nueva cuenta'}><form className="modal-b" onSubmit={e=>void submit(e)}><div className="form-grid"><label className="field">Etiqueta*<input required className="input" value={label} onChange={e=>L(e.target.value)}/></label><label className="field">Titular<select className="select" value={owner} onChange={e=>O(e.target.value as 'company'|'customer')}><option value="company">Empresa</option><option value="customer">Cliente</option></select></label><label className="field">Estado<select className="select" value={status} onChange={e=>S(e.target.value as 'active'|'suspended'|'closed')}><option value="active">Activa</option><option value="suspended">Suspendida</option><option value="closed">Cerrada</option></select></label><label className="field">ID cuenta externa<input className="input" value={external} onChange={e=>E(e.target.value)}/></label><label className="field">Renovación<input className="input" type="date" value={renewal} onChange={e=>R(e.target.value)}/></label><label className="field">Costo (minor units)<input className="input" type="number" step="1" value={cost} onChange={e=>C(e.target.value)}/></label><label className="field">Moneda<input className="input" value={currency} onChange={e=>U(e.target.value)}/></label><label className="field">Ciclo de facturación<input className="input" value={cycle} onChange={e=>B(e.target.value)}/></label><label className="field">ID cliente (UUID)<input className="input" value={customer} onChange={e=>D(e.target.value)}/></label></div><div className="err" role="alert">{msg}</div><div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Guardar</button></div></form></Modal>;
 }

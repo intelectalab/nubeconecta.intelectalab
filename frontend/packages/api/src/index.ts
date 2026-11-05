@@ -11,6 +11,9 @@ import { createIdentityApi } from './identity';
 import { HttpClient, type HttpClientOptions } from './http';
 import { createSettingsApi } from './settings';
 import { createContractsApi } from './contracts';
+import { createProvidersApi } from './providers';
+import { createWorkApi } from './work';
+import { createMonitoringApi } from './monitoring';
 
 export * from './http';
 export * from './auth';
@@ -25,13 +28,16 @@ export * from './support';
 export * from './identity';
 export * from './settings';
 export * from './contracts';
+export * from './providers';
+export * from './work';
+export * from './monitoring';
 
 /** Crea un cliente con su propia configuración (p. ej. otro baseUrl). */
 export function createHubApi(opts: HttpClientOptions = {}) {
   const http = new HttpClient(opts);
   const billing = createBillingApi(http);
   /** `invoices` es alias de `billing` (comprobantes de M-BIL). */
-  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http) };
+  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http) };
 }
 
 /** Cliente por defecto: mismo origen (proxy de Vite en desarrollo). */
