@@ -20,4 +20,5 @@ return [
     App\Modules\Contracts\ContractsServiceProvider::class,
     App\Modules\Billing\BillingServiceProvider::class,
     App\Modules\Work\WorkServiceProvider::class,
+    App\Modules\Monitoring\MonitoringServiceProvider::class,
 ];
