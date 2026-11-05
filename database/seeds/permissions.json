@@ -4463,6 +4463,26 @@
       "operations": 4
     },
     {
+      "code": "portal.complaint.create",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "complaint",
+      "action": "create",
+      "description": "Registrar reclamos y quejas en el Libro de Reclamaciones desde el portal",
+      "scope": "customer",
+      "operations": 6
+    },
+    {
+      "code": "portal.complaint.view",
+      "module_key": "portal",
+      "module": "PRT",
+      "entity": "complaint",
+      "action": "view",
+      "description": "Ver los reclamos y quejas del cliente en el portal",
+      "scope": "customer",
+      "operations": 3
+    },
+    {
       "code": "portal.ticket.create",
       "module_key": "portal",
       "module": "PRT",
