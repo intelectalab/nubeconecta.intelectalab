@@ -1,234 +1,200 @@
 /**
- * Vista «reportes» (#reportes[/pestaña]) — Rentabilidad y antigüedad de deuda.
- * Guía: prototipo/panel.html vReportes (l.2853) y acciones repTab / repExport.
- * Montos siempre en S/ (TC 3.75), como en el prototipo.
+ * Vista «reportes» (#reportes) — Finanzas: costos por periodo, su reparto entre
+ * servicios y la rentabilidad (costo asignado por servicio). Conectada al backend
+ * (módulo Finance). El lado de ingresos de la rentabilidad aún no está disponible:
+ * el reporte muestra solo costos asignados.
  */
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
+import {
+  isProblem, type Cost, type CostAllocation, type CostAllocationInput, type CostInput, type CostKind,
+} from '@hub/api';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
-import { useViewState } from '../../app/storage';
+import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { ClientLink, EmptyState, Legend, PageHead, Tabs } from '../../components/ui';
-import { COSTR, diffD, fClients, fInv, fSvc, iso, mrrOf, moneyRaw, NF2, saldo, TODAY, toPEN } from '../../data';
+import { Modal } from '../../components/Modal';
+import { Chip, EmptyState, Note, PageHead, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
+import { errorText, fDate, useCan, useLoad } from './clientes/shared';
+import { hub } from '../../auth/client';
 
-type RepTab = 'cliente' | 'servicio' | 'deuda';
-const TABS: [RepTab, string][] = [
-  ['cliente', 'Rentabilidad por cliente'],
-  ['servicio', 'Rentabilidad por servicio'],
-  ['deuda', 'Antigüedad de deuda'],
-];
-const isTab = (x: string | null): x is RepTab => !!x && TABS.some(([k]) => k === x);
-const B = ['Por vencer', '1–30 días', '31–60 días', '61–90 días', 'Más de 90 días'];
-const BCOLS = ['var(--chart-bar)', 'var(--warn)', 'var(--high)', 'var(--danger)', 'var(--danger-text)'];
-const cost = (t: string) => COSTR[t] ?? 0.3;
-const pen = (v: number, int?: boolean) => moneyRaw(v, 'PEN', int);
-
-/** Tabla simple (tbl del prototipo): cabeceras con «>» se alinean a la derecha. */
-function Tbl({ head, children, n }: { head: string[]; children: ReactNode; n: number }) {
-  if (!n) return <EmptyState title="Sin registros" text="No hay datos para los filtros elegidos." />;
-  return (
-    <div className="tw">
-      <table className="t">
-        <thead>
-          <tr>
-            {head.map((h) => (
-              <th key={h} className={h.startsWith('>') ? 'r' : undefined}>
-                {h.replace(/^>/, '')}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
-  );
-}
-
-function PorCliente() {
-  const { brand, dataVersion } = useApp();
-  const rows = useMemo(
-    () =>
-      fClients(brand)
-        .filter((c) => c.mrr > 0)
-        .map((c) => {
-          const act = c.services.filter((s) => s.st !== 'Cancelado');
-          const inc = act.reduce((a, s) => a + toPEN(mrrOf(s), s.cur), 0);
-          const cst = act.reduce((a, s) => a + toPEN(mrrOf(s), s.cur) * cost(s.t), 0);
-          return { c, inc, cost: cst, m: inc - cst, p: inc ? ((inc - cst) / inc) * 100 : 0 };
-        })
-        .sort((a, b) => b.m - a.m)
-        .slice(0, 15),
-    [brand, dataVersion],
-  );
-  const mx = Math.max(1, ...rows.map((r) => r.m));
-  return (
-    <Tbl head={['Cliente', '>Ingreso mensual', '>Costo estimado', '>Margen', 'Margen %']} n={rows.length}>
-      {rows.map((r) => (
-        <tr key={r.c.id}>
-          <td style={{ minWidth: 200 }}>
-            <ClientLink cid={r.c.id} />
-          </td>
-          <td className="r num">{pen(r.inc)}</td>
-          <td className="r num">{pen(r.cost)}</td>
-          <td className="r num strong">{pen(r.m)}</td>
-          <td style={{ minWidth: 170 }}>
-            <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(r.p)} aria-label={`Margen de ${r.c.name}`}>
-              <i className={r.p >= 50 ? 'l1' : r.p >= 30 ? 'l2' : 'l3'} style={{ width: `${(Math.max(0, r.m) / mx) * 100}%` }} />
-            </div>
-            <small className="num" style={{ fontSize: 12 }}>
-              {NF2.format(r.p)} %
-            </small>
-          </td>
-        </tr>
-      ))}
-    </Tbl>
-  );
-}
-
-function PorServicio() {
-  const { brand, dataVersion } = useApp();
-  const rows = useMemo(() => {
-    const g: Record<string, { n: number; inc: number }> = {};
-    fSvc(brand)
-      .filter((s) => s.st !== 'Cancelado')
-      .forEach((s) => {
-        g[s.t] = g[s.t] || { n: 0, inc: 0 };
-        g[s.t].n++;
-        g[s.t].inc += toPEN(mrrOf(s), s.cur);
-      });
-    return Object.entries(g)
-      .map(([k, v]) => ({ k, n: v.n, inc: v.inc, cost: v.inc * cost(k) }))
-      .sort((a, b) => b.inc - b.cost - (a.inc - a.cost));
-  }, [brand, dataVersion]);
-  const mx = Math.max(1, ...rows.map((r) => r.inc));
-  return (
-    <>
-      <Tbl head={['Servicio', '>Contratos', '>Ingreso mensual', '>Costo', '>Margen', 'Ingreso vs costo']} n={rows.length}>
-        {rows.map((r) => (
-          <tr key={r.k}>
-            <td className="strong">{r.k}</td>
-            <td className="r num">{r.n}</td>
-            <td className="r num">{pen(r.inc, true)}</td>
-            <td className="r num">{pen(r.cost, true)}</td>
-            <td className="r num strong">
-              {pen(r.inc - r.cost, true)} <small className="sub">({r.inc ? Math.round((1 - r.cost / r.inc) * 100) : 0} %)</small>
-            </td>
-            <td style={{ minWidth: 180 }}>
-              <div className="dualbar" role="img" aria-label={`Ingreso ${pen(r.inc, true)}, costo ${pen(r.cost, true)}`}>
-                <i style={{ width: `${(r.inc / mx) * 100}%` }} />
-                <i className="c" style={{ width: `${(r.cost / mx) * 100}%` }} />
-              </div>
-            </td>
-          </tr>
-        ))}
-      </Tbl>
-      {rows.length ? (
-        <div className="card-f" style={{ justifyContent: 'flex-start' }}>
-          <Legend
-            items={[
-              ['var(--chart-bar)', 'Ingreso'],
-              ['var(--high)', 'Costo'],
-            ]}
-          />
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-const DEMO_AMTS = [480, 215, 890, 160, 1340, 95, 620, 300];
-
-function Deuda() {
-  const { brand, dataVersion } = useApp();
-  const { rows, tot, T2 } = useMemo(() => {
-    const agg: Record<string, number[]> = {};
-    const add = (cid: string, b: number, v: number) => {
-      agg[cid] = agg[cid] || [0, 0, 0, 0, 0];
-      agg[cid][b] += v;
-    };
-    fInv(brand)
-      .filter((v) => (v.status === 'Pendiente' || v.status === 'Vencida') && v.type !== 'Nota de crédito')
-      .forEach((v) => {
-        const d = diffD(TODAY, v.due);
-        add(v.cid, d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4, toPEN(saldo(v), v.cur));
-      });
-    fClients(brand)
-      .filter((c) => c.status === 'Suspendido' || c.status === 'Moroso')
-      .slice(0, 8)
-      .forEach((c, k) => add(c.id, [2, 3, 4][k % 3], DEMO_AMTS[k]));
-    const rows = Object.entries(agg)
-      .map(([cid, a]) => ({ cid, a, t: a.reduce((x, y) => x + y, 0) }))
-      .sort((x, y) => y.a[4] + y.a[3] - (x.a[4] + x.a[3]) || y.t - x.t);
-    const tot = B.map((_, i) => rows.reduce((a, r) => a + r.a[i], 0));
-    return { rows, tot, T2: tot.reduce((a, b) => a + b, 0) };
-  }, [brand, dataVersion]);
-  return (
-    <>
-      <div className="card-b" style={{ paddingTop: 16 }}>
-        <div className="stackbar" style={{ height: 22 }} role="img" aria-label="Distribución de la deuda por antigüedad">
-          {tot.map((v, i) => (
-            <i key={i} style={{ width: `${T2 ? (v / T2) * 100 : 0}%`, background: BCOLS[i] }} title={`${B[i]}: ${pen(v)}`} />
-          ))}
-        </div>
-        <div className="legend" style={{ marginTop: 8 }}>
-          {B.map((b, i) => (
-            <span key={b}>
-              <i style={{ background: BCOLS[i] }} />
-              {b}{' '}
-              <b className="num" style={{ color: 'var(--text)' }}>
-                {pen(tot[i], true)}
-              </b>
-            </span>
-          ))}
-        </div>
-      </div>
-      <Tbl head={['Cliente', ...B.map((b) => '>' + b), '>Total']} n={rows.length}>
-        {rows.slice(0, 25).map((r) => (
-          <tr key={r.cid}>
-            <td style={{ minWidth: 200 }}>
-              <ClientLink cid={r.cid} />
-            </td>
-            {r.a.map((v, i) => (
-              <td key={i} className="r num" style={v && i >= 3 ? { color: 'var(--danger-text)', fontWeight: 700 } : undefined}>
-                {v ? pen(v) : '—'}
-              </td>
-            ))}
-            <td className="r num strong">{pen(r.t)}</td>
-          </tr>
-        ))}
-      </Tbl>
-    </>
-  );
-}
+const financeApi = hub.finance;
+type Tab = 'costos' | 'rentabilidad';
+const TABS: TabDef<Tab>[] = [{ id: 'costos', label: 'Costos' }, { id: 'rentabilidad', label: 'Rentabilidad' }];
+const KIND_LABEL: Record<CostKind, string> = { provider_recurring: 'Proveedor (recurrente)', provider_one_time: 'Proveedor (único)', license: 'Licencia', payment_fee: 'Comisión de pago', other: 'Otro' };
+const KINDS = Object.keys(KIND_LABEL) as CostKind[];
+const PER = 25;
+const money = (minor: number, cur: string) => `${(minor / 100).toLocaleString('es-PE', { minimumFractionDigits: 2 })} ${cur}`;
+const firstOfMonth = (ym: string) => (ym ? `${ym}-01` : '');
 
 export default function ReportesView({ param }: ViewProps) {
-  const { toast } = useApp();
-  const [tab, setTab] = useViewState<RepTab>('rep.tab', 'cliente');
-
-  useEffect(() => {
-    if (isTab(param)) setTab(param);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [param]);
-
+  const initial = (TABS.some((t) => t.id === param) ? param : 'costos') as Tab;
+  const [tab, setTab] = useState<Tab>(initial);
   return (
     <>
-      <PageHead
-        crumbs={[['Finanzas', 'reportes'], ['Reportes']]}
-        title="Reportes"
-        sub="Rentabilidad por cliente y por servicio, y antigüedad de la deuda. Montos en S/ (TC 3.75)."
-        actions={
-          <button type="button" className="btn" onClick={() => toast('Reporte exportado', `reporte-${tab}_${iso(TODAY)}.xlsx (simulado)`, 'info')}>
-            <Icon name="download" size="sm" />
-            Exportar
-          </button>
-        }
-      />
-      <section className="card" aria-label="Reportes">
-        <Tabs label="Reportes" value={tab} onChange={setTab} tabs={TABS.map(([id, label]) => ({ id, label }))} />
-        <div role="tabpanel" aria-label={TABS.find(([k]) => k === tab)?.[1]}>
-          {tab === 'cliente' ? <PorCliente /> : tab === 'servicio' ? <PorServicio /> : <Deuda />}
-        </div>
+      <PageHead crumbs={[['Finanzas', 'reportes'], ['Finanzas']]} title="Finanzas" sub="Costos por periodo, su reparto entre servicios y la rentabilidad." />
+      <section className="card">
+        <Tabs<Tab> label="Secciones de finanzas" value={tab} onChange={setTab} tabs={TABS} />
+        {tab === 'costos' ? <Costs /> : <Profitability />}
       </section>
+    </>
+  );
+}
+
+/* ===================== Costos ===================== */
+function Costs() {
+  const can = useCan();
+  const { toast, dialogs } = useApp();
+  const [kind, setKind] = useState('');
+  const [period, setPeriod] = useState('');
+  const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [form, setForm] = useState<Cost | 'new' | null>(null);
+  const [detail, setDetail] = useState<Cost | null>(null);
+  const filter = useMemo(() => ({ kind: (kind || undefined) as CostKind | undefined, period_month: period ? firstOfMonth(period) : undefined }), [kind, period]);
+  const res = useLoad(() => financeApi.listCosts({ filter, q: q || undefined, cursor, size: PER, sort: '-period_month' }), [filter, q, cursor, reload]);
+  const refresh = () => setReload((x) => x + 1);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+  const del = (c: Cost) => dialogs.confirm({ title: 'Eliminar costo', body: <p>¿Eliminar este costo de {money(c.amount_minor, c.cost_currency)}?</p>, okLabel: 'Eliminar', onOk: async () => { try { await financeApi.removeCost(c.id, c.version); toast('Costo eliminado'); refresh(); } catch (e) { toast('No se pudo eliminar', errorText(e), 'err'); } } });
+  const cols: Column<Cost>[] = [
+    { key: 'period', header: 'Periodo', className: 'nw', render: (c) => fDate(c.period_month) },
+    { key: 'kind', header: 'Tipo', render: (c) => KIND_LABEL[c.kind] },
+    { key: 'desc', header: 'Descripción', className: 'strong', render: (c) => c.description || '—' },
+    { key: 'amount', header: 'Monto', align: 'r', render: (c) => money(c.amount_minor, c.cost_currency) },
+    { key: 'method', header: 'Reparto', render: (c) => c.allocation_method },
+    { key: 'actions', header: '', align: 'r', render: (c) => <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}><button className="btn sm" onClick={() => setDetail(c)}>Reparto</button>{can('finance.cost.update') ? <button className="btn sm" onClick={() => setForm(c)}>Editar</button> : null}{can('finance.cost.delete') ? <button className="btn sm danger" onClick={() => del(c)}>Eliminar</button> : null}</div> },
+  ];
+  return (
+    <>
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos'], ...KINDS.map((k) => [k, KIND_LABEL[k]] as [string, string])]} />
+        <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => { setPeriod(e.target.value); setCursor(null); }} />
+        <input className="input" aria-label="Buscar costos" placeholder="Buscar descripción…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        {can('finance.cost.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo costo</button> : null}
+      </Toolbar>
+      {res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
+        : res.loading && !res.data ? <Skeleton variant="table" rows={5} />
+          : !rows.length ? <EmptyState title="Sin costos" text="No hay costos que coincidan con los filtros." />
+            : <><DataTable columns={cols} rows={rows} rowKey={(c) => c.id} caption="Costos" /><div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>Anterior</button><button className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>Siguiente</button></div></>}
+      {form ? <CostForm cost={form === 'new' ? undefined : form} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} /> : null}
+      {detail ? <AllocationsModal cost={detail} onClose={() => setDetail(null)} /> : null}
+    </>
+  );
+}
+
+function CostForm({ cost, onClose, onSaved }: { cost?: Cost; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [kind, setKind] = useState<CostKind>(cost?.kind ?? 'provider_recurring');
+  const [period, setPeriod] = useState(cost?.period_month?.slice(0, 7) ?? '');
+  const [amount, setAmount] = useState(cost ? String(cost.amount_minor) : '');
+  const [currency, setCurrency] = useState(cost?.cost_currency ?? 'USD');
+  const [description, setDescription] = useState(cost?.description ?? '');
+  const [resourceId, setResourceId] = useState(cost?.resource_id ?? '');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true);
+    const input: CostInput = { kind, period_month: firstOfMonth(period), amount_minor: Number(amount), cost_currency: currency.trim().toUpperCase(), description: description.trim() || null, resource_id: resourceId.trim() || null };
+    try { if (cost) await financeApi.updateCost(cost.id, cost.version, input); else await financeApi.createCost(input); toast(cost ? 'Costo actualizado' : 'Costo creado'); onSaved(); }
+    catch (err) { setMsg(isProblem(err) && err.status === 409 ? `${errorText(err)} Recargue.` : errorText(err)); } finally { setBusy(false); }
+  };
+  return (
+    <Modal open wide bare onClose={onClose} title={cost ? 'Editar costo' : 'Nuevo costo'}>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <div className="form-grid">
+          <label className="field">Tipo*<select className="select" value={kind} onChange={(e) => setKind(e.target.value as CostKind)}>{KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
+          <label className="field">Periodo*<input required className="input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></label>
+          <label className="field">Monto (céntimos)*<input required className="input" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+          <label className="field">Moneda*<input required className="input" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value)} /></label>
+          <label className="field full">Descripción<input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+          <label className="field full">Recurso (UUID, opcional)<input className="input" value={resourceId} onChange={(e) => setResourceId(e.target.value)} /></label>
+        </div>
+        <div className="err" role="alert">{msg}</div>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Guardar</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Modal de reparto: muestra las asignaciones del costo y permite agregar/eliminar. */
+function AllocationsModal({ cost, onClose }: { cost: Cost; onClose: () => void }) {
+  const can = useCan();
+  const { toast, dialogs } = useApp();
+  const [reload, setReload] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const res = useLoad(() => financeApi.getCost(cost.id), [cost.id, reload]);
+  const refresh = () => setReload((x) => x + 1);
+  const allocations = res.data?.allocations ?? [];
+  const allocated = allocations.reduce((a, x) => a + x.amount_minor, 0);
+  const remaining = cost.amount_minor - allocated;
+  const del = (al: CostAllocation) => dialogs.confirm({ title: 'Quitar asignación', body: <p>¿Quitar esta asignación?</p>, okLabel: 'Quitar', onOk: async () => { try { await financeApi.removeAllocation(al.id, al.version); toast('Asignación eliminada'); refresh(); } catch (e) { toast('No se pudo', errorText(e), 'err'); } } });
+  const cols: Column<CostAllocation>[] = [
+    { key: 'service', header: 'Servicio', className: 'strong', render: (a) => a.service?.name ?? a.service_id },
+    { key: 'amount', header: 'Monto', align: 'r', render: (a) => money(a.amount_minor, a.cost_currency) },
+    { key: 'pct', header: '%', align: 'r', render: (a) => (a.share_percent != null ? `${Number(a.share_percent)}%` : '—') },
+    { key: 'actions', header: '', align: 'r', render: (a) => (can('finance.cost.delete') ? <button className="btn sm danger" onClick={() => del(a)}>Quitar</button> : null) },
+  ];
+  return (
+    <Modal open wide bare onClose={onClose} title={`Reparto del costo · ${money(cost.amount_minor, cost.cost_currency)}`}>
+      <div className="modal-b">
+        <StatLine style={{ marginBottom: 12 }} items={[{ label: 'Asignado', value: money(allocated, cost.cost_currency) }, { label: 'Disponible', value: money(remaining, cost.cost_currency) }]} />
+        {res.loading && !res.data ? <Skeleton variant="table" rows={3} />
+          : !allocations.length ? <EmptyState title="Sin asignaciones" text="Este costo aún no se reparte entre servicios." />
+            : <DataTable columns={cols} rows={allocations} rowKey={(a) => a.id} caption="Asignaciones" />}
+        {can('finance.cost_allocation.create') && !adding ? <div style={{ marginTop: 12 }}><button className="btn" onClick={() => setAdding(true)}><Icon name="plus" size="sm" /> Agregar asignación</button></div> : null}
+        {adding ? <AllocationForm cost={cost} remaining={remaining} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); refresh(); }} /> : null}
+      </div>
+      <div className="modal-f"><button type="button" className="btn primary" onClick={onClose}>Cerrar</button></div>
+    </Modal>
+  );
+}
+
+function AllocationForm({ cost, remaining, onClose, onSaved }: { cost: Cost; remaining: number; onClose: () => void; onSaved: () => void }) {
+  const [serviceId, setServiceId] = useState('');
+  const [amount, setAmount] = useState(remaining > 0 ? String(remaining) : '');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true);
+    const input: CostAllocationInput = { cost_id: cost.id, service_id: serviceId.trim(), amount_minor: Number(amount), cost_currency: cost.cost_currency };
+    try { await financeApi.createAllocation(input); onSaved(); }
+    catch (err) { setMsg(errorText(err)); } finally { setBusy(false); }
+  };
+  return (
+    <form className="form-grid" onSubmit={(e) => void submit(e)} style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+      <label className="field full">Servicio (UUID)*<input required className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)} /></label>
+      <label className="field">Monto (céntimos)*<input required className="input" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+      <div className="err" role="alert" style={{ gridColumn: '1 / -1' }}>{msg}</div>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Agregar</button></div>
+    </form>
+  );
+}
+
+/* ===================== Rentabilidad ===================== */
+function Profitability() {
+  const [period, setPeriod] = useState('');
+  const res = useLoad(() => (period ? financeApi.profitability(firstOfMonth(period)) : Promise.resolve({ data: [], totals: [] })), [period]);
+  const rows = res.data?.data ?? [];
+  const totals = res.data?.totals ?? [];
+  const cols: Column<{ service_id: string; service_name: string | null; allocated_cost_minor: number; cost_currency: string }>[] = [
+    { key: 'service', header: 'Servicio', className: 'strong', render: (r) => r.service_name ?? r.service_id },
+    { key: 'cost', header: 'Costo asignado', align: 'r', render: (r) => money(r.allocated_cost_minor, r.cost_currency) },
+  ];
+  return (
+    <>
+      <Toolbar count={period ? (res.loading ? 'Cargando…' : `${rows.length} servicios`) : 'Elija un periodo'}>
+        <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value)} />
+      </Toolbar>
+      <div className="card-b"><Note kind="warn">La rentabilidad muestra solo el costo asignado por servicio; el lado de ingresos aún no está disponible.</Note></div>
+      {!period ? <EmptyState title="Elija un periodo" text="Seleccione un mes para ver el costo asignado por servicio." />
+        : res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
+          : res.loading && !res.data ? <Skeleton variant="table" rows={4} />
+            : !rows.length ? <EmptyState title="Sin datos" text="No hay costos asignados en este periodo." />
+              : <>
+                <DataTable columns={cols} rows={rows} rowKey={(r) => r.service_id} caption="Rentabilidad por servicio" />
+                <div className="card-b" style={{ display: 'flex', gap: 16, justifyContent: 'flex-end' }}>{totals.map((t) => <Chip key={t.cost_currency} kind="info">Total {money(t.allocated_cost_minor, t.cost_currency)}</Chip>)}</div>
+              </>}
     </>
   );
 }
