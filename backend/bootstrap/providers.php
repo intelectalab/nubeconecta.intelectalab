@@ -21,4 +21,6 @@ return [
     App\Modules\Billing\BillingServiceProvider::class,
     App\Modules\Work\WorkServiceProvider::class,
     App\Modules\Monitoring\MonitoringServiceProvider::class,
+    App\Modules\Inventory\InventoryServiceProvider::class,
+    App\Modules\Finance\FinanceServiceProvider::class,
 ];
