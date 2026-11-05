@@ -132,6 +132,9 @@ export function createAuthApi(http: HttpClient) {
     confirmTotp: async (code: string) =>
       (await http.post<Envelope<TotpConfirmation>>(`${P}/mfa/totp/confirm`, { code })).data,
 
+    /** DELETE /auth/mfa/totp (204); el backend puede rechazarlo si la política exige MFA. */
+    disableTotp: () => http.delete<void>(`${P}/mfa/totp`),
+
     /** POST /auth/mfa/step-up → MFA reciente para acciones sensibles. */
     stepUp: async (code: string) =>
       (await http.post<Envelope<{ mfa_verified_at: string }>>(`${P}/mfa/step-up`, { code })).data,

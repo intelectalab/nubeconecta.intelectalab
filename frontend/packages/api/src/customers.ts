@@ -95,6 +95,34 @@ export interface ConsentSummary {
   last_recorded_at: string | null;
 }
 
+/** Lista blanca devuelta por PortalCustomerResource. */
+export interface PortalCustomer {
+  id: string;
+  code: string;
+  type: CustomerType;
+  legal_name: string;
+  trade_name: string | null;
+  tax_id_type: TaxIdType | null;
+  tax_id: string | null;
+  country: string;
+  currency: Currency;
+  locale: string;
+  timezone: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  tax_treatment: 'taxed' | 'export';
+  invoice_consolidation: 'consolidated' | 'per_service';
+  version: number;
+  custom: Record<string, unknown>;
+}
+
+/** PortalAccountController::EDITABLE. `version` is required by PATCH. */
+export type PortalCustomerInput = Pick<PortalCustomer, 'legal_name'> & Partial<Pick<PortalCustomer,
+  'trade_name' | 'tax_id_type' | 'tax_id' | 'address' | 'email' | 'phone' | 'locale' | 'timezone'>> & { version: number };
+
+export interface PortalConsentInput { channel: 'all' | 'email' | 'whatsapp' | 'sms' | 'phone'; granted: boolean }
+
 export interface Contact {
   id: string;
   customer_id: string;
@@ -119,6 +147,9 @@ export interface Contact {
   last_login_at?: string | null;
   consent: ConsentSummary;
 }
+
+/** ContactResource in portal mode omits internal user/security/audit/custom data. */
+export type PortalContact = Omit<Contact, 'user_id' | 'custom' | 'created_by' | 'updated_by' | 'mfa_enabled' | 'last_login_at'>;
 
 export interface ContactInput {
   name?: string;
@@ -225,10 +256,19 @@ const enc = encodeURIComponent;
 
 export function createCustomersApi(http: HttpClient) {
   const base = '/api/v1/admin';
+  const portal = '/api/v1/portal';
   const page = (p: ListParams) => ({ q: p.q, sort: p.sort, page: { size: p.size, cursor: p.cursor ?? undefined } });
   const unwrap = <T>(r: Envelope<T>) => r.data;
 
   return {
+    portalAccount: () => http.get<Envelope<PortalCustomer>>(`${portal}/account`).then(unwrap),
+    portalUpdateAccount: (input: PortalCustomerInput) => http.patch<Envelope<PortalCustomer>>(`${portal}/account`, input).then(unwrap),
+    portalContacts: () => http.get<Envelope<PortalContact[]>>(`${portal}/contacts`).then(unwrap),
+    portalCreateContact: (input: ContactInput) => http.post<Envelope<PortalContact>>(`${portal}/contacts`, input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    portalUpdateContact: (id: string, version: number, input: ContactInput) => http.patch<Envelope<PortalContact>>(`${portal}/contacts/${enc(id)}`, { ...input, version }).then(unwrap),
+    portalDeleteContact: (id: string) => http.delete<void>(`${portal}/contacts/${enc(id)}`),
+    portalConsents: () => http.get<Envelope<ConsentSummary>>(`${portal}/communication-consents`).then(unwrap),
+    portalRecordConsent: (input: PortalConsentInput) => http.post<Envelope<ConsentSummary>>(`${portal}/communication-consents`, input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
     list: (params: ListParams & { filter?: CustomerFilters } = {}) =>
       http.get<CursorPage<Customer>>(`${base}/customers${toQuery({ ...page(params), filter: { ...params.filter, has_overdue_debt: params.filter?.has_overdue_debt ? '1' : undefined } })}`),
     get: (id: string) => http.get<Envelope<Customer>>(`${base}/customers/${enc(id)}`).then(unwrap),
