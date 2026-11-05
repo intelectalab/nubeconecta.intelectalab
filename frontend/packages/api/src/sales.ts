@@ -1,4 +1,4 @@
-import { toQuery, type HttpClient } from './http';
+import { newIdempotencyKey, toQuery, type HttpClient } from './http';
 import type { CursorPage, ListParams } from './customers';
 
 /** M-SAL: CRM básico (/api/v1/admin/leads) y «Convertir en prospecto» de la bandeja de solicitudes web. */
@@ -135,6 +135,93 @@ export interface ConvertLeadInput {
   tax_id?: string | null;
 }
 
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
+  draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada', expired: 'Vencida',
+};
+export type QuoteCycle = 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'biennial' | 'triennial';
+export interface QuoteItem {
+  id: string;
+  product_id: string | null;
+  plan_id: string | null;
+  description: string;
+  charge_type: 'one_time' | 'recurring';
+  cycle: QuoteCycle | null;
+  quantity: string;
+  unit_price_minor: number;
+  discount_minor: number;
+  total_minor: number;
+  currency: 'PEN' | 'USD';
+  sort_order: number;
+}
+export interface QuoteVersion {
+  id: string;
+  version_number: number;
+  locale: string;
+  currency: 'PEN' | 'USD';
+  valid_until: string | null;
+  one_time_total_minor: number;
+  recurring_total_minor: number;
+  tax_minor: number;
+  terms: string | null;
+  change_note: string | null;
+  pdf_file_id: string | null;
+  created_at: string;
+  items: QuoteItem[];
+}
+export interface Quote {
+  id: string;
+  number: string;
+  brand_id: string;
+  customer_id: string | null;
+  lead_id: string | null;
+  owner_id: string | null;
+  status: QuoteStatus;
+  current_version: number;
+  currency: 'PEN' | 'USD';
+  valid_until: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  customer?: { id: string; code: string; name: string } | null;
+  lead?: { id: string; name: string } | null;
+  brand?: { id: string; name: string } | null;
+  owner?: { id: string; name: string } | null;
+  current_version_data?: QuoteVersion | null;
+}
+export interface QuoteItemInput {
+  description: string;
+  charge_type: 'one_time' | 'recurring';
+  cycle?: QuoteCycle | null;
+  quantity: number;
+  unit_price_minor: number;
+  discount_minor?: number;
+  product_id?: string | null;
+  plan_id?: string | null;
+}
+export interface QuoteInput {
+  brand_id: string;
+  customer_id?: string | null;
+  lead_id?: string | null;
+  owner_id?: string | null;
+  currency: 'PEN' | 'USD';
+  valid_until?: string | null;
+  locale?: string;
+  terms?: string | null;
+  items: QuoteItemInput[];
+}
+export type QuoteUpdateInput = Partial<QuoteInput> & { change_note?: string | null };
+export interface QuoteFilters {
+  status?: QuoteStatus | '';
+  customer_id?: string;
+  brand_id?: string;
+  currency?: 'PEN' | 'USD' | '';
+}
+
 interface Envelope<T> {
   data: T;
 }
@@ -143,6 +230,7 @@ const enc = encodeURIComponent;
 
 export function createSalesApi(http: HttpClient) {
   const base = '/api/v1/admin/leads';
+  const quotesBase = '/api/v1/admin/quotes';
   const unwrap = <T>(r: Envelope<T>) => r.data;
   return {
     leads: {
@@ -163,6 +251,18 @@ export function createSalesApi(http: HttpClient) {
       /** «Convertir en prospecto» desde la bandeja de solicitudes web; idempotente. */
       fromSubmission: (submissionId: string) =>
         http.post<Envelope<{ lead_id: string; code: string; created: boolean }>>(`/api/v1/admin/web-connector/form-submissions/${enc(submissionId)}/lead`, {}).then(unwrap),
+    },
+    quotes: {
+      list: (params: ListParams & { filter?: QuoteFilters } = {}) =>
+        http.get<CursorPage<Quote>>(`${quotesBase}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
+      get: (id: string) => http.get<Envelope<Quote>>(`${quotesBase}/${enc(id)}`).then(unwrap),
+      create: (input: QuoteInput, idempotencyKey = newIdempotencyKey()) => http.post<Envelope<Quote>>(quotesBase, input, { idempotencyKey }).then(unwrap),
+      update: (id: string, version: number, input: QuoteUpdateInput) => http.patch<Envelope<Quote>>(`${quotesBase}/${enc(id)}`, { ...input, version }).then(unwrap),
+      send: (id: string, version: number) => http.post<Envelope<Quote>>(`${quotesBase}/${enc(id)}/send`, { version }).then(unwrap),
+      accept: (id: string, version: number) => http.post<Envelope<Quote>>(`${quotesBase}/${enc(id)}/accept`, { version }).then(unwrap),
+      reject: (id: string, version: number, reason: string) => http.post<Envelope<Quote>>(`${quotesBase}/${enc(id)}/reject`, { version, reason }).then(unwrap),
+      expire: (id: string, version: number) => http.post<Envelope<Quote>>(`${quotesBase}/${enc(id)}/expire`, { version }).then(unwrap),
+      remove: (id: string, version: number) => http.delete<void>(`${quotesBase}/${enc(id)}`, { version }),
     },
   };
 }
