@@ -16,5 +16,6 @@ return [
     // Services antes que Billing: ambos escuchan OrderApproved y la factura inicial enlaza los servicios.
     App\Modules\Services\ServicesServiceProvider::class,
     App\Modules\Sales\SalesServiceProvider::class,
+    App\Modules\Contracts\ContractsServiceProvider::class,
     App\Modules\Billing\BillingServiceProvider::class,
 ];
