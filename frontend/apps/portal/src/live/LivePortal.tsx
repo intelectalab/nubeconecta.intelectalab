@@ -37,12 +37,16 @@ import {
   type PortalConsentInput,
   type PasswordPolicy,
   type Me,
+  type PortalTicket,
+  type PortalTicketStatus,
+  type PortalTicketType,
+  type PortalTicketPriority,
 } from '@hub/api';
 import { hub } from '../auth/client';
 import { Alert, Card, CardBody, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
 
-export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad';
-export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad'];
+export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ticket-detalle';
+export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ticket-detalle'];
 
 const MONEY: Record<string, Intl.NumberFormat> = {
   PEN: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }),
@@ -128,6 +132,7 @@ function download(blob: Blob, name: string) {
 export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go: (r: LiveRoute) => void; can: (perm: string) => boolean; userName: string }) {
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [ticketId, setTicketId] = useState<string | null>(null);
   const [cardReturn, setCardReturn] = useState(readCardReturn);
   // Al cambiar de ruta desde el menú se cierra la ficha abierta; openX marca que el cambio de ruta viene de abrir una ficha.
   const opening = useRef(false);
@@ -138,6 +143,7 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
     }
     setInvoiceId(null);
     setServiceId(null);
+    setTicketId(null);
   }, [route]);
   const openService = (id: string) => {
     opening.current = route !== 'servicio-detalle';
@@ -148,6 +154,11 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
     opening.current = route !== 'facturas';
     setInvoiceId(id);
     go('facturas');
+  };
+  const openTicket = (id: string) => {
+    opening.current = route !== 'ticket-detalle';
+    setTicketId(id);
+    go('ticket-detalle');
   };
 
   if (cardReturn) {
@@ -161,6 +172,8 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
   if (route === 'resumen') return <SummaryPage openInvoice={openInvoice} go={go} userName={userName} />;
   if (route === 'servicios') return <ServicesPage openService={openService} />;
   if (route === 'servicio-detalle') return serviceId ? <ServicePage id={serviceId} back={() => go('servicios')} /> : <ServicesPage openService={openService} />;
+  if (route === 'soporte') return <SupportPage openTicket={openTicket} />;
+  if (route === 'ticket-detalle') return ticketId ? <SupportTicketPage id={ticketId} back={() => go('soporte')} /> : <SupportPage openTicket={openTicket} />;
   if (route === 'perfil') return <ProfilePage />;
   if (route === 'usuarios') return <ContactsPage />;
   if (route === 'seguridad') return <SecurityPage />;
@@ -876,6 +889,97 @@ function PaymentsPage({ go }: { go: (r: LiveRoute) => void }) {
       </Card>
     </div>
   );
+}
+
+/* ---------- P-PRT Soporte y tickets ---------- */
+const TICKET_STATUS_LABELS: Record<PortalTicketStatus, string> = {
+  new: 'Nuevo', open: 'Abierto', in_progress: 'En progreso', waiting_customer: 'Esperando tu respuesta',
+  waiting_provider: 'Esperando a soporte', escalated: 'Escalado', resolved: 'Resuelto', closed: 'Cerrado', reopened: 'Reabierto',
+};
+const TICKET_STATUS_TONE: Record<PortalTicketStatus, Tone> = {
+  new: 'info', open: 'info', in_progress: 'warn', waiting_customer: 'warn', waiting_provider: 'info', escalated: 'danger', resolved: 'ok', closed: '', reopened: 'warn',
+};
+const TICKET_TYPE_LABELS: Record<PortalTicketType, string> = { incident: 'Incidencia', request: 'Solicitud', question: 'Consulta', billing: 'Facturación' };
+const TICKET_PRIORITY_LABELS: Record<PortalTicketPriority, string> = { critical: 'Crítica', high: 'Alta', medium: 'Media', low: 'Baja' };
+const TicketStatusChip = ({ status }: { status: PortalTicketStatus }) => <Chip tone={TICKET_STATUS_TONE[status]}>{TICKET_STATUS_LABELS[status]}</Chip>;
+
+function SupportPage({ openTicket }: { openTicket: (id: string) => void }) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [type, setType] = useState<PortalTicketType>('question');
+  const [priority, setPriority] = useState<PortalTicketPriority | ''>('');
+  const [body, setBody] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const res = useLoad(() => hub.support.portalTickets.list({ size: 25, cursor }), [cursor]);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setMsg(null); setErrors({});
+    try {
+      const ticket = await hub.support.portalTickets.create({ subject, type, ...(priority ? { priority } : {}), ...(body.trim() ? { body: body.trim() } : {}) });
+      openTicket(ticket.id);
+    } catch (err) {
+      if (isProblem(err) && err.status === 422) setMsg('Revise los campos indicados.');
+      else if (isProblem(err) && err.status === 409) { setMsg('El ticket cambió. Recargamos la lista.'); res.reload(); }
+      else setMsg(errorText(err));
+      if (isProblem(err)) setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0] ?? ''])));
+    } finally { setBusy(false); }
+  };
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead title="Soporte técnico" lead="Consulte sus tickets o escriba al equipo de soporte." actions={<button type="button" className="btn primary" onClick={() => { setCreating((v) => !v); setMsg(null); }}><Icon name="msg" className="sm" /> {creating ? 'Cancelar' : 'Crear ticket'}</button>} />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+    {creating ? <Card title="Nuevo ticket" icon="msg"><form className="card-b" onSubmit={(e) => void submit(e)} noValidate>
+      <FormGrid>
+        <Field label="Asunto *" error={errors.subject}><input className="input" maxLength={500} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+        <Field label="Tipo" error={errors.type}><select className="input" value={type} onChange={(e) => setType(e.target.value as PortalTicketType)}>{(Object.keys(TICKET_TYPE_LABELS) as PortalTicketType[]).map((v) => <option key={v} value={v}>{TICKET_TYPE_LABELS[v]}</option>)}</select></Field>
+        <Field label="Prioridad (opcional)" error={errors.priority}><select className="input" value={priority} onChange={(e) => setPriority(e.target.value as PortalTicketPriority | '')}><option value="">Sin especificar</option>{(Object.keys(TICKET_PRIORITY_LABELS) as PortalTicketPriority[]).map((v) => <option key={v} value={v}>{TICKET_PRIORITY_LABELS[v]}</option>)}</select></Field>
+      </FormGrid>
+      <Field label="Mensaje inicial" error={errors.body}><textarea className="input" rows={4} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Creando…' : 'Crear ticket'}</button>
+    </form></Card> : null}
+    <Card title="Mis tickets" icon="msg">
+      {res.loading && !res.data ? <Loading inCard /> : !rows.length ? <Empty icon="msg">Aún no tiene tickets de soporte.</Empty> : <Table cols={[{ label: 'Número' }, { label: 'Asunto' }, { label: 'Estado' }, { label: 'Fecha' }, { label: 'Acción', right: true }]}>
+        {rows.map((t) => <tr key={t.id}><td className="mono nw">{t.number}</td><td>{t.subject}</td><td><TicketStatusChip status={t.status} /></td><td className="nw">{fDate(t.created_at)}</td><td className="r nw"><button type="button" className="btn sm" onClick={() => openTicket(t.id)}>Ver conversación →</button></td></tr>)}
+      </Table>}
+      <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
+    </Card>
+  </div>;
+}
+
+function SupportTicketPage({ id, back }: { id: string; back: () => void }) {
+  const res = useLoad(() => hub.support.portalTickets.get(id), [id]);
+  const [body, setBody] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const ticket: PortalTicket | null = res.data;
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setMsg(null); setErrors({});
+    try { await hub.support.portalTickets.addMessage(id, { body }); setBody(''); setMsg('Enviamos su respuesta.'); res.reload(); }
+    catch (err) {
+      if (isProblem(err) && err.status === 422) setMsg('Revise los campos indicados.');
+      else if (isProblem(err) && err.status === 409) { setMsg('El ticket cambió. Recargamos la conversación.'); res.reload(); }
+      else setMsg(errorText(err));
+      if (isProblem(err)) setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0] ?? ''])));
+    } finally { setBusy(false); }
+  };
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead back={{ label: 'Volver a soporte', onClick: back }} title={ticket?.subject ?? 'Ticket'} lead={ticket ? `${ticket.number} · Creado el ${fDate(ticket.created_at)}` : undefined} actions={ticket ? <TicketStatusChip status={ticket.status} /> : undefined} />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    {msg ? <Alert tone={msg.startsWith('Enviamos') ? 'info' : 'warn'} role="alert" title={msg} /> : null}
+    {res.loading && !ticket ? <Loading /> : null}
+    {ticket ? <>
+      <Card title="Detalle del ticket" icon="msg"><CardBody><Kv rows={[["Tipo", TICKET_TYPE_LABELS[ticket.type]], ["Prioridad", TICKET_PRIORITY_LABELS[ticket.priority]], ["Estado", TICKET_STATUS_LABELS[ticket.status]], ["Última actualización", fDate(ticket.updated_at)]]} /></CardBody></Card>
+      <Card title="Conversación" icon="msg">
+        {ticket.messages.length ? <div className="card-b" style={{ display: 'grid', gap: 14 }}>{ticket.messages.map((m) => <article key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><b>{m.author}</b><time className="sub">{new Date(m.created_at).toLocaleString('es-PE')}</time></div><p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{m.body}</p></article>)}</div> : <CardBody><Empty>Aún no hay mensajes en este ticket.</Empty></CardBody>}
+      </Card>
+      <Card title="Responder" icon="msg"><form className="card-b" onSubmit={(e) => void submit(e)} noValidate><Field label="Mensaje *" error={errors.body}><textarea className="input" rows={4} value={body} onChange={(e) => setBody(e.target.value)} /></Field><button className="btn primary" type="submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar respuesta'}</button></form></Card>
+    </> : null}
+  </div>;
 }
 
 /* ---------- P-PRT Perfil, contactos y seguridad ---------- */

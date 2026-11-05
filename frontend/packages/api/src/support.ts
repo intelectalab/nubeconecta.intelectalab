@@ -28,6 +28,37 @@ export interface TicketMessageInput {
   author_type?: 'staff'; channel: TicketMessageChannel; body: string; is_internal?: boolean; in_reply_to?: string | null;
 }
 export interface TicketFilters { status?: TicketStatus | ''; priority?: TicketPriority | ''; assignee_id?: string; }
+
+/** Representación segura para el cliente del portal. */
+export type PortalTicketType = 'incident' | 'request' | 'question' | 'billing';
+export type PortalTicketStatus = 'new' | 'open' | 'in_progress' | 'waiting_customer' | 'waiting_provider' | 'escalated' | 'resolved' | 'closed' | 'reopened';
+export type PortalTicketPriority = 'critical' | 'high' | 'medium' | 'low';
+export interface PortalTicketMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  author: 'Tú' | 'Soporte';
+}
+export interface PortalTicket {
+  id: string;
+  number: string;
+  type: PortalTicketType;
+  status: PortalTicketStatus;
+  priority: PortalTicketPriority;
+  subject: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  closed_at: string | null;
+  messages: PortalTicketMessage[];
+}
+export interface PortalTicketInput {
+  subject: string;
+  type?: PortalTicketType;
+  priority?: PortalTicketPriority;
+  body?: string;
+}
+export interface PortalTicketFilters { status?: PortalTicketStatus | ''; }
 export type ComplaintType = 'claim' | 'grievance';
 export type ComplaintDocumentType = 'dni' | 'ce' | 'passport' | 'ruc';
 export type ComplaintStatus = 'received' | 'in_progress' | 'answered' | 'closed';
@@ -78,6 +109,7 @@ function crud<T, I>(http: HttpClient) {
 
 export function createSupportApi(http: HttpClient) {
   const tickets = crud<Ticket, TicketInput>(http);
+  const portalBase = '/api/v1/portal/tickets';
   const complaints = {
     list: (params: ListParams & { filter?: ComplaintFilters } = {}) => {
       const f = params.filter;
@@ -93,5 +125,14 @@ export function createSupportApi(http: HttpClient) {
     tickets,
     complaints,
     messages: { add: (ticketId: string, input: TicketMessageInput) => http.post<Envelope<TicketMessage>>(`/api/v1/admin/tickets/${enc(ticketId)}/messages`, input).then((r) => r.data) },
+    portalTickets: {
+      list: (params: ListParams & { status?: PortalTicketStatus | '' } = {}) =>
+        http.get<CursorPage<PortalTicket>>(`${portalBase}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, status: params.status || undefined })}`),
+      get: (id: string) => http.get<Envelope<PortalTicket>>(`${portalBase}/${enc(id)}`).then((r) => r.data),
+      create: (input: PortalTicketInput, idempotencyKey = newIdempotencyKey()) =>
+        http.post<Envelope<PortalTicket>>(portalBase, input, { idempotencyKey }).then((r) => r.data),
+      addMessage: (id: string, input: { body: string }, idempotencyKey = newIdempotencyKey()) =>
+        http.post<Envelope<PortalTicketMessage>>(`${portalBase}/${enc(id)}/messages`, input, { idempotencyKey }).then((r) => r.data),
+    },
   };
 }
