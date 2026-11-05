@@ -10,6 +10,7 @@ return [
     App\Modules\Brands\BrandsServiceProvider::class,
     App\Modules\WebConnector\WebConnectorServiceProvider::class,
     App\Modules\Customers\CustomersServiceProvider::class,
+    App\Modules\Providers\ProvidersServiceProvider::class,
     App\Modules\Catalog\CatalogServiceProvider::class,
     App\Modules\Support\SupportServiceProvider::class,
     App\Modules\Orders\OrdersServiceProvider::class,
@@ -18,4 +19,5 @@ return [
     App\Modules\Sales\SalesServiceProvider::class,
     App\Modules\Contracts\ContractsServiceProvider::class,
     App\Modules\Billing\BillingServiceProvider::class,
+    App\Modules\Work\WorkServiceProvider::class,
 ];
