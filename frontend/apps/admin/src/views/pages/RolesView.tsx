@@ -1,435 +1,213 @@
-/**
- * Vista «roles» (#roles) — usuarios del panel, roles y matriz de permisos
- * (prototipo vRoles y handlers role*, perm*, user*; l.2649-2679).
- * Parámetro opcional: 'usuarios' | 'roles' (pestaña inicial).
- */
-import { useEffect } from 'react';
-import { useApp } from '../../app/context';
+import { useEffect, useMemo, useState } from 'react';
+import { isProblem, type AdminUser, type AdminUserInput, type IdentityAudience, type Permission, type Role, type RoleInput } from '@hub/api';
 import type { ViewProps } from '../../app/routes';
-import { useViewState } from '../../app/storage';
-import { Icon } from '../../components/Icon';
-import { Chip, PageHead, Tabs } from '../../components/ui';
-import { ACTS2, ME, MODS, PERM, RLS, SEC, USERS, fD, fT, norm, permInit, type UserAccount } from '../../data';
+import { useApp } from '../../app/context';
+import { DataTable, type Column } from '../../components/DataTable';
+import { Modal } from '../../components/Modal';
+import { Chip, Note, PageHead, Select, Tabs, Toolbar } from '../../components/ui';
+import { errorText, useCan, useLoad } from './clientes/shared';
+import { identityApi } from './identidad/shared';
 
 type Tab = 'usuarios' | 'roles';
-type PermRow = Record<string, boolean | null>;
-/** Copia de los permisos del rol antes de editarlo (para descartar). */
-const SNAP: Record<string, Record<string, PermRow>> = {};
-const clone = (p: Record<string, PermRow>) => JSON.parse(JSON.stringify(p)) as Record<string, PermRow>;
+type UserDraft = { name: string; email: string; type: IdentityAudience; password: string; roles: string[] };
+type RoleDraft = { code: string; name: string; description: string; audience: IdentityAudience };
+const PAGE_SIZE = 50;
+const audienceLabel: Record<IdentityAudience, string> = { staff: 'Personal', customer: 'Cliente' };
 
 export default function RolesView({ param }: ViewProps) {
-  const { toast, refresh, dialogs } = useApp();
-  const [tab, setTab] = useViewState<Tab>('roles.tab', 'usuarios');
-  const [sel, setSel] = useViewState('roles.sel', 'Soporte');
-  const [dirty, setDirty] = useViewState('roles.dirty', 0);
+  const { toast, dialogs } = useApp();
+  const can = useCan();
+  const [tab, setTab] = useState<Tab>(param === 'roles' ? 'roles' : 'usuarios');
+  const [userCursor, setUserCursor] = useState<string | null>(null);
+  const [usersTick, setUsersTick] = useState(0);
+  const [rolesTick, setRolesTick] = useState(0);
+  const [userModal, setUserModal] = useState<{ user?: AdminUser } | null>(null);
+  const [roleModal, setRoleModal] = useState<{ role?: Role; copy?: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [roleFilter, setRoleFilter] = useState<IdentityAudience | ''>('');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const canUsers = can('identity.user.view');
+  const canRoles = can('identity.role.view');
+  const canPermissionView = can('identity.permission.view');
+  const userList = useLoad(() => canUsers ? identityApi.users.list({ size: PAGE_SIZE, cursor: userCursor }) : Promise.resolve(null), [canUsers, userCursor, usersTick]);
+  const roleList = useLoad(() => canRoles ? identityApi.roles.list() : Promise.resolve(null), [canRoles, rolesTick]);
+  const permissionList = useLoad(() => canPermissionView ? identityApi.permissions.list() : Promise.resolve([] as Permission[]), [canPermissionView]);
+  const matrix = useLoad(() => canPermissionView ? identityApi.permissions.matrix() : Promise.resolve(null), [canPermissionView, rolesTick]);
+  const users = userList.data?.data ?? [];
+  const roles = roleList.data?.data ?? [];
+  const shownRoles = roles.filter((r) => !roleFilter || r.audience === roleFilter);
+  const activeRole = roles.find((r) => r.id === selectedRoleId) ?? shownRoles[0] ?? null;
+  const matrixRole = activeRole ? matrix.data?.roles.find((r) => r.id === activeRole.id) : null;
+  const permissions = permissionList.data ?? [];
+  const grouped = useMemo(() => permissions.reduce<Record<string, Record<string, Permission[]>>>((acc, p) => {
+    (acc[p.module] ??= {})[p.entity] ??= [];
+    acc[p.module][p.entity].push(p);
+    return acc;
+  }, {}), [permissions]);
 
+  useEffect(() => { if (param === 'usuarios' || param === 'roles') setTab(param); }, [param]);
   useEffect(() => {
-    if (param === 'usuarios' || param === 'roles') setTab(param);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [param]);
+    if (!canUsers && canRoles) setTab('roles');
+    else if (canUsers && !canRoles) setTab('usuarios');
+  }, [canUsers, canRoles]);
+  useEffect(() => {
+    if (!shownRoles.some((r) => r.id === selectedRoleId)) setSelectedRoleId(shownRoles[0]?.id ?? '');
+  }, [shownRoles, selectedRoleId]);
 
-  const r = RLS.find((x) => x.id === sel) || RLS[1];
-  const P = PERM[r.id];
-  const ro = r.id === 'Administrador';
-  const nUsers = (id: string) => USERS.filter((u) => u.role === id).length;
+  const reloadUsers = () => setUsersTick((n) => n + 1);
+  const reloadRoles = () => setRolesTick((n) => n + 1);
+  const handleError = (e: unknown, reload: () => void) => {
+    if (isProblem(e) && e.status === 409) reload();
+    setFormError(isProblem(e) && e.status === 422 ? 'Revise los campos e inténtelo de nuevo.' : errorText(e));
+  };
 
-  /* ---------- Roles ---------- */
-  const touch = () => {
-    if (!SNAP[r.id]) SNAP[r.id] = clone(P);
-    setDirty((d) => d + 1);
-    refresh();
+  const saveUser = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!userModal) return;
+    const data = new FormData(e.currentTarget);
+    const draft: UserDraft = {
+      name: String(data.get('name') ?? '').trim(), email: String(data.get('email') ?? '').trim(),
+      type: String(data.get('type')) as IdentityAudience, password: String(data.get('password') ?? ''),
+      roles: data.getAll('roles').map(String),
+    };
+    setBusy(true); setFormError('');
+    try {
+      if (userModal.user) {
+        const next = await identityApi.users.update(userModal.user.id, userModal.user.version, { name: draft.name, email: draft.email });
+        if (canRoles && JSON.stringify(next.roles.map((r) => r.id).sort()) !== JSON.stringify(draft.roles.slice().sort())) await identityApi.users.setRoles(next.id, draft.roles);
+      } else {
+        const input: AdminUserInput = { name: draft.name, email: draft.email, type: draft.type, password: draft.password, role_ids: canRoles ? draft.roles : undefined };
+        await identityApi.users.create(input);
+      }
+      setUserModal(null); reloadUsers(); toast(userModal.user ? 'Usuario actualizado' : 'Usuario creado', draft.email);
+    } catch (err) { handleError(err, reloadUsers); }
+    finally { setBusy(false); }
   };
-  const discard = () => {
-    if (SNAP[r.id]) PERM[r.id] = SNAP[r.id];
-    delete SNAP[r.id];
-    setDirty(0);
-  };
-  const pickRole = (id: string) => {
-    if (id === r.id) return;
-    if (dirty) {
-      dialogs.confirm({
-        title: 'Descartar cambios',
-        body: (
-          <p style={{ margin: 0 }}>
-            Hay {dirty} cambios sin guardar en «{r.id}».
-          </p>
-        ),
-        okLabel: 'Descartar',
-        danger: true,
-        onOk: () => {
-          discard();
-          setSel(id);
-          refresh();
-        },
-      });
-      return;
-    }
-    setSel(id);
-  };
-  const cell = (m: string, a: string, v: boolean) => {
-    P[m][a] = v;
-    touch();
-  };
-  const row = (m: string, v: boolean) => {
-    ACTS2.forEach((a) => {
-      if (P[m][a] !== null) P[m][a] = v;
-    });
-    touch();
-  };
-  const savePerm = () =>
+
+  const toggleStatus = (user: AdminUser) => {
+    const enabling = user.status !== 'active';
     dialogs.confirm({
-      title: 'Guardar permisos',
-      body: (
-        <p style={{ margin: 0 }}>
-          Se aplicarán {dirty} cambios al rol <b>{r.id}</b>, que tienen {nUsers(r.id)} usuarios. Los cambios rigen desde su próxima acción.
-        </p>
-      ),
-      okLabel: 'Guardar',
-      onOk: () => {
-        delete SNAP[r.id];
-        setDirty(0);
-        toast('Permisos guardados', r.id);
-        refresh();
-      },
-    });
-  const newRole = () =>
-    dialogs.form({
-      title: 'Nuevo rol',
-      fields: [
-        { id: 'n', label: 'Nombre del rol', req: true, full: true },
-        { id: 'b', label: 'Partir de', type: 'select', options: [['', 'Sin permisos'], ...RLS.map((x): [string, string] => [x.id, 'Copia de ' + x.id])], value: '' },
-        { id: 'd', label: 'Descripción', full: true },
-      ],
-      validate: (v) => (RLS.some((x) => norm(x.id) === norm(v.n)) ? 'Ya existe un rol con ese nombre.' : null),
-      submit: 'Crear rol',
-      onSubmit: (v) => {
-        if (dirty) discard();
-        RLS.push({ id: v.n, sys: false, desc: v.d || 'Rol personalizado' });
-        if (v.b) PERM[v.n] = clone(PERM[v.b]);
-        else permInit(v.n, []);
-        setSel(v.n);
-        setTab('roles');
-        setDirty(0);
-        toast('Rol creado', v.n);
-        refresh();
-      },
-    });
-  const copyRole = () => {
-    const src = r.id;
-    let n = src + ' (copia)';
-    let i = 2;
-    while (RLS.some((x) => x.id === n)) n = `${src} (copia ${i++})`;
-    RLS.push({ id: n, sys: false, desc: 'Copia de ' + src });
-    PERM[n] = clone(PERM[src]);
-    if (dirty) discard();
-    setSel(n);
-    setDirty(0);
-    toast('Rol copiado', n);
-    refresh();
-  };
-  const delRole = () => {
-    if (r.sys) return;
-    const n = nUsers(r.id);
-    if (n) {
-      toast('No se puede eliminar', `${n} usuarios tienen este rol. Reasígnelos primero.`, 'err');
-      return;
-    }
-    dialogs.confirm({
-      title: 'Eliminar rol',
-      body: <p style={{ margin: 0 }}>Se eliminará el rol «{r.id}».</p>,
-      okLabel: 'Eliminar',
-      danger: true,
-      onOk: () => {
-        RLS.splice(RLS.indexOf(r), 1);
-        delete PERM[r.id];
-        delete SNAP[r.id];
-        setSel('Soporte');
-        setDirty(0);
-        toast('Rol eliminado', r.id, 'warn');
-        refresh();
-      },
+      title: enabling ? 'Habilitar usuario' : 'Deshabilitar usuario',
+      body: <p style={{ margin: 0 }}>{enabling ? 'El usuario podrá volver a ingresar.' : 'Se revocarán sus sesiones activas y no podrá ingresar.'}</p>,
+      okLabel: enabling ? 'Habilitar' : 'Deshabilitar', danger: !enabling,
+      onOk: () => { void (async () => { try { await (enabling ? identityApi.users.enable(user.id) : identityApi.users.disable(user.id)); reloadUsers(); toast(enabling ? 'Usuario habilitado' : 'Usuario deshabilitado', user.email); } catch (e) { setFormError(isProblem(e) && e.status === 422 ? 'Revise los campos e inténtelo de nuevo.' : errorText(e)); if (isProblem(e) && e.status === 409) reloadUsers(); } })(); },
     });
   };
 
-  /* ---------- Usuarios ---------- */
-  const setUserRole = (u: UserAccount, v: string) => {
-    if (u.n === ME && v !== 'Administrador') {
-      toast('Acción no permitida', 'No puede quitarse su propio rol de administrador.', 'err');
-      refresh();
-      return;
-    }
-    u.role = v;
-    toast('Rol actualizado', `${u.n} → ${u.role}`);
-    refresh();
+  const saveRole = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!roleModal) return;
+    const data = new FormData(e.currentTarget);
+    const draft: RoleDraft = { code: String(data.get('code') ?? '').trim(), name: String(data.get('name') ?? '').trim(), description: String(data.get('description') ?? '').trim(), audience: String(data.get('audience')) as IdentityAudience };
+    setBusy(true); setFormError('');
+    try {
+      let saved: Role;
+      if (roleModal.copy && roleModal.role) saved = await identityApi.roles.copy(roleModal.role.id, { code: draft.code, name: draft.name, description: draft.description || null });
+      else if (roleModal.role) saved = await identityApi.roles.update(roleModal.role.id, roleModal.role.version, { code: draft.code, name: draft.name, description: draft.description || null });
+      else { const input: RoleInput = { ...draft, description: draft.description || null }; saved = await identityApi.roles.create(input); }
+      setRoleModal(null); setSelectedRoleId(saved.id); reloadRoles(); toast(roleModal.copy ? 'Rol copiado' : roleModal.role ? 'Rol actualizado' : 'Rol creado', saved.name);
+    } catch (err) { handleError(err, reloadRoles); }
+    finally { setBusy(false); }
   };
-  const toggleUser = (u: UserAccount) => {
-    const act = u.st === 'Activo';
-    dialogs.confirm({
-      title: act ? 'Suspender usuario' : 'Reactivar usuario',
-      body: <p style={{ margin: 0 }}>{act ? 'Se cerrarán sus sesiones activas y no podrá ingresar.' : 'Podrá volver a ingresar con su contraseña.'}</p>,
-      okLabel: act ? 'Suspender' : 'Reactivar',
-      danger: act,
-      onOk: () => {
-        u.st = act ? 'Suspendido' : 'Activo';
-        toast(`Usuario ${u.st === 'Activo' ? 'reactivado' : 'suspendido'}`, u.n, u.st === 'Activo' ? 'ok' : 'warn');
-        refresh();
-      },
-    });
+
+  const savePermissions = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!activeRole) return;
+    const codes = Array.from(new FormData(e.currentTarget).getAll('permission')).map(String);
+    setBusy(true); setFormError('');
+    try { await identityApi.roles.setPermissions(activeRole.id, codes, activeRole.version); reloadRoles(); toast('Permisos guardados', activeRole.name); }
+    catch (err) { handleError(err, reloadRoles); }
+    finally { setBusy(false); }
   };
-  const mfaReset = (u: UserAccount) =>
-    dialogs.confirm({
-      title: 'Restablecer 2FA',
-      body: <p style={{ margin: 0 }}>{u.n} deberá configurar de nuevo su segundo factor en el próximo ingreso.</p>,
-      okLabel: 'Restablecer',
-      danger: true,
-      onOk: () => {
-        u.mfa = false;
-        toast('2FA restablecido', u.n, 'warn');
-        refresh();
-      },
-    });
-  const invite = () =>
-    dialogs.form({
-      title: 'Invitar usuario',
-      fields: [
-        { id: 'n', label: 'Nombre', req: true, full: true },
-        { id: 'm', label: 'Correo', type: 'email', req: true, full: true },
-        { id: 'r', label: 'Rol', type: 'select', options: RLS.map((x) => x.id), value: 'Soporte' },
-      ],
-      validate: (v) => (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v.m) ? 'Ingrese un correo válido.' : USERS.some((u) => norm(u.m) === norm(v.m)) ? 'Ese correo ya tiene acceso.' : null),
-      submit: 'Enviar invitación',
-      onSubmit: (v) => {
-        USERS.push({ n: v.n, m: v.m, role: v.r, st: 'Invitado', mfa: false, last: null });
-        setTab('usuarios');
-        toast('Invitación enviada', `${v.m} · vence en 72 h`);
-        refresh();
-      },
-    });
 
-  const usersBody = (
-    <div className="tw">
-      <table className="t">
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Rol</th>
-            <th>Estado</th>
-            <th>2FA</th>
-            <th>Último acceso</th>
-            <th className="r">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {USERS.map((u) => {
-            const req = SEC.role[u.role];
-            const must = !!req && req !== 'Opcional';
-            return (
-              <tr key={u.m}>
-                <td style={{ minWidth: 200 }}>
-                  <b>{u.n}</b>
-                  <div className="sub mono">{u.m}</div>
-                </td>
-                <td>
-                  <select className="select" style={{ width: 190 }} value={u.role} aria-label={`Rol de ${u.n}`} onChange={(e) => setUserRole(u, e.target.value)}>
-                    {RLS.map((x) => (
-                      <option key={x.id}>{x.id}</option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <Chip kind={u.st === 'Activo' ? 'ok' : u.st === 'Invitado' ? 'info' : 'danger'}>{u.st}</Chip>
-                </td>
-                <td>
-                  {u.mfa ? (
-                    <Chip kind="ok" icon="shield">
-                      Activo
-                    </Chip>
-                  ) : (
-                    <Chip kind={must ? 'warn' : ''}>{must ? 'Pendiente (obligatorio)' : 'No activado'}</Chip>
-                  )}
-                </td>
-                <td className="num nw">{u.last ? `${fD(u.last)} ${fT(u.last)}` : '—'}</td>
-                <td className="r nw">
-                  {u.st === 'Invitado' ? (
-                    <button type="button" className="btn sm" onClick={() => toast('Invitación reenviada', u.m, 'info')}>
-                      <Icon name="send" size="sm" />
-                      Reenviar invitación
-                    </button>
-                  ) : u.n === ME ? (
-                    <span className="sub">Usted</span>
-                  ) : (
-                    <button type="button" className="btn sm" onClick={() => toggleUser(u)}>
-                      {u.st === 'Activo' ? 'Suspender' : 'Reactivar'}
-                    </button>
-                  )}{' '}
-                  {u.mfa && u.n !== ME ? (
-                    <button type="button" className="btn sm ghost" onClick={() => mfaReset(u)}>
-                      Restablecer 2FA
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+  const removeRole = (role: Role) => dialogs.confirm({ title: 'Eliminar rol', body: <p style={{ margin: 0 }}>Se eliminará el rol «{role.name}».</p>, okLabel: 'Eliminar', danger: true, onOk: () => { void identityApi.roles.remove(role.id).then(() => { reloadRoles(); setSelectedRoleId(''); toast('Rol eliminado', role.name, 'warn'); }).catch((e: unknown) => { setFormError(isProblem(e) && e.status === 422 ? 'Revise los campos e inténtelo de nuevo.' : errorText(e)); if (isProblem(e) && e.status === 409) reloadRoles(); }); } });
 
-  const rolesBody = (
-    <div className="roles-l">
-      <nav className="tk-filters" aria-label="Roles">
-        <ul>
-          {RLS.map((x) => (
-            <li key={x.id}>
-              <button type="button" onClick={() => pickRole(x.id)} aria-current={x.id === r.id}>
-                <span>
-                  {x.sys ? <Icon name="lock" size="sm" /> : null} {x.id}
-                </span>
-                <em>{nUsers(x.id)}</em>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div style={{ display: 'grid', gap: 6, padding: 10 }}>
-          <button type="button" className="btn sm" onClick={newRole}>
-            <Icon name="plus" size="sm" />
-            Nuevo rol
-          </button>
-          <button type="button" className="btn sm" onClick={copyRole}>
-            <Icon name="layers" size="sm" />
-            Copiar «{r.id}»
-          </button>
-          <button type="button" className="btn sm danger" onClick={delRole} disabled={r.sys} aria-describedby={r.sys ? 'roleSysWhy' : undefined}>
-            <Icon name="trash" size="sm" />
-            Eliminar rol
-          </button>
-          {r.sys ? (
-            <small id="roleSysWhy" className="hint">
-              Los roles de sistema no se pueden eliminar.
-            </small>
-          ) : null}
-        </div>
-      </nav>
-      <div style={{ minWidth: 0 }}>
-        <div className="toolbar">
-          <div>
-            <b style={{ fontFamily: 'var(--f-head)' }}>{r.id}</b>{' '}
-            {r.sys ? (
-              <Chip kind="outline" icon="lock">
-                Sistema
-              </Chip>
-            ) : (
-              <Chip kind="info">Personalizado</Chip>
-            )}
-            <div className="sub" style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {r.desc}
-              {ro ? ' · los permisos del administrador no se pueden modificar.' : ''}
-            </div>
-          </div>
-          <span className="count" aria-live="polite">
-            {dirty ? <b style={{ color: 'var(--warn-text)' }}>{dirty} cambios sin guardar</b> : 'Sin cambios'}
-          </span>
-          {dirty && !ro ? (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                discard();
-                toast('Cambios descartados', r.id, 'info');
-                refresh();
-              }}
-            >
-              Descartar
-            </button>
-          ) : null}
-          <button type="button" className="btn primary" onClick={savePerm} disabled={ro || !dirty}>
-            <Icon name="check" size="sm" />
-            Guardar permisos
-          </button>
-        </div>
-        <div className="tw">
-          <table className="t perm">
-            <thead>
-              <tr>
-                <th>Módulo</th>
-                <th title="Marcar todo el módulo">Todo</th>
-                {ACTS2.map((a) => (
-                  <th key={a}>{a === 'Especial' ? 'Especiales' : a}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {MODS.map(([m, sp]) => {
-                const vals = ACTS2.filter((a) => P[m][a] !== null).map((a) => !!P[m][a]);
-                const all = vals.every(Boolean);
-                const some = vals.some(Boolean);
-                return (
-                  <tr key={m}>
-                    <td className="strong nw">{m}</td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={all}
-                        ref={(el) => {
-                          if (el) el.indeterminate = !all && some;
-                        }}
-                        disabled={ro}
-                        aria-label={`Marcar todo ${m}`}
-                        onChange={(e) => row(m, e.target.checked)}
-                      />
-                    </td>
-                    {ACTS2.map((a) =>
-                      P[m][a] === null ? (
-                        <td key={a} className="sub">
-                          —
-                        </td>
-                      ) : (
-                        <td key={a}>
-                          <label className="pcell">
-                            <input type="checkbox" checked={!!P[m][a]} disabled={ro} aria-label={`${a === 'Especial' ? sp : a} en ${m}`} onChange={(e) => cell(m, a, e.target.checked)} />
-                            {a === 'Especial' ? <span>{sp}</span> : null}
-                          </label>
-                        </td>
-                      ),
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+  const userColumns: Column<AdminUser>[] = [
+    { key: 'name', header: 'Usuario', sort: (u) => u.name, render: (u) => <><b>{u.name}</b><div className="sub">{u.email}</div></> },
+    { key: 'type', header: 'Tipo', render: (u) => audienceLabel[u.type] ?? u.type },
+    { key: 'status', header: 'Estado', render: (u) => <Chip kind={u.status === 'active' ? 'ok' : 'warn'}>{u.status === 'active' ? 'Activo' : u.status === 'disabled' ? 'Deshabilitado' : u.status}</Chip> },
+    { key: 'roles', header: 'Roles', render: (u) => u.roles.map((r) => <Chip key={r.id}>{r.name}</Chip>) },
+    { key: 'actions', header: 'Acciones', render: (u) => <span style={{ display: 'flex', gap: 6 }}>
+      {can('identity.user.update') ? <button type="button" className="btn sm" onClick={() => { setFormError(''); setUserModal({ user: u }); }}>Editar / roles</button> : null}
+      {can('identity.user.update') ? <button type="button" className="btn sm" onClick={() => toggleStatus(u)}>{u.status === 'active' ? 'Deshabilitar' : 'Habilitar'}</button> : null}
+      {can('identity.user.delete') ? <button type="button" className="btn sm danger" onClick={() => dialogs.confirm({ title: 'Eliminar usuario', body: <p style={{ margin: 0 }}>Se eliminará la cuenta de {u.name}.</p>, okLabel: 'Eliminar', danger: true, onOk: () => { void identityApi.users.remove(u.id).then(() => { reloadUsers(); toast('Usuario eliminado', u.email, 'warn'); }).catch((e: unknown) => { setFormError(errorText(e)); if (isProblem(e) && e.status === 409) reloadUsers(); }); } })}>Eliminar</button> : null}
+    </span> },
+  ];
+  const roleColumns: Column<Role>[] = [
+    { key: 'code', header: 'Código', sort: (r) => r.code, className: 'mono', render: (r) => r.code },
+    { key: 'name', header: 'Rol', sort: (r) => r.name, render: (r) => <><b>{r.name}</b>{r.is_system ? <div className="sub">Rol del sistema</div> : null}</> },
+    { key: 'audience', header: 'Audiencia', render: (r) => audienceLabel[r.audience] },
+    { key: 'description', header: 'Descripción', render: (r) => r.description || '—' },
+    { key: 'permissions', header: 'Permisos', align: 'r', render: (r) => matrix.data?.roles.find((mr) => mr.id === r.id)?.permissions.length ?? r.permissions?.length ?? '—' },
+    { key: 'actions', header: 'Acciones', render: (r) => <span style={{ display: 'flex', gap: 6 }}>
+      {can('identity.role.update') ? <button type="button" className="btn sm" onClick={() => { setFormError(''); setRoleModal({ role: r }); }}>Editar</button> : null}
+      {can('identity.role.create') ? <button type="button" className="btn sm" onClick={() => { setFormError(''); setRoleModal({ role: r, copy: true }); }}>Copiar</button> : null}
+      {can('identity.role.delete') ? <button type="button" className="btn sm danger" disabled={r.is_system} onClick={() => removeRole(r)}>Eliminar</button> : null}
+    </span> },
+  ];
 
-  return (
-    <>
-      <PageHead
-        crumbs={[['Configuración', 'ajustes'], ['Usuarios y roles', 'roles']]}
-        title="Usuarios y roles"
-        sub="Personal con acceso al panel, sus roles y la matriz de permisos."
-        actions={
-          <button type="button" className="btn primary" onClick={invite}>
-            <Icon name="plus" size="sm" />
-            Invitar usuario
-          </button>
-        }
-      />
+  const userError = userList.error;
+  const roleError = roleList.error || (canPermissionView ? permissionList.error || matrix.error : null);
+  return <>
+    <PageHead crumbs={[[ 'Administración', 'roles' ], ['Usuarios y roles']]} title="Usuarios y roles" sub="Cuentas del panel, roles y permisos" actions={tab === 'usuarios' && can('identity.user.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setUserModal({}); }}>Invitar usuario</button> : tab === 'roles' && can('identity.role.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setRoleModal({}); }}>Nuevo rol</button> : null} />
+    <Tabs label="Usuarios y roles" value={tab} onChange={setTab} tabs={[...(canUsers ? [{ id: 'usuarios' as const, label: 'Usuarios' }] : []), ...(canRoles ? [{ id: 'roles' as const, label: 'Roles y permisos' }] : [])]} />
+    {!canUsers && !canRoles ? <section className="card"><div className="card-b"><Note kind="warn">No tiene permiso para ver usuarios ni roles.</Note></div></section> : null}
+    {tab === 'usuarios' && canUsers ? <section className="card">
+      <Toolbar count={userList.loading ? 'Cargando…' : `${users.length}${userList.data?.meta.has_more ? '+' : ''} usuarios`} />
+      {userError ? <div className="card-b"><Note kind="warn" role="alert">No se pudo cargar usuarios: {errorText(userError)} <button className="btn sm" type="button" onClick={userList.reload}>Reintentar</button></Note></div> : userList.loading && !userList.data ? <div className="card-b" aria-busy="true"><div className="skel" style={{ height: 220 }} /></div> : <>
+        {formError ? <div className="card-b"><Note kind="warn" role="alert">{formError}</Note></div> : null}
+        <DataTable rows={users} rowKey={(u) => u.id} columns={userColumns} caption="Usuarios del panel" />
+        <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button type="button" className="btn sm" disabled={userList.loading || !userList.data?.meta.prev_cursor} onClick={() => setUserCursor(userList.data?.meta.prev_cursor ?? null)}>Anterior</button><button type="button" className="btn sm" disabled={userList.loading || !userList.data?.meta.next_cursor} onClick={() => setUserCursor(userList.data?.meta.next_cursor ?? null)}>Siguiente</button></div>
+      </>}
+    </section> : null}
+    {tab === 'roles' && canRoles ? <>
       <section className="card">
-        <Tabs<Tab>
-          label="Secciones"
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'usuarios', label: 'Usuarios', count: USERS.length },
-            { id: 'roles', label: 'Roles y permisos', count: RLS.length },
-          ]}
-        />
-        <div role="tabpanel" aria-label={tab === 'usuarios' ? 'Usuarios' : 'Roles y permisos'}>
-          {tab === 'usuarios' ? usersBody : rolesBody}
-        </div>
+        <Toolbar count={roleList.loading ? 'Cargando…' : `${shownRoles.length} roles`}><Select label="Audiencia" value={roleFilter} onChange={(v) => setRoleFilter(v as IdentityAudience | '')} options={ [['', 'Todas las audiencias'], ['staff', 'Personal'], ['customer', 'Cliente']] } /></Toolbar>
+        {roleError ? <div className="card-b"><Note kind="warn" role="alert">No se pudo cargar roles/permisos: {errorText(roleError)} <button className="btn sm" type="button" onClick={() => { roleList.reload(); permissionList.reload(); matrix.reload(); }}>Reintentar</button></Note></div> : roleList.loading && !roleList.data ? <div className="card-b" aria-busy="true"><div className="skel" style={{ height: 200 }} /></div> : <>
+          {formError ? <div className="card-b"><Note kind="warn" role="alert">{formError}</Note></div> : null}
+          <DataTable rows={shownRoles} rowKey={(r) => r.id} columns={roleColumns} caption="Roles" />
+        </>}
       </section>
-    </>
-  );
+      {canPermissionView ? <section className="card" style={{ marginTop: 16 }}>
+        <div className="card-h"><h2 className="sec">Matriz de permisos</h2><span className="sub">Permisos asignados por rol</span></div>
+        {!activeRole ? <div className="card-b sub">Seleccione un rol para ver su matriz.</div> : matrix.loading && !matrix.data ? <div className="card-b" aria-busy="true"><div className="skel" style={{ height: 160 }} /></div> : <>
+          <div className="card-b"><label className="field">Rol para editar<Select value={activeRole.id} onChange={setSelectedRoleId} options={shownRoles.map((r) => [r.id, `${r.name} (${r.code})`])} /></label></div>
+          {can('identity.role.update') ? <form key={`${activeRole.id}:${matrixRole?.version ?? activeRole.version}`} onSubmit={(e) => void savePermissions(e)}>
+            <div className="card-b" style={{ display: 'grid', gap: 14 }}>{Object.entries(grouped).map(([module, entities]) => <section key={module}>
+              <h3 style={{ margin: '0 0 8px' }}>{module}</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>{Object.entries(entities).map(([entity, rows]) => <fieldset key={entity} className="card" style={{ padding: 12, margin: 0 }}><legend>{entity}</legend>{rows.filter((p) => activeRole.audience === 'customer' ? p.code.startsWith('portal.') : !p.code.startsWith('portal.')).map((p) => <label key={p.code} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '7px 0' }}><input type="checkbox" name="permission" value={p.code} defaultChecked={(matrixRole?.permissions ?? activeRole.permissions ?? []).includes(p.code)} disabled={busy || matrix.loading} /><span>{p.action}<small className="sub" style={{ display: 'block' }}>{p.code}{p.is_sensitive ? ' · sensible' : ''}</small></span></label>)}</fieldset>)}</div>
+            </section>)}</div>
+            <div className="card-f" style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn primary" type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar permisos'}</button></div>
+          </form> : <div className="card-b">{(matrixRole?.permissions ?? activeRole.permissions ?? []).join(', ') || 'Sin permisos asignados.'}</div>}
+          {matrix.data ? <div className="card-b sub">La matriz cargada incluye {matrix.data.roles.length} roles.</div> : null}
+        </>}
+      </section> : null}
+    </> : null}
+
+    <Modal open={!!userModal} onClose={() => !busy && setUserModal(null)} title={userModal?.user ? 'Editar usuario y roles' : 'Invitar usuario'} sub="La contraseña inicial debe cambiarse al ingresar." wide>
+      <form onSubmit={(e) => void saveUser(e)}>
+        <div className="form-grid">
+          <label className="field full">Nombre<input className="input" name="name" required defaultValue={userModal?.user?.name ?? ''} /></label>
+          <label className="field full">Correo<input className="input" name="email" type="email" required defaultValue={userModal?.user?.email ?? ''} /></label>
+          {!userModal?.user ? <><label className="field">Tipo<select className="select" name="type" defaultValue="staff"><option value="staff">Personal</option><option value="customer">Cliente</option></select></label><label className="field">Contraseña temporal<input className="input" name="password" type="password" autoComplete="new-password" minLength={12} required /><small className="hint">Se exige cambio de contraseña al primer ingreso.</small></label></> : null}
+          {canRoles ? <fieldset className="field full"><legend>Roles</legend><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 8 }}>{roles.filter((r) => r.audience === (userModal?.user?.type ?? 'staff')).map((r) => <label key={r.id} style={{ display: 'flex', gap: 8 }}><input type="checkbox" name="roles" value={r.id} defaultChecked={userModal?.user?.roles.some((ur) => ur.id === r.id)} />{r.name}</label>)}</div></fieldset> : null}
+          {formError ? <div className="err full" role="alert">{formError}</div> : null}
+        </div>
+        <div className="modal-f"><button type="button" className="btn" disabled={busy} onClick={() => setUserModal(null)}>Cancelar</button><button type="submit" className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar usuario'}</button></div>
+      </form>
+    </Modal>
+    <Modal open={!!roleModal} onClose={() => !busy && setRoleModal(null)} title={roleModal?.copy ? 'Copiar rol' : roleModal?.role ? 'Editar rol' : 'Nuevo rol'}>
+      <form onSubmit={(e) => void saveRole(e)}>
+        <div className="form-grid">
+          <label className="field">Código<input className="input" name="code" required pattern="[a-z][a-z0-9_]{1,62}" defaultValue={roleModal?.copy && roleModal.role ? `${roleModal.role.code}_copy` : roleModal?.role?.code ?? ''} /></label>
+          <label className="field">Audiencia<select className="select" name="audience" disabled={!!roleModal?.role} defaultValue={roleModal?.role?.audience ?? 'staff'}><option value="staff">Personal</option><option value="customer">Cliente</option></select></label>
+          <label className="field full">Nombre<input className="input" name="name" required maxLength={200} defaultValue={roleModal?.copy && roleModal.role ? `${roleModal.role.name} (copia)` : roleModal?.role?.name ?? ''} /></label>
+          <label className="field full">Descripción<textarea className="input" name="description" rows={3} maxLength={2000} defaultValue={roleModal?.role?.description ?? ''} /></label>
+          {formError ? <div className="err full" role="alert">{formError}</div> : null}
+        </div>
+        <div className="modal-f"><button type="button" className="btn" disabled={busy} onClick={() => setRoleModal(null)}>Cancelar</button><button type="submit" className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar rol'}</button></div>
+      </form>
+    </Modal>
+  </>;
 }
