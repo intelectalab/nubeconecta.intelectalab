@@ -1,488 +1,173 @@
-/**
- * Vista «contratos» (#contratos y #contratos/<pestaña>) — vContratos del
- * prototipo (l.2772) con el editor enriquecido de l.3136-3146: contratos
- * (borradores editables, envío para firma, renovación), plantillas y cláusulas.
- */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ClientDatalist, useActions } from '../../app/actions';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { isProblem, type Contract, type ContractFilters, type ContractInput, type ContractStatus, type ContractUpdateInput, type Currency } from '@hub/api';
 import { useApp } from '../../app/context';
-import { useViewState } from '../../app/storage';
 import type { ViewProps } from '../../app/routes';
+import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { Sheet } from '../../components/Modal';
-import { Chip, ClientLink, DayChip, EmptyState, PageHead, Tabs } from '../../components/ui';
-import { addD, CBY, CLAUSES, CONTRACTS, CTPL, diffD, fD, findClient, inBrand, TODAY } from '../../data';
-import type { Contract } from '../../data';
-import { clHtml, CL_HTML, ctDoc, ctHtml, DEFAULT_INTRO, TPL_INTRO } from './comercial/contractsData';
-import { fillVars, html2txt, RichOut, RichText, type RteHandle } from './comercial/RichText';
+import { Modal } from '../../components/Modal';
+import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { customersApi, displayName, errorText, fDate, useCan, useLoad, useLookups } from './clientes/shared';
+import { CONTRACT_CHIP, contractsApi } from './contratos/shared';
 
-type CtTab = 'contratos' | 'plantillas' | 'clausulas';
-const TABS: CtTab[] = ['contratos', 'plantillas', 'clausulas'];
-type Open = { k: 'ct'; id: string } | { k: 'tpl'; id: string } | { k: 'cl'; id: string } | null;
-const tplName = (id: string) => (CTPL.find((t) => t.id === id) || CTPL[0]).n;
-const newId = () => 'CT-2026-' + String(31 + CONTRACTS.length).padStart(3, '0');
+const STATUS: Record<ContractStatus, string> = { draft: 'Borrador', in_review: 'En revisión', approved: 'Aprobado', sent: 'Enviado', signed_active: 'Vigente firmado', expired: 'Vencido', terminated: 'Terminado' };
+const PER = 25;
 
 export default function ContratosView({ param }: ViewProps) {
-  const { brand, dataVersion, navSeq, dialogs, toast, refresh } = useApp();
-  const [tab, setTab] = useViewState<CtTab>('ct.tab', 'contratos');
-  const [open, setOpen] = useState<Open>(null);
-  useEffect(() => {
-    if (param && (TABS as string[]).includes(param)) setTab(param as CtTab);
-    else if (param && CONTRACTS.some((c) => c.id === param)) {
-      setTab('contratos');
-      setOpen({ k: 'ct', id: param });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [param, navSeq]);
+  return param ? <ContractDetail id={param} onBack={() => { window.location.hash = '#contratos'; }} /> : <ContractList />;
+}
 
-  const list = useMemo(() => CONTRACTS.filter((c) => inBrand(brand, c.cid)), [brand, dataVersion]);
-  const clauseKeys = Object.keys(CLAUSES);
+function ContractList() {
+  const can = useCan();
+  const [status, setStatus] = useState('');
+  const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [reload, setReload] = useState(0);
+  const filter = useMemo<ContractFilters>(() => ({ status: status as ContractStatus | '' }), [status]);
+  const res = useLoad(() => contractsApi.list({ filter, q: q || undefined, cursor, size: PER, sort: '-created_at' }), [filter, q, cursor, reload]);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+  const cols: Column<Contract>[] = [
+    { key: 'number', header: 'Contrato', className: 'nw', render: (c) => <a className="rowlink mono" href={`#contratos/${c.id}`}>{c.number}</a> },
+    { key: 'customer', header: 'Cliente', minWidth: 180, render: (c) => c.customer ? <>{c.customer.name}<div className="sub mono">{c.customer.code}</div></> : '—' },
+    { key: 'status', header: 'Estado', render: (c) => <Chip kind={CONTRACT_CHIP[c.status]}>{STATUS[c.status]}</Chip> },
+    { key: 'currency', header: 'Moneda', render: (c) => c.currency },
+    { key: 'term', header: 'Vigencia', className: 'nw', render: (c) => `${fDate(c.starts_on)} – ${fDate(c.ends_on)}` },
+  ];
+  const changeStatus = (v: string) => { setStatus(v); setCursor(null); };
+  return <>
+    <PageHead crumbs={[[ 'Comercial', 'contratos' ], ['Contratos']]} title="Contratos" sub="Contratos y versiones vigentes."
+      actions={can('contracts.contract.create') ? <button type="button" className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" size="sm" />Nuevo contrato</button> : null} />
+    <section className="card">
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <Select value={status} onChange={changeStatus} label="Estado" options={[['', 'Todos los estados'], ...Object.entries(STATUS)]} />
+        <input className="input" aria-label="Buscar contratos" placeholder="Buscar número o cliente…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+      </Toolbar>
+      {res.error ? <div className="card-b"><Note kind="warn" role="alert">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
+        : res.loading && !res.data ? <Skeleton variant="table" rows={5} />
+        : !rows.length ? <EmptyState title="Sin contratos" text="No hay contratos que coincidan con los filtros." />
+        : <><DataTable columns={cols} rows={rows} rowKey={(x) => x.id} caption="Contratos" />
+          <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>Anterior</button>
+            <button type="button" className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>Siguiente</button>
+          </div></>}
+    </section>
+    {creating ? <ContractForm onClose={() => setCreating(false)} onSaved={(c) => { setCreating(false); setReload((n) => n + 1); window.location.hash = `#contratos/${c.id}`; }} /> : null}
+  </>;
+}
 
-  const ctNew = (tp: string) =>
-    dialogs.form({
-      title: 'Nuevo contrato',
-      fields: [
-        { id: 'c', label: 'Cliente', req: true, full: true, ph: 'Escriba para buscar…', list: 'dlClients' },
-        { id: 't', label: 'Plantilla', type: 'select', options: CTPL.map((t) => [t.id, t.n] as [string, string]), value: tp, full: true },
-      ],
-      validate: (v) => (findClient(v.c) ? null : 'Seleccione un cliente existente.'),
-      submit: 'Crear borrador',
-      onSubmit: (v) => {
-        const cl = findClient(v.c);
-        if (!cl) return;
-        const c: Contract = { id: newId(), cid: cl.id, tpl: v.t, st: 'Borrador', date: TODAY, end: addD(TODAY, 365), body: null };
-        CONTRACTS.unshift(c);
-        setTab('contratos');
-        refresh();
-        window.setTimeout(() => setOpen({ k: 'ct', id: c.id }), 60);
-      },
-    });
-  const ctRenew = (c: Contract) =>
-    dialogs.confirm({
-      title: 'Renovar contrato',
-      body: <p style={{ margin: 0 }}>Se creará un borrador nuevo a partir de {c.id} con vigencia desde hoy.</p>,
-      okLabel: 'Crear borrador',
-      onOk: () => {
-        CONTRACTS.unshift({ id: newId(), cid: c.cid, tpl: c.tpl, st: 'Borrador', date: TODAY, end: addD(TODAY, 365), body: null });
-        toast('Borrador de renovación creado', '');
-        refresh();
-      },
-    });
-
-  let body;
-  if (tab === 'contratos')
-    body = list.length ? (
-      <div className="tw">
-        <table className="t">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Cliente</th>
-              <th>Plantilla</th>
-              <th>Firmado / creado</th>
-              <th>Vence</th>
-              <th>Estado</th>
-              <th className="r">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((c) => (
-              <tr key={c.id}>
-                <td className="mono strong">{c.id}</td>
-                <td>
-                  <ClientLink cid={c.cid} />
-                </td>
-                <td>{tplName(c.tpl)}</td>
-                <td className="num">{fD(c.date)}</td>
-                <td className="nw num">
-                  {fD(c.end)} {c.st === 'Firmado' ? <DayChip n={diffD(c.end, TODAY)} /> : null}
-                </td>
-                <td>
-                  <Chip kind={c.st === 'Firmado' ? 'ok' : c.st === 'Borrador' ? 'outline' : c.st === 'Vencido' ? 'danger' : 'info'}>{c.st}</Chip>
-                </td>
-                <td className="r nw">
-                  {c.st === 'Borrador' ? (
-                    <button type="button" className="btn sm primary" onClick={() => setOpen({ k: 'ct', id: c.id })}>
-                      <Icon name="edit" size="sm" />
-                      Editar borrador
-                    </button>
-                  ) : (
-                    <button type="button" className="btn sm" onClick={() => setOpen({ k: 'ct', id: c.id })}>
-                      <Icon name="eye" size="sm" />
-                      Ver
-                    </button>
-                  )}
-                  {c.st === 'Vencido' ? (
-                    <>
-                      {' '}
-                      <button type="button" className="btn sm" onClick={() => ctRenew(c)}>
-                        Renovar
-                      </button>
-                    </>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ) : (
-      <EmptyState title="Sin contratos" text="No hay contratos para la marca seleccionada." />
-    );
-  else if (tab === 'plantillas')
-    body = (
-      <div className="tw">
-        <table className="t">
-          <thead>
-            <tr>
-              <th>Plantilla</th>
-              <th>Cláusulas</th>
-              <th className="r">En uso</th>
-              <th className="r" />
-            </tr>
-          </thead>
-          <tbody>
-            {CTPL.map((t) => (
-              <tr key={t.id}>
-                <td className="strong">
-                  <Icon name="contract" size="sm" /> {t.n}
-                </td>
-                <td className="sub" style={{ minWidth: 260 }}>
-                  {t.cl.map((k) => CLAUSES[k][0]).join(' · ')}
-                </td>
-                <td className="r num">{CONTRACTS.filter((c) => c.tpl === t.id).length}</td>
-                <td className="r nw">
-                  <button type="button" className="btn sm" onClick={() => setOpen({ k: 'tpl', id: t.id })}>
-                    <Icon name="edit" size="sm" />
-                    Editar plantilla
-                  </button>{' '}
-                  <button type="button" className="btn sm" onClick={() => ctNew(t.id)}>
-                    <Icon name="plus" size="sm" />
-                    Nuevo contrato
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  else
-    body = (
-      <div className="card-b" style={{ paddingTop: 14, display: 'grid', gap: 10 }}>
-        {clauseKeys.map((k) => {
-          const c = CLAUSES[k];
-          return (
-            <article className="clause" key={k}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <b>{c[0]}</b>
-                <Chip kind="outline">{c[1]}</Chip>
-              </div>
-              {CL_HTML[k] ? <RichOut html={CL_HTML[k]} /> : <p>{c[2]}</p>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <small className="sub" style={{ color: 'var(--muted)' }}>
-                  Usada en {CTPL.filter((t) => t.cl.includes(k)).length} plantillas
-                </small>
-                <button type="button" className="btn sm" onClick={() => setOpen({ k: 'cl', id: k })}>
-                  <Icon name="edit" size="sm" />
-                  Editar cláusula
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    );
-
-  const close = () => setOpen(null);
-  const ct = open?.k === 'ct' ? CONTRACTS.find((c) => c.id === open.id) : undefined;
-
-  return (
-    <>
-      <ClientDatalist />
-      <PageHead
-        crumbs={[['Comercial', 'contratos'], ['Contratos']]}
-        title="Contratos"
-        sub="Plantillas con cláusulas reutilizables, borradores editables y estado de firma."
-        actions={
-          <button type="button" className="btn primary" onClick={() => ctNew('PL-01')}>
-            <Icon name="plus" size="sm" />
-            Nuevo contrato
-          </button>
-        }
-      />
-      <section className="card">
-        <Tabs<CtTab>
-          label="Secciones"
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'contratos', label: 'Contratos', count: list.length },
-            { id: 'plantillas', label: 'Plantillas', count: CTPL.length },
-            { id: 'clausulas', label: 'Cláusulas', count: clauseKeys.length },
-          ]}
-        />
-        {body}
+function ContractDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const { toast } = useApp();
+  const can = useCan();
+  const [reload, setReload] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [modal, setModal] = useState<'terminate' | 'addendum' | null>(null);
+  const [reason, setReason] = useState('');
+  const [changeSummary, setChangeSummary] = useState('');
+  const [busy, setBusy] = useState(false);
+  const res = useLoad(() => contractsApi.get(id), [id, reload]);
+  const c = res.data;
+  const ver = c?.current_version_data;
+  const refresh = () => setReload((n) => n + 1);
+  const act = async (action: 'submit' | 'approve' | 'send' | 'sign' | 'terminate' | 'expire' | 'addendum') => {
+    if (!c) return;
+    if (action === 'terminate' && !reason.trim()) return;
+    if (action === 'addendum' && !reason.trim()) return;
+    setBusy(true);
+    try {
+      if (action === 'submit') await contractsApi.submit(id, c.version);
+      else if (action === 'approve') await contractsApi.approve(id, c.version);
+      else if (action === 'send') await contractsApi.send(id, c.version);
+      else if (action === 'sign') await contractsApi.sign(id, c.version);
+      else if (action === 'terminate') await contractsApi.terminate(id, c.version, reason.trim());
+      else if (action === 'expire') await contractsApi.expire(id, c.version);
+      else await contractsApi.addendum(id, c.version, { body: reason.trim(), change_summary: changeSummary.trim() || null });
+      toast('Contrato actualizado', c.number);
+      setModal(null); setReason(''); setChangeSummary(''); refresh();
+    } catch (e) {
+      if (isProblem(e) && e.status === 409) { refresh(); toast('Contrato recargado', errorText(e), 'warn'); }
+      else toast(isProblem(e) && e.status === 422 ? 'Revise los campos' : 'No se pudo actualizar', errorText(e), 'err');
+    } finally { setBusy(false); }
+  };
+  if (res.error) return <><PageHead title="Contrato" /><Note kind="warn" role="alert">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button> <button className="btn sm" onClick={onBack}>Volver</button></Note></>;
+  if (res.loading || !c) return <><PageHead title="Contrato" /><Skeleton variant="detail" rows={5} /></>;
+  const update = can('contracts.contract.update');
+  return <>
+    <PageHead crumbs={[[ 'Comercial', 'contratos' ], ['Contratos', 'contratos'], [c.number]]} title={c.number} sub={`${c.customer?.name ?? 'Cliente'} · ${c.brand?.name ?? 'Marca'} · v${c.current_version}`}
+      actions={<><Chip kind={CONTRACT_CHIP[c.status]}>{STATUS[c.status]}</Chip>
+        {(c.status === 'draft' || c.status === 'in_review') && update ? <button className="btn" onClick={() => setEditing(true)}>Editar borrador</button> : null}
+        {c.status === 'draft' && update ? <button className="btn primary" disabled={busy} onClick={() => void act('submit')}>Enviar a revisión</button> : null}
+        {c.status === 'in_review' && can('contracts.contract.approve') ? <button className="btn success" disabled={busy} onClick={() => void act('approve')}>Aprobar</button> : null}
+        {c.status === 'approved' && update ? <button className="btn primary" disabled={busy} onClick={() => void act('send')}>Enviar</button> : null}
+        {c.status === 'sent' && update ? <button className="btn success" disabled={busy} onClick={() => void act('sign')}>Marcar firmado</button> : null}
+        {c.status === 'sent' && update ? <button className="btn" disabled={busy} onClick={() => void act('expire')}>Marcar vencido</button> : null}
+        {c.status === 'signed_active' && update ? <><button className="btn" onClick={() => setModal('addendum')}>Agregar adenda</button><button className="btn danger" onClick={() => setModal('terminate')}>Terminar</button><button className="btn" disabled={busy} onClick={() => void act('expire')}>Marcar vencido</button></> : null}
+      </>} />
+    <div className="grid g-2">
+      <section className="card"><div className="card-h"><h2 className="sec">Versión {ver?.version_number ?? c.current_version}</h2><span className="sub">{ver?.kind === 'addendum' ? 'Adenda' : 'Original'} · {ver ? fDate(ver.created_at) : ''}</span></div>
+        {ver?.change_summary ? <div className="card-b"><Note>{ver.change_summary}</Note></div> : null}
+        {ver ? <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', padding: 16, margin: 0, font: 'inherit' }}>{ver.body}</pre> : <div className="card-b"><Note kind="warn">La API no devolvió la versión vigente.</Note></div>}
       </section>
-      {ct ? <ContractSheet key={ct.id} c={ct} onClose={close} /> : null}
-      {open?.k === 'tpl' ? <TemplateSheet key={open.id} id={open.id} onClose={close} /> : null}
-      {open?.k === 'cl' ? <ClauseSheet key={open.id} k={open.id} onClose={close} /> : null}
-    </>
-  );
+      <aside className="card"><div className="card-h"><h2 className="sec">Datos del contrato</h2></div><div className="card-b"><dl className="kv">
+        <dt>Cliente</dt><dd>{c.customer?.name ?? '—'}</dd><dt>Marca</dt><dd>{c.brand?.name ?? '—'}</dd><dt>Estado</dt><dd><Chip kind={CONTRACT_CHIP[c.status]}>{STATUS[c.status]}</Chip></dd>
+        <dt>Moneda</dt><dd>{c.currency}</dd><dt>Vigencia</dt><dd>{fDate(c.starts_on)} – {fDate(c.ends_on)}</dd>
+        <dt>Fee</dt><dd>{c.management_fee_percent == null ? '—' : `${c.management_fee_percent}%`}</dd><dt>Fee mínimo</dt><dd>{c.management_fee_min_minor == null ? '—' : `${c.management_fee_min_minor} ${c.currency} (minor)`}</dd><dt>Horas incluidas</dt><dd>{c.included_hours ?? '—'}</dd>
+        <dt>Creado</dt><dd>{fDate(c.created_at)}</dd>{c.termination_reason ? <><dt>Motivo de término</dt><dd>{c.termination_reason}</dd></> : null}
+      </dl></div></aside>
+    </div>
+    {editing ? <ContractForm contract={c} onClose={() => setEditing(false)} onConflict={refresh} onSaved={() => { setEditing(false); refresh(); }} /> : null}
+    {modal ? <Modal open onClose={() => { setModal(null); setReason(''); setChangeSummary(''); }} title={modal === 'terminate' ? 'Terminar contrato' : 'Agregar adenda'} footer={<><button className="btn" onClick={() => setModal(null)}>Cancelar</button><button className={`btn ${modal === 'terminate' ? 'danger' : 'primary'}`} disabled={busy || !reason.trim()} onClick={() => void act(modal)}>{modal === 'terminate' ? 'Confirmar término' : 'Guardar adenda'}</button></>}>
+      <label className="field full">{modal === 'terminate' ? 'Motivo de término' : 'Nuevo cuerpo de la adenda'}<textarea className="input" rows={modal === 'terminate' ? 4 : 14} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+      {modal === 'addendum' ? <label className="field full" style={{ marginTop: 10 }}>Resumen del cambio<input className="input" value={changeSummary} onChange={(e) => setChangeSummary(e.target.value)} /></label> : null}
+    </Modal> : null}
+  </>;
 }
 
-/* =================== Panel: contrato / borrador =================== */
-function ContractSheet({ c, onClose }: { c: Contract; onClose: () => void }) {
-  const { dialogs, toast, refresh } = useApp();
-  const { fakeDownload } = useActions();
-  const ed = useRef<RteHandle>(null);
-  const doc = ctDoc(c.id, c.tpl);
-  const [sel, setSel] = useState<string[]>(() => doc.sel.slice());
-  const ro = c.st !== 'Borrador';
-  const cl = CBY[c.cid];
-  const tpl = CTPL.find((t) => t.id === c.tpl) || CTPL[0];
-
-  const regen = () => {
-    const s = Object.keys(CLAUSES).filter((k) => sel.includes(k));
-    if (!s.length) {
-      toast('Elija al menos una cláusula', '', 'err');
-      return;
-    }
-    doc.sel = s;
-    ed.current?.set(ctHtml(c.tpl, s));
-    toast('Texto regenerado', `${s.length} cláusulas`, 'info');
+function ContractForm({ contract, onClose, onSaved, onConflict }: { contract?: Contract; onClose: () => void; onSaved: (c: Contract) => void; onConflict?: () => void }) {
+  const { toast } = useApp();
+  const { brands } = useLookups();
+  const [customers, setCustomers] = useState<{ id: string; label: string }[]>([]);
+  const [customer, setCustomer] = useState(contract?.customer_id ?? '');
+  const [brand, setBrand] = useState(contract?.brand_id ?? '');
+  const [currency, setCurrency] = useState<Currency>(contract?.currency ?? 'PEN');
+  const [starts, setStarts] = useState(contract?.starts_on?.slice(0, 10) ?? '');
+  const [ends, setEnds] = useState(contract?.ends_on?.slice(0, 10) ?? '');
+  const [fee, setFee] = useState(contract?.management_fee_percent == null ? '' : String(contract.management_fee_percent));
+  const [minFee, setMinFee] = useState(contract?.management_fee_min_minor == null ? '' : String(contract.management_fee_min_minor));
+  const [hours, setHours] = useState(contract?.included_hours == null ? '' : String(contract.included_hours));
+  const [body, setBody] = useState(contract?.current_version_data?.body ?? '');
+  const [summary, setSummary] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void customersApi.list({ size: 100, sort: 'legal_name' }).then((p) => setCustomers(p.data.map((x) => ({ id: x.id, label: `${displayName(x)} · ${x.code}` })))).catch(() => undefined); }, []);
+  const submit = async (ev: FormEvent) => {
+    ev.preventDefault(); setMessage('');
+    if (!customer || !brand || !body.trim()) { setMessage('Seleccione cliente y marca, y complete el cuerpo del contrato.'); return; }
+    setBusy(true);
+    const core = { customer_id: customer, brand_id: brand, currency, starts_on: starts || null, ends_on: ends || null,
+      management_fee_percent: fee === '' ? null : Number(fee), management_fee_min_minor: minFee === '' ? null : Number(minFee), included_hours: hours === '' ? null : Number(hours), body: body.trim() };
+    try {
+      const saved = contract ? await contractsApi.update(contract.id, contract.version, { ...core, change_summary: summary || null } satisfies ContractUpdateInput) : await contractsApi.create(core satisfies ContractInput);
+      toast(contract ? 'Contrato actualizado' : 'Borrador creado', saved.number); onSaved(saved);
+    } catch (e) {
+      if (isProblem(e) && e.status === 409) { onConflict?.(); setMessage(`${errorText(e)} Se recargó la ficha.`); }
+      else setMessage(isProblem(e) && e.status === 422 ? 'Revise los campos.' : errorText(e));
+    } finally { setBusy(false); }
   };
-  const saveDraft = () => {
-    doc.html = ed.current?.get() || doc.html;
-    doc.sel = sel;
-    onClose();
-    toast('Borrador guardado', c.id);
-  };
-  const sendSign = () => {
-    const h = ed.current?.get() || doc.html;
-    doc.html = h;
-    doc.sel = sel;
-    if (html2txt(h).length < 200) {
-      toast('El contrato parece incompleto', 'Revise el texto antes de enviarlo.', 'err');
-      return;
-    }
-    onClose();
-    dialogs.confirm({
-      title: 'Enviar para firma',
-      body: (
-        <p style={{ margin: 0 }}>
-          Se enviará {c.id} a {cl?.contact} ({cl?.email}) para firma electrónica.
-        </p>
-      ),
-      okLabel: 'Enviar',
-      onOk: () => {
-        c.st = 'Enviado para firma';
-        toast('Enviado para firma', c.id);
-        refresh();
-      },
-    });
-  };
-
-  return (
-    <Sheet
-      open
-      onClose={onClose}
-      title={`${c.id} · ${ro ? 'Contrato' : 'Borrador'}`}
-      sub={`${cl?.name || c.cid} · ${tpl.n}`}
-      footer={
-        ro ? (
-          <>
-            <button type="button" className="btn" onClick={() => fakeDownload(c.id)}>
-              <Icon name="download" size="sm" />
-              PDF
-            </button>
-            <button type="button" className="btn" onClick={onClose}>
-              Cerrar
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="button" className="btn" onClick={saveDraft}>
-              Guardar borrador
-            </button>
-            <button type="button" className="btn primary" onClick={sendSign}>
-              <Icon name="send" size="sm" />
-              Enviar para firma
-            </button>
-          </>
-        )
-      }
-    >
-      <div style={{ display: 'grid', gap: 12 }}>
-        {ro ? (
-          <>
-            <div className="note">
-              <Icon name="lock" size="sm" />
-              <span>Estado «{c.st}»: el texto no se puede editar. Para cambios, cree una adenda.</span>
-            </div>
-            <div className="doc-view" dangerouslySetInnerHTML={{ __html: fillVars(doc.html, { 'cliente.nombre': cl?.name || '', 'cliente.ruc': (cl?.doc || '').replace(/\D/g, '') }) }} />
-          </>
-        ) : (
-          <>
-            <fieldset className="fset">
-              <legend>Cláusulas incluidas</legend>
-              {Object.entries(CLAUSES).map(([k, x]) => (
-                <label className="check" key={k}>
-                  <input type="checkbox" checked={sel.includes(k)} onChange={(e) => setSel((s) => (e.target.checked ? [...s, k] : s.filter((y) => y !== k)))} />
-                  {x[0]}
-                </label>
-              ))}
-              <button type="button" className="btn sm" style={{ justifySelf: 'start' }} onClick={regen}>
-                <Icon name="refresh" size="sm" />
-                Regenerar texto desde cláusulas
-              </button>
-            </fieldset>
-            <RichText ref={ed} initial={doc.html} label="Texto del contrato" min={340} />
-          </>
-        )}
-      </div>
-    </Sheet>
-  );
-}
-
-/* =================== Panel: plantilla =================== */
-function TemplateSheet({ id, onClose }: { id: string; onClose: () => void }) {
-  const { toast, refresh } = useApp();
-  const t = CTPL.find((x) => x.id === id) || CTPL[0];
-  const ed = useRef<RteHandle>(null);
-  const [n, setN] = useState(t.n);
-  const [cl, setCl] = useState<string[]>(() => t.cl.slice());
-  const [err, setErr] = useState('');
-  const save = () => {
-    const keys = Object.keys(CLAUSES).filter((k) => cl.includes(k));
-    if (!n.trim()) {
-      setErr('Ingrese el nombre.');
-      return;
-    }
-    if (!keys.length) {
-      toast('Elija al menos una cláusula', '', 'err');
-      return;
-    }
-    t.n = n.trim();
-    t.cl = keys;
-    TPL_INTRO[t.id] = ed.current?.get() || TPL_INTRO[t.id] || DEFAULT_INTRO;
-    onClose();
-    toast('Plantilla guardada', `${t.n} · ${keys.length} cláusulas`);
-    refresh();
-  };
-  return (
-    <Sheet
-      open
-      onClose={onClose}
-      title="Editar plantilla"
-      sub={t.n}
-      footer={
-        <>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="button" className="btn primary" onClick={save}>
-            <Icon name="check" size="sm" />
-            Guardar plantilla
-          </button>
-        </>
-      }
-    >
-      <div style={{ display: 'grid', gap: 12 }}>
-        <label className="field full">
-          Nombre
-          <input
-            className="input"
-            value={n}
-            aria-invalid={!!err}
-            onChange={(e) => {
-              setN(e.target.value);
-              setErr('');
-            }}
-          />
-          <span className="err">{err}</span>
-        </label>
-        <fieldset className="fset">
-          <legend>Cláusulas de la plantilla (en orden)</legend>
-          {Object.entries(CLAUSES).map(([k, x]) => (
-            <label className="check" key={k}>
-              <input type="checkbox" checked={cl.includes(k)} onChange={(e) => setCl((s) => (e.target.checked ? [...s, k] : s.filter((y) => y !== k)))} />
-              {x[0]}
-            </label>
-          ))}
-        </fieldset>
-        <div className="field">
-          Encabezado e introducción
-          <RichText ref={ed} initial={TPL_INTRO[t.id] || DEFAULT_INTRO} label="Introducción de la plantilla" min={120} />
-        </div>
-      </div>
-    </Sheet>
-  );
-}
-
-/* =================== Panel: cláusula =================== */
-function ClauseSheet({ k, onClose }: { k: string; onClose: () => void }) {
-  const { toast, refresh } = useApp();
-  const c = CLAUSES[k];
-  const ed = useRef<RteHandle>(null);
-  const [n, setN] = useState(c[0]);
-  const [cat, setCat] = useState(c[1]);
-  const save = () => {
-    const h = ed.current?.get() || '';
-    if (html2txt(h).length < 10) {
-      toast('La cláusula está vacía', '', 'err');
-      return;
-    }
-    c[0] = n.trim() || c[0];
-    c[1] = cat;
-    CL_HTML[k] = h;
-    c[2] = html2txt(h);
-    onClose();
-    toast('Cláusula guardada', c[0]);
-    refresh();
-  };
-  return (
-    <Sheet
-      open
-      onClose={onClose}
-      title="Editar cláusula"
-      sub={c[0]}
-      footer={
-        <>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="button" className="btn primary" onClick={save}>
-            <Icon name="check" size="sm" />
-            Guardar cláusula
-          </button>
-        </>
-      }
-    >
-      <div style={{ display: 'grid', gap: 12 }}>
-        <div className="form-grid">
-          <label className="field">
-            Nombre
-            <input className="input" value={n} onChange={(e) => setN(e.target.value)} />
-          </label>
-          <label className="field">
-            Categoría
-            <select className="select" value={cat} onChange={(e) => setCat(e.target.value)}>
-              {['General', 'Económica', 'Técnica', 'Legal'].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <RichText ref={ed} initial={clHtml(k)} label="Texto de la cláusula" min={180} />
-        <div className="note">
-          <Icon name="info" size="sm" />
-          <span>Se usa en {CTPL.filter((t) => t.cl.includes(k)).length} plantillas. Los contratos ya firmados no cambian.</span>
-        </div>
-      </div>
-    </Sheet>
-  );
+  return <Modal open wide onClose={onClose} title={contract ? `Editar ${contract.number}` : 'Nuevo contrato'} sub="El cuerpo se guarda directamente en el contrato." bare>
+    <form className="modal-b" onSubmit={(e) => void submit(e)}><div className="form-grid">
+      <label className="field">Cliente<select className="select" value={customer} onChange={(e) => setCustomer(e.target.value)}><option value="">Seleccione…</option>{customers.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+      <label className="field">Marca<select className="select" value={brand} onChange={(e) => setBrand(e.target.value)}><option value="">Seleccione…</option>{brands.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+      <label className="field">Moneda<select className="select" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}><option value="PEN">PEN · Soles</option><option value="USD">USD · Dólares</option></select></label>
+      <label className="field">Inicio<input className="input" type="date" value={starts} onChange={(e) => setStarts(e.target.value)} /></label>
+      <label className="field">Fin<input className="input" type="date" value={ends} onChange={(e) => setEnds(e.target.value)} /></label>
+      <label className="field">Fee de gestión (%)<input className="input" type="number" min="0" step="0.01" value={fee} onChange={(e) => setFee(e.target.value)} /></label>
+      <label className="field">Fee mínimo (unidades menores)<input className="input" type="number" min="0" step="1" value={minFee} onChange={(e) => setMinFee(e.target.value)} /></label>
+      <label className="field">Horas incluidas<input className="input" type="number" min="0" step="0.01" value={hours} onChange={(e) => setHours(e.target.value)} /></label>
+      {contract ? <label className="field">Resumen del cambio<input className="input" value={summary} onChange={(e) => setSummary(e.target.value)} /></label> : null}
+      <label className="field full">Cuerpo del contrato<textarea className="input" rows={16} value={body} onChange={(e) => setBody(e.target.value)} /></label>
+    </div>
+    <div style={{ marginTop: 8 }}><Note>Plantillas y cláusulas: próximamente.</Note></div><div className="err" role="alert">{message}</div>
+    <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button type="submit" className="btn primary" disabled={busy}>{busy ? 'Guardando…' : contract ? 'Guardar cambios' : 'Crear borrador'}</button></div></form>
+  </Modal>;
 }
