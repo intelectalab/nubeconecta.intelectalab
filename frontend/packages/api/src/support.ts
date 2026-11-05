@@ -59,6 +59,42 @@ export interface PortalTicketInput {
   body?: string;
 }
 export interface PortalTicketFilters { status?: PortalTicketStatus | ''; }
+export type PortalComplaintType = 'claim' | 'grievance';
+export type PortalComplaintStatus = 'received' | 'in_progress' | 'answered' | 'closed';
+export type PortalComplaintCurrency = 'PEN' | 'USD';
+export interface PortalComplaintResponse {
+  body: string;
+  sent_at: string;
+  is_final: boolean;
+}
+export interface PortalComplaint {
+  id: string;
+  code: string;
+  complaint_type: PortalComplaintType;
+  status: PortalComplaintStatus;
+  received_at: string;
+  due_at: string;
+  response_days: number;
+  consumer_name: string;
+  consumer_email: string;
+  service_description: string;
+  detail: string;
+  consumer_request: string;
+  amount_minor: number | null;
+  currency: PortalComplaintCurrency | null;
+  answered_at: string | null;
+  closed_at: string | null;
+  responses: PortalComplaintResponse[];
+}
+export interface PortalComplaintInput {
+  complaint_type: PortalComplaintType;
+  service_id?: string;
+  service_description?: string;
+  amount_minor?: number;
+  currency?: PortalComplaintCurrency;
+  detail: string;
+  consumer_request: string;
+}
 export type ComplaintType = 'claim' | 'grievance';
 export type ComplaintDocumentType = 'dni' | 'ce' | 'passport' | 'ruc';
 export type ComplaintStatus = 'received' | 'in_progress' | 'answered' | 'closed';
@@ -133,6 +169,13 @@ export function createSupportApi(http: HttpClient) {
         http.post<Envelope<PortalTicket>>(portalBase, input, { idempotencyKey }).then((r) => r.data),
       addMessage: (id: string, input: { body: string }, idempotencyKey = newIdempotencyKey()) =>
         http.post<Envelope<PortalTicketMessage>>(`${portalBase}/${enc(id)}/messages`, input, { idempotencyKey }).then((r) => r.data),
+    },
+    portalComplaints: {
+      list: (params: ListParams = {}) =>
+        http.get<CursorPage<PortalComplaint>>(`/api/v1/portal/complaints${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
+      get: (id: string) => http.get<Envelope<PortalComplaint>>(`/api/v1/portal/complaints/${enc(id)}`).then((r) => r.data),
+      create: (input: PortalComplaintInput, idempotencyKey = newIdempotencyKey()) =>
+        http.post<Envelope<PortalComplaint>>('/api/v1/portal/complaints', input, { idempotencyKey }).then((r) => r.data),
     },
   };
 }

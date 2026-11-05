@@ -41,6 +41,11 @@ import {
   type PortalTicketStatus,
   type PortalTicketType,
   type PortalTicketPriority,
+  type PortalComplaint,
+  type PortalComplaintInput,
+  type PortalComplaintStatus,
+  type PortalComplaintType,
+  type PortalComplaintCurrency,
 } from '@hub/api';
 import { hub } from '../auth/client';
 import { Alert, Card, CardBody, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
@@ -904,6 +909,17 @@ const TICKET_PRIORITY_LABELS: Record<PortalTicketPriority, string> = { critical:
 const TicketStatusChip = ({ status }: { status: PortalTicketStatus }) => <Chip tone={TICKET_STATUS_TONE[status]}>{TICKET_STATUS_LABELS[status]}</Chip>;
 
 function SupportPage({ openTicket }: { openTicket: (id: string) => void }) {
+  const [section, setSection] = useState<'tickets' | 'complaints'>('tickets');
+  const [complaintId, setComplaintId] = useState<string | null>(null);
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <Seg label="Sección de soporte" value={section} onChange={(v) => { setSection(v); setComplaintId(null); }} options={[{ id: 'tickets', label: 'Tickets' }, { id: 'complaints', label: 'Reclamos' }]} />
+    {section === 'tickets' ? <SupportTickets openTicket={openTicket} /> : complaintId
+      ? <PortalComplaintPage id={complaintId} back={() => setComplaintId(null)} />
+      : <PortalComplaintsPage openComplaint={setComplaintId} />}
+  </div>;
+}
+
+function SupportTickets({ openTicket }: { openTicket: (id: string) => void }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [subject, setSubject] = useState('');
@@ -978,6 +994,89 @@ function SupportTicketPage({ id, back }: { id: string; back: () => void }) {
         {ticket.messages.length ? <div className="card-b" style={{ display: 'grid', gap: 14 }}>{ticket.messages.map((m) => <article key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><b>{m.author}</b><time className="sub">{new Date(m.created_at).toLocaleString('es-PE')}</time></div><p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{m.body}</p></article>)}</div> : <CardBody><Empty>Aún no hay mensajes en este ticket.</Empty></CardBody>}
       </Card>
       <Card title="Responder" icon="msg"><form className="card-b" onSubmit={(e) => void submit(e)} noValidate><Field label="Mensaje *" error={errors.body}><textarea className="input" rows={4} value={body} onChange={(e) => setBody(e.target.value)} /></Field><button className="btn primary" type="submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar respuesta'}</button></form></Card>
+    </> : null}
+  </div>;
+}
+
+const COMPLAINT_TYPE_LABELS: Record<PortalComplaintType, string> = { claim: 'Reclamo', grievance: 'Queja' };
+const COMPLAINT_STATUS_LABELS: Record<PortalComplaintStatus, string> = { received: 'Recibido', in_progress: 'En atención', answered: 'Respondido', closed: 'Cerrado' };
+const COMPLAINT_STATUS_TONES: Record<PortalComplaintStatus, Tone> = { received: 'info', in_progress: 'warn', answered: 'ok', closed: '' };
+const COMPLAINT_STATUS_CHIP = ({ status }: { status: PortalComplaintStatus }) => <Chip tone={COMPLAINT_STATUS_TONES[status]}>{COMPLAINT_STATUS_LABELS[status]}</Chip>;
+
+function PortalComplaintsPage({ openComplaint }: { openComplaint: (id: string) => void }) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [type, setType] = useState<PortalComplaintType>('claim');
+  const [serviceId, setServiceId] = useState('');
+  const [serviceDescription, setServiceDescription] = useState('');
+  const [detail, setDetail] = useState('');
+  const [consumerRequest, setConsumerRequest] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<PortalComplaintCurrency>('PEN');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const res = useLoad(() => hub.support.portalComplaints.list({ size: 25, cursor }), [cursor]);
+  const servicesRes = useLoad(() => hub.services.portalList({ size: 100 }), []);
+  const services = servicesRes.data?.data ?? [];
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setMsg(null); setErrors({});
+    const local: Record<string, string> = {};
+    const amountMinor = amount.trim() ? parseMinor(amount) : null;
+    if (!serviceId && !serviceDescription.trim()) local.service_description = 'Seleccione un servicio o describa el servicio relacionado.';
+    if (amount.trim() && amountMinor === null) local.amount_minor = 'Ingrese un monto válido, por ejemplo 125.50.';
+    if (!detail.trim()) local.detail = 'Describa los hechos.';
+    if (!consumerRequest.trim()) local.consumer_request = 'Indique qué solución solicita.';
+    if (Object.keys(local).length) { setErrors(local); setMsg('Revise los campos indicados.'); setBusy(false); return; }
+    const input: PortalComplaintInput = { complaint_type: type, ...(serviceId ? { service_id: serviceId } : { service_description: serviceDescription.trim() }), ...(amountMinor !== null ? { amount_minor: amountMinor, currency } : {}), detail: detail.trim(), consumer_request: consumerRequest.trim() };
+    try {
+      const complaint = await hub.support.portalComplaints.create(input);
+      setCreating(false); openComplaint(complaint.id);
+    } catch (err) {
+      if (isProblem(err) && err.status === 422) setMsg('No se pudo registrar. Revise los campos y complete en Perfil los datos personales o de dirección que falten en su cuenta.');
+      else if (isProblem(err) && err.status === 409) { setMsg('El registro cambió. Recargamos la lista.'); res.reload(); }
+      else setMsg(errorText(err));
+      if (isProblem(err)) setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0] ?? ''])));
+    } finally { setBusy(false); }
+  };
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead title="Libro de Reclamaciones" lead="Registre un reclamo o queja y consulte sus respuestas oficiales." actions={<button type="button" className="btn primary" onClick={() => { setCreating((v) => !v); setMsg(null); }}><Icon name="plus" className="sm" /> {creating ? 'Cancelar' : 'Registrar reclamo'}</button>} />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+    {creating ? <Card title="Registrar en el Libro de Reclamaciones" icon="msg"><form className="card-b" onSubmit={(e) => void submit(e)} noValidate>
+      <Note tone="warn">Sus datos personales y de contacto se toman de su cuenta. Si falta algún dato requerido, complete su Perfil antes de registrar.</Note>
+      <FormGrid>
+        <Field label="Tipo *" error={errors.complaint_type}><select className="input" value={type} onChange={(e) => setType(e.target.value as PortalComplaintType)}>{(Object.keys(COMPLAINT_TYPE_LABELS) as PortalComplaintType[]).map((v) => <option key={v} value={v}>{COMPLAINT_TYPE_LABELS[v]}</option>)}</select></Field>
+        <Field label="Servicio relacionado"><select className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)}><option value="">Otro servicio / describir</option>{services.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.label}</option>)}</select>{servicesRes.error ? <small className="sub">No se pudieron cargar los servicios; puede describirlo manualmente.</small> : null}</Field>
+      </FormGrid>
+      {!serviceId ? <Field label="Descripción del servicio *" error={errors.service_description}><input className="input" maxLength={1000} value={serviceDescription} onChange={(e) => setServiceDescription(e.target.value)} /></Field> : null}
+      <Field label="Detalle de los hechos *" error={errors.detail}><textarea className="input" rows={5} value={detail} onChange={(e) => setDetail(e.target.value)} /></Field>
+      <Field label="Pedido del consumidor *" error={errors.consumer_request}><textarea className="input" rows={3} value={consumerRequest} onChange={(e) => setConsumerRequest(e.target.value)} /></Field>
+      <FormGrid><Field label="Monto reclamado (opcional)" error={errors.amount_minor}><input className="input" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field><Field label="Moneda"><select className="input" value={currency} onChange={(e) => setCurrency(e.target.value as PortalComplaintCurrency)}><option value="PEN">PEN · Soles</option><option value="USD">USD · Dólares</option></select></Field></FormGrid>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Registrando…' : 'Registrar reclamo'}</button>
+    </form></Card> : null}
+    <Card title="Mis reclamos" icon="msg">
+      {res.loading && !res.data ? <Loading inCard /> : !rows.length ? <Empty icon="msg">Aún no tiene reclamos registrados.</Empty> : <Table cols={[{ label: 'Código' }, { label: 'Tipo' }, { label: 'Estado' }, { label: 'Recibido' }, { label: 'Vence' }, { label: 'Acción', right: true }]}>
+        {rows.map((c) => <tr key={c.id}><td className="mono nw">{c.code}</td><td>{COMPLAINT_TYPE_LABELS[c.complaint_type]}</td><td><COMPLAINT_STATUS_CHIP status={c.status} /></td><td className="nw">{fDate(c.received_at)}</td><td className="nw">{fDate(c.due_at)}</td><td className="r nw"><button type="button" className="btn sm" onClick={() => openComplaint(c.id)}>Ver detalle →</button></td></tr>)}
+      </Table>}
+      <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
+    </Card>
+  </div>;
+}
+
+function PortalComplaintPage({ id, back }: { id: string; back: () => void }) {
+  const res = useLoad(() => hub.support.portalComplaints.get(id), [id]);
+  const complaint: PortalComplaint | null = res.data;
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead back={{ label: 'Volver a reclamos', onClick: back }} title={complaint?.code ?? 'Reclamo'} lead={complaint ? `Registrado el ${fDate(complaint.received_at)}` : undefined} actions={complaint ? <COMPLAINT_STATUS_CHIP status={complaint.status} /> : undefined} />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    {res.loading && !complaint ? <Loading /> : null}
+    {complaint ? <>
+      <Alert tone="info" title={`Hoja ${complaint.code}`} text="Este es su registro en el Libro de Reclamaciones." />
+      <Card title="Detalle del reclamo" icon="msg"><CardBody><Kv rows={[["Código", complaint.code], ["Tipo", COMPLAINT_TYPE_LABELS[complaint.complaint_type]], ["Estado", COMPLAINT_STATUS_LABELS[complaint.status]], ["Recibido", fDate(complaint.received_at)], ["Fecha límite de respuesta", fDate(complaint.due_at)], ["Servicio", complaint.service_description], ["Monto", complaint.amount_minor !== null && complaint.currency ? money(complaint.amount_minor, complaint.currency) : 'No indicado'], ["Detalle de los hechos", complaint.detail], ["Pedido del consumidor", complaint.consumer_request]]} /></CardBody></Card>
+      <Card title="Respuestas oficiales" icon="msg">{complaint.responses.length ? <div className="card-b" style={{ display: 'grid', gap: 14 }}>{complaint.responses.map((response, index) => <article key={`${response.sent_at}-${index}`} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><b>{response.is_final ? 'Respuesta final' : 'Respuesta oficial'}</b><time className="sub">{new Date(response.sent_at).toLocaleString('es-PE')}</time></div><p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{response.body}</p></article>)}</div> : <CardBody><Empty>Aún no hay respuestas oficiales.</Empty></CardBody>}</Card>
     </> : null}
   </div>;
 }
