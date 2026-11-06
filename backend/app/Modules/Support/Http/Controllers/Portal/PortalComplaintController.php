@@ -12,6 +12,7 @@ use App\Modules\Settings\Services\SettingsResolver;
 use App\Modules\Support\Http\Resources\Portal\PortalComplaintResource;
 use App\Modules\Support\Models\Complaint;
 use App\Modules\Support\Models\Ticket;
+use App\Modules\Notifications\Services\NotificationService;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
@@ -21,6 +22,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 final class PortalComplaintController
@@ -136,6 +138,22 @@ final class PortalComplaintController
                 throw ProblemException::validation(['reference' => ['La referencia indicada no existe.']]);
             }
             throw $exception;
+        }
+
+        try {
+            app(NotificationService::class)->send([
+                'event' => 'complaint.received',
+                'template_code' => 'complaint.received',
+                'recipient_address' => $complaint->consumer_email,
+                'customer_id' => $complaint->customer_id,
+                'brand_id' => $complaint->brand_id,
+                'entity_type' => 'complaint',
+                'entity_id' => $complaint->id,
+                'dedupe_key' => 'complaint:'.$complaint->id,
+                'variables' => ['numero' => $complaint->number, 'codigo' => $complaint->code ?? '', 'nombre' => $complaint->consumer_name],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('notify falló', ['event' => 'complaint.received', 'error' => $e->getMessage()]);
         }
 
         return (new PortalComplaintResource($complaint))->response()->setStatusCode(201);

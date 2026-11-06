@@ -8,6 +8,8 @@ use App\Modules\Support\Http\Resources\TicketMessageResource;
 use App\Modules\Support\Http\Resources\TicketResource;
 use App\Modules\Support\Models\Ticket;
 use App\Modules\Support\Models\TicketMessage;
+use App\Modules\Customers\Models\Contact;
+use App\Modules\Notifications\Services\NotificationService;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Concurrency\VersionGuard;
 use App\Shared\Http\Problem\ProblemException;
@@ -18,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 final class TicketController
@@ -105,6 +108,32 @@ final class TicketController
             $this->audit->record('ticket.message.created', 'ticket', $ticket->id, null, ['message_id' => $message->id]);
             return $message;
         });
+        if (! $message->is_internal && in_array($message->channel, ['email', 'portal'], true)) {
+            try {
+                $contact = $ticket->contact_id ? Contact::query()->where('customer_id', $ticket->customer_id)->find($ticket->contact_id) : null;
+                if (! $contact || ! $contact->email) {
+                    $contact = Contact::query()->where('customer_id', $ticket->customer_id)->where('is_primary', true)->whereNotNull('email')->first();
+                }
+                if (! $contact || ! $contact->email) {
+                    Log::warning('notify destinatario sin email', ['event' => 'ticket.customer_reply', 'ticket_id' => $ticket->id]);
+                } else {
+                    app(NotificationService::class)->send([
+                        'event' => 'ticket.customer_reply',
+                        'template_code' => 'ticket.customer_reply',
+                        'recipient_address' => $contact->email,
+                        'customer_id' => $ticket->customer_id,
+                        'recipient_contact_id' => $ticket->contact_id,
+                        'brand_id' => $ticket->brand_id,
+                        'entity_type' => 'ticket',
+                        'entity_id' => $ticket->id,
+                        'dedupe_key' => 'ticket_message:'.$message->id,
+                        'variables' => ['numero' => $ticket->number, 'cliente' => $contact->name, 'mensaje' => $message->body, 'asunto' => $ticket->subject],
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('notify falló', ['event' => 'ticket.customer_reply', 'error' => $e->getMessage()]);
+            }
+        }
         $message->setRelation('authorUser', auth()->user());
         return (new TicketMessageResource($message))->response()->setStatusCode(201);
     }

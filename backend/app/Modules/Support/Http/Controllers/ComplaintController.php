@@ -10,6 +10,7 @@ use App\Modules\Support\Http\Resources\ComplaintResponseResource;
 use App\Modules\Support\Models\Complaint;
 use App\Modules\Support\Models\ComplaintResponse;
 use App\Modules\Support\Models\Ticket;
+use App\Modules\Notifications\Services\NotificationService;
 use App\Shared\Audit\AuditLogger;
 use Carbon\CarbonInterface;
 use App\Shared\Concurrency\VersionGuard;
@@ -21,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 final class ComplaintController
@@ -61,6 +63,21 @@ final class ComplaintController
             $this->audit->record('complaint.created', 'complaint', $record->id, null, $record->refresh()->attributesToArray());
             return $record;
         }); } catch (QueryException $exception) { $state = (string) ($exception->errorInfo[0] ?? $exception->getCode()); if ($state === '23503') throw ProblemException::validation(['reference' => ['La referencia indicada no existe.']]); throw $exception; }
+        try {
+            app(NotificationService::class)->send([
+                'event' => 'complaint.received',
+                'template_code' => 'complaint.received',
+                'recipient_address' => $complaint->consumer_email,
+                'customer_id' => $complaint->customer_id,
+                'brand_id' => $complaint->brand_id,
+                'entity_type' => 'complaint',
+                'entity_id' => $complaint->id,
+                'dedupe_key' => 'complaint:'.$complaint->id,
+                'variables' => ['numero' => $complaint->number, 'codigo' => $complaint->code ?? '', 'nombre' => $complaint->consumer_name],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('notify falló', ['event' => 'complaint.received', 'error' => $e->getMessage()]);
+        }
         return (new ComplaintResource($complaint))->response()->setStatusCode(201);
     }
 
