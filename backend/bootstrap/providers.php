@@ -24,4 +24,5 @@ return [
     App\Modules\Inventory\InventoryServiceProvider::class,
     App\Modules\Finance\FinanceServiceProvider::class,
     App\Modules\Files\FilesServiceProvider::class,
+    App\Modules\Notifications\NotificationsServiceProvider::class,
 ];
