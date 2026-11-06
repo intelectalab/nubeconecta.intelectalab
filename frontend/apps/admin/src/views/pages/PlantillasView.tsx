@@ -1,264 +1,158 @@
-/**
- * Vista «plantillas» (#plantillas) — Plantillas de correo (prototipo vPlantillas l.3178).
- * Pestañas: «Correos y avisos» (MAILT: asunto, cuerpo enriquecido, vista previa por marca,
- * guardar con validación de variables y envío de prueba) y «Respuestas predefinidas»
- * (CANNED, usadas en el detalle de cada ticket).
- */
-import { useRef, useState } from 'react';
+/** Administración de plantillas de notificación mediante el módulo Notifications. */
+import { useState, type FormEvent } from 'react';
+import { isProblem, type CursorPage, type NotificationCategory, type NotificationTemplate, type NotificationTemplateInput } from '@hub/api';
 import { useApp } from '../../app/context';
-import { useViewState } from '../../app/storage';
 import type { ViewProps } from '../../app/routes';
+import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { Field, PageHead, Tabs } from '../../components/ui';
-import { BRANDS, BR, type BrandId } from '../../data';
-import { RichText, VARS, html2txt, type RteHandle } from './soporte/RichText';
-import { CANNED, MAILT, MailPreview, cannedHtml, setCannedHtml, type MailTpl } from './soporte/shared';
+import { Modal } from '../../components/Modal';
+import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { hub } from '../../auth/client';
+import { errorText, fDateTime, useCan, useLoad } from './clientes/shared';
 
-type Tab = 'correos' | 'respuestas';
+const PAGE_SIZE = 25;
+const CATEGORY_OPTIONS: [string, string][] = [
+  ['notice', 'Aviso'], ['canned_reply', 'Respuesta predefinida'], ['complaint_response', 'Respuesta a reclamo'], ['form_confirmation', 'Confirmación de formulario'],
+];
+const CATEGORY_LABEL: Record<NotificationCategory, string> = Object.fromEntries(CATEGORY_OPTIONS) as Record<NotificationCategory, string>;
+const categoryOf = (value: string) => CATEGORY_LABEL[value as NotificationCategory] ?? value;
 
-export default function PlantillasView({ param }: ViewProps) {
-  const { dataVersion } = useApp();
-  const [tab, setTab] = useViewState<Tab>('mt.tab', param === 'respuestas' ? 'respuestas' : 'correos');
-  const [sel, setSel] = useViewState<string>('mt.sel', 'rec30');
-  const [mtBrand, setMtBrand] = useViewState<BrandId>('mt.brand', 'ap');
-  const [cnSel, setCnSel] = useViewState<number>('mt.cnSel', 0);
-  const t = MAILT.find((x) => x.id === sel) || MAILT[0];
-  const ci = CANNED[cnSel] ? cnSel : 0;
-
-  const focusNav = (attr: string, v: string | number) => window.setTimeout(() => document.querySelector<HTMLButtonElement>(`[${attr}="${v}"]`)?.focus(), 0);
-
-  return (
-    <>
-      <PageHead
-        crumbs={[['Configuración', 'ajustes'], ['Plantillas de correo', 'plantillas']]}
-        title="Plantillas de correo"
-        sub="Correos automáticos de cobranza y eventos del sistema, y respuestas predefinidas de soporte. Use variables {{…}}."
-      />
-      <section className="card">
-        <Tabs<Tab>
-          label="Secciones"
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'correos', label: 'Correos y avisos', count: MAILT.length },
-            { id: 'respuestas', label: 'Respuestas predefinidas', count: CANNED.length },
-          ]}
-        />
-        {tab === 'correos' ? (
-          <div className="mt-l">
-            <nav className="tk-filters" aria-label="Plantillas">
-              <ul>
-                {MAILT.map((x) => (
-                  <li key={x.id}>
-                    <button
-                      type="button"
-                      data-mt={x.id}
-                      aria-current={x.id === t.id}
-                      onClick={() => {
-                        setSel(x.id);
-                        focusNav('data-mt', x.id);
-                      }}
-                    >
-                      <span>{x.n}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            <MailEditor key={`${t.id}-${dataVersion}`} t={t} brand={mtBrand} setBrand={setMtBrand} />
-          </div>
-        ) : (
-          <div className="mt-l">
-            <nav className="tk-filters" aria-label="Respuestas">
-              <ul>
-                {CANNED.map((x, k) => (
-                  <li key={k}>
-                    <button
-                      type="button"
-                      data-cn={k}
-                      aria-current={k === ci}
-                      onClick={() => {
-                        setCnSel(k);
-                        focusNav('data-cn', k);
-                      }}
-                    >
-                      <span>{x[0]}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div style={{ padding: 10 }}>
-                <NewCannedButton onCreated={(k) => setCnSel(k)} />
-              </div>
-            </nav>
-            <CannedEditor key={`${ci}-${CANNED.length}-${dataVersion}`} k={ci} onDeleted={() => setCnSel(0)} />
-          </div>
-        )}
-      </section>
-    </>
-  );
-}
-
-/* ---------- Correos y avisos ---------- */
-function MailEditor({ t, brand, setBrand }: { t: MailTpl; brand: BrandId; setBrand: (b: BrandId) => void }) {
-  const { toast, refresh, dialogs } = useApp();
-  const ed = useRef<RteHandle>(null);
-  const [n, setN] = useState(t.n);
-  const [subj, setSubj] = useState(t.subj);
-  const [html, setHtml] = useState(t.html);
-
-  const save = () => {
-    const h = ed.current?.get() ?? html;
-    if (!subj.trim()) {
-      toast('El asunto es obligatorio', '', 'err');
-      document.getElementById('mtS')?.focus();
-      return;
-    }
-    if (html2txt(h).length < 5) {
-      toast('El cuerpo está vacío', '', 'err');
-      return;
-    }
-    const bad = ((h + subj).match(/\{\{\s*([a-z.]+)\s*\}\}/g) || []).filter((v) => !VARS.some((x) => v.includes(x[0])));
-    if (bad.length) {
-      toast('Variable desconocida', bad.join(', '), 'err');
-      return;
-    }
-    Object.assign(t, { n: n.trim() || t.n, subj, html: h });
-    toast('Plantilla guardada', t.n);
-    refresh();
+export default function PlantillasView(_props: ViewProps) {
+  const can = useCan();
+  const { toast, dialogs } = useApp();
+  const [query, setQuery] = useState('');
+  const [channel, setChannel] = useState('');
+  const [category, setCategory] = useState('');
+  const [active, setActive] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [editing, setEditing] = useState<NotificationTemplate | 'new' | null>(null);
+  const params = {
+    q: query.trim() || undefined, size: PAGE_SIZE, cursor: cursor ?? undefined,
+    filter: { channel: channel as 'email' | '' , category: category as NotificationCategory | '', is_active: (active === '' ? '' : active === 'true') as boolean | '' },
   };
-  const test = () =>
-    dialogs.form({
-      title: 'Enviar correo de prueba',
-      sub: t.n,
-      fields: [{ id: 'm', label: 'Enviar a', type: 'email', value: 'renzo.vargas@alojamientoplus.pe', req: true, full: true }],
-      validate: (v) => (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v.m) ? null : 'Correo no válido.'),
-      submit: 'Enviar',
-      onSubmit: (v) => toast('Prueba enviada', `${v.m} · con datos de ejemplo y marca ${BR[brand].n}`),
-    });
+  const result = useLoad(() => can('automation.notification_template.view')
+    ? hub.notifications.templates.list(params)
+    : Promise.resolve<CursorPage<NotificationTemplate>>({ data: [], meta: { next_cursor: null, prev_cursor: null, has_more: false, page_size: PAGE_SIZE }, links: { next: null, prev: null } }),
+  [can, query, channel, category, active, cursor, reload]);
+  const rows = result.data?.data ?? [];
+  const meta = result.data?.meta;
+  const changed = () => setReload((n) => n + 1);
 
-  return (
-    <div className="card-b" style={{ paddingTop: 14, display: 'grid', gap: 12, minWidth: 0 }}>
-      <div className="form-grid">
-        <Field label="Nombre">
-          <input className="input" id="mtN" value={n} onChange={(e) => setN(e.target.value)} />
-        </Field>
-        <Field label="Evento que la dispara" hint="según la secuencia de cobranza y eventos del sistema">
-          <input className="input" id="mtE" value={t.ev} readOnly />
-        </Field>
-        <Field label="Asunto" full>
-          <input className="input" id="mtS" value={subj} onChange={(e) => setSubj(e.target.value)} />
-        </Field>
-      </div>
-      <RichText ref={ed} initial={t.html} label="Cuerpo del correo" min={200} onChange={setHtml} />
-      <div className="grid g-2e">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <button type="button" className="btn primary" onClick={save}>
-            <Icon name="check" size="sm" />
-            Guardar plantilla
-          </button>
-          <button type="button" className="btn" onClick={test}>
-            <Icon name="send" size="sm" />
-            Enviar prueba
-          </button>
-        </div>
-        <label className="field">
-          Vista previa con la marca
-          <select className="select" value={brand} onChange={(e) => setBrand(e.target.value as BrandId)}>
-            {BRANDS.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.n}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div aria-live="polite" aria-label="Vista previa del correo">
-        <MailPreview subj={subj} html={html} brand={brand} />
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Respuestas predefinidas ---------- */
-function NewCannedButton({ onCreated }: { onCreated: (k: number) => void }) {
-  const { refresh } = useApp();
-  return (
-    <button
-      type="button"
-      className="btn sm"
-      onClick={() => {
-        const c: [string, string] = ['Nueva respuesta', ''];
-        CANNED.push(c);
-        setCannedHtml(c, '<p>Hola {{cliente.contacto}}, </p>');
-        c[1] = html2txt('<p>Hola {{cliente.contacto}}, </p>');
-        onCreated(CANNED.length - 1);
-        refresh();
-        window.setTimeout(() => {
-          const el = document.getElementById('cnN') as HTMLInputElement | null;
-          el?.focus();
-          el?.select();
-        }, 50);
-      }}
-    >
-      <Icon name="plus" size="sm" />
-      Nueva respuesta
-    </button>
-  );
-}
-
-function CannedEditor({ k, onDeleted }: { k: number; onDeleted: () => void }) {
-  const { toast, refresh, dialogs } = useApp();
-  const c = CANNED[k];
-  const ed = useRef<RteHandle>(null);
-  const [n, setN] = useState(c ? c[0] : '');
-  if (!c) return null;
-
-  const save = () => {
-    const h = ed.current?.get() || '';
-    if (!n.trim() || html2txt(h).length < 3) {
-      toast('Complete el nombre y el texto', '', 'err');
-      return;
-    }
-    c[0] = n.trim();
-    c[1] = html2txt(h);
-    setCannedHtml(c, h);
-    toast('Respuesta guardada', c[0]);
-    refresh();
-  };
-  const del = () =>
+  async function remove(template: NotificationTemplate) {
     dialogs.confirm({
-      title: 'Eliminar respuesta',
-      body: <p style={{ margin: 0 }}>Se eliminará «{c[0]}».</p>,
-      okLabel: 'Eliminar',
-      danger: true,
-      onOk: () => {
-        CANNED.splice(k, 1);
-        onDeleted();
-        toast('Respuesta eliminada', c[0], 'warn');
-        refresh();
+      title: 'Eliminar plantilla',
+      body: <p style={{ margin: 0 }}>Se eliminará «{template.code}». Esta acción no se puede deshacer.</p>,
+      okLabel: 'Eliminar', danger: true,
+      onOk: async () => {
+        try { await hub.notifications.templates.remove(template.id, template.version); toast('Plantilla eliminada', template.code, 'warn'); changed(); }
+        catch (e) { toast('No se pudo eliminar', errorText(e), 'err'); if (isProblem(e) && e.code === 'version_conflict') changed(); }
       },
     });
+  }
 
-  return (
-    <div className="card-b" style={{ paddingTop: 14, display: 'grid', gap: 12, minWidth: 0 }}>
-      <Field label="Nombre">
-        <input className="input" id="cnN" value={n} onChange={(e) => setN(e.target.value)} />
-      </Field>
-      <RichText ref={ed} initial={cannedHtml(c)} label="Texto de la respuesta" min={180} mini />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className="btn primary" onClick={save}>
-          <Icon name="check" size="sm" />
-          Guardar respuesta
-        </button>
-        <button type="button" className="btn danger" onClick={del} disabled={CANNED.length <= 1}>
-          <Icon name="trash" size="sm" />
-          Eliminar
-        </button>
-      </div>
-      <p className="sub" style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)' }}>
-        Disponible en el selector «Respuesta predefinida…» del detalle de cada ticket.
-      </p>
+  const columns: Column<NotificationTemplate>[] = [
+    { key: 'code', header: 'Código', className: 'mono strong', sort: (t) => t.code, render: (t) => t.code },
+    { key: 'channel', header: 'Canal', render: (t) => t.channel },
+    { key: 'category', header: 'Categoría', render: (t) => categoryOf(t.category) },
+    { key: 'active', header: 'Estado', render: (t) => <Chip kind={t.is_active ? 'ok' : 'neutral'}>{t.is_active ? 'Activa' : 'Inactiva'}</Chip> },
+    { key: 'updated', header: 'Actualizada', className: 'nw', render: (t) => fDateTime(t.updated_at) },
+    { key: 'actions', header: '', align: 'r', render: (t) => <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+      {can('automation.notification_template.update') ? <><button type="button" className="btn sm" onClick={() => setEditing(t)}>Editar</button><TestButton template={t} /></> : null}
+      {can('automation.notification_template.delete') ? <button type="button" className="btn sm danger" onClick={() => void remove(t)}>Eliminar</button> : null}
+    </div> },
+  ];
+
+  return <>
+    <PageHead crumbs={[[ 'Configuración', 'ajustes' ], [ 'Plantillas de correo', 'plantillas' ]]} title="Plantillas de correo" sub="Plantillas de correo para avisos y respuestas de soporte." />
+    <section className="card">
+      <div className="card-h"><div><h2>Plantillas de correo</h2><p>Administre los mensajes automáticos y las respuestas de notificación.</p></div></div>
+      {!can('automation.notification_template.view') ? <div className="card-b"><Note kind="warn">No tiene permiso para consultar plantillas.</Note></div> : <>
+        <Toolbar count={result.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} plantillas`}>
+          <input className="input" aria-label="Buscar plantillas" placeholder="Buscar por código" value={query} onChange={(e) => { setQuery(e.target.value); setCursor(null); }} />
+          <Select label="Canal" value={channel} onChange={(v) => { setChannel(v); setCursor(null); }} options={ [['', 'Todos los canales'], ['email', 'Correo']] } />
+          <Select label="Categoría" value={category} onChange={(v) => { setCategory(v); setCursor(null); }} options={ [['', 'Todas las categorías'], ...CATEGORY_OPTIONS] } />
+          <Select label="Estado" value={active} onChange={(v) => { setActive(v); setCursor(null); }} options={ [['', 'Todos los estados'], ['true', 'Activas'], ['false', 'Inactivas']] } />
+          {can('automation.notification_template.create') ? <button type="button" className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size="sm" /> Nueva plantilla</button> : null}
+        </Toolbar>
+        {result.error ? <div className="card-b"><Note kind="warn">No se pudieron cargar plantillas: {errorText(result.error)} <button className="btn sm" onClick={result.reload}>Reintentar</button></Note></div>
+          : result.loading && !result.data ? <Skeleton variant="table" rows={4} />
+            : !rows.length ? <EmptyState title="Sin plantillas" text="Cree una plantilla para empezar a enviar notificaciones." />
+              : <><DataTable columns={columns} rows={rows} rowKey={(t) => t.id} caption="Plantillas de notificación" />
+                {meta?.prev_cursor || meta?.next_cursor ? <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button className="btn sm" disabled={result.loading || !meta.prev_cursor} onClick={() => setCursor(meta.prev_cursor)}>Anterior</button>
+                  <button className="btn sm" disabled={result.loading || !meta.next_cursor} onClick={() => setCursor(meta.next_cursor)}>Siguiente</button>
+                </div> : null}</>}
+      </>}
+    </section>
+    {editing ? <TemplateForm template={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} onSaved={changed} /> : null}
+  </>;
+}
+
+function TemplateForm({ template, onClose, onSaved }: { template?: NotificationTemplate; onClose: () => void; onSaved: () => void }) {
+  const can = useCan();
+  const { toast } = useApp();
+  const [code, setCode] = useState(template?.code ?? '');
+  const [category, setCategory] = useState<NotificationCategory>(template?.category ?? 'notice');
+  const [subject, setSubject] = useState(template?.subject ?? '');
+  const [body, setBody] = useState(template?.body ?? '');
+  const [format, setFormat] = useState<'html' | 'plain'>(template?.content_format ?? 'html');
+  const [locale, setLocale] = useState(template?.locale ?? 'es');
+  const [active, setActive] = useState(template?.is_active ?? true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const submit = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true); setMessage('');
+    const input: NotificationTemplateInput = { code: code.trim(), channel: 'email', category, subject: subject.trim() || null, body, content_format: format, locale: locale.trim() || 'es', is_active: active };
+    try {
+      if (template) await hub.notifications.templates.update(template.id, template.version, input);
+      else await hub.notifications.templates.create(input);
+      toast(template ? 'Plantilla actualizada' : 'Plantilla creada', input.code); onSaved(); onClose();
+    } catch (e) {
+      setMessage(errorText(e));
+      if (isProblem(e) && e.code === 'version_conflict') { setMessage(`${errorText(e)} Se recargó el listado.`); onSaved(); }
+    } finally { setBusy(false); }
+  };
+  const maySave = can(template ? 'automation.notification_template.update' : 'automation.notification_template.create');
+  return <Modal open wide bare onClose={onClose} title={template ? `Editar ${template.code}` : 'Nueva plantilla de correo'}>
+    <form className="modal-b" onSubmit={(e) => void submit(e)}><div className="form-grid">
+      <label className="field">Código*<input required className="input" maxLength={160} value={code} onChange={(e) => setCode(e.target.value)} /></label>
+      <label className="field">Canal<select className="select" value="email" disabled><option value="email">Correo</option></select></label>
+      <label className="field">Categoría<select className="select" value={category} onChange={(e) => setCategory(e.target.value as NotificationCategory)}>{CATEGORY_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}</select></label>
+      <label className="field">Formato<select className="select" value={format} onChange={(e) => setFormat(e.target.value as 'html' | 'plain')}><option value="html">HTML</option><option value="plain">Texto plano</option></select></label>
+      <label className="field full">Asunto<input className="input" maxLength={1000} value={subject} onChange={(e) => setSubject(e.target.value)} /></label>
+      <label className="field full">Cuerpo*<textarea required className="input" rows={12} value={body} onChange={(e) => setBody(e.target.value)} /></label>
+      <label className="field">Idioma<input className="input" maxLength={12} value={locale} onChange={(e) => setLocale(e.target.value)} /></label>
+      <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Activa</label>
     </div>
-  );
+    {format === 'html' ? <div style={{ marginTop: 12 }}><Note kind="warn">Para plantillas HTML, el backend rechaza contenido con &lt;script&gt;, &lt;iframe&gt;, &lt;object&gt;, &lt;embed&gt;, &lt;style&gt;, javascript: o atributos de evento como onload=.</Note></div> : null}
+    {message ? <p className="err" role="alert">{message}</p> : null}
+    <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy || !maySave}>{busy ? 'Guardando…' : 'Guardar plantilla'}</button></div></form>
+  </Modal>;
+}
+
+function TestButton({ template }: { template: NotificationTemplate }) {
+  const { toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setBusy(true); setMessage('');
+    try {
+      const delivery = await hub.notifications.test({ template_code: template.code, to: to.trim() });
+      toast('Prueba solicitada', `${template.code} · ${delivery.status}`); setOpen(false); setTo('');
+    } catch (e) { setMessage(errorText(e)); }
+    finally { setBusy(false); }
+  }
+  return <>
+    <button type="button" className="btn sm" onClick={() => { setMessage(''); setOpen(true); }}><Icon name="send" size="sm" /> Probar</button>
+    <Modal open={open} onClose={() => setOpen(false)} title="Enviar correo de prueba" sub={template.code} bare>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <label className="field">Enviar a*<input required type="email" maxLength={320} className="input" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        {message ? <p className="err" role="alert">{message}</p> : null}
+        <div className="modal-f"><button type="button" className="btn" onClick={() => setOpen(false)}>Cancelar</button><button className="btn primary" disabled={busy}>{busy ? 'Enviando…' : 'Enviar prueba'}</button></div>
+      </form>
+    </Modal>
+  </>;
 }

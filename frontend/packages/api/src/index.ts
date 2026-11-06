@@ -17,6 +17,7 @@ import { createMonitoringApi } from './monitoring';
 import { createInventoryApi } from './inventory';
 import { createFinanceApi } from './finance';
 import { createBrandsApi } from './brands';
+import { createNotificationsApi } from './notifications';
 
 export * from './http';
 export * from './auth';
@@ -37,13 +38,14 @@ export * from './monitoring';
 export * from './inventory';
 export * from './finance';
 export * from './brands';
+export * from './notifications';
 
 /** Crea un cliente con su propia configuración (p. ej. otro baseUrl). */
 export function createHubApi(opts: HttpClientOptions = {}) {
   const http = new HttpClient(opts);
   const billing = createBillingApi(http);
   /** `invoices` es alias de `billing` (comprobantes de M-BIL). */
-  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http) };
+  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http), notifications: createNotificationsApi(http) };
 }
 
 /** Cliente por defecto: mismo origen (proxy de Vite en desarrollo). */
