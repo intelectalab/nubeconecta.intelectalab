@@ -23,4 +23,5 @@ return [
     App\Modules\Monitoring\MonitoringServiceProvider::class,
     App\Modules\Inventory\InventoryServiceProvider::class,
     App\Modules\Finance\FinanceServiceProvider::class,
+    App\Modules\Files\FilesServiceProvider::class,
 ];

@@ -54,6 +54,12 @@ return [
         'brand' => env('HUB_PORTAL_BRAND', 'AlojamientoPlus'),
     ],
 
+    'files' => [
+        'disk' => env('FILES_DISK', 'local'),
+        'max_bytes' => 10485760,
+        'mime_whitelist' => ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+    ],
+
     // Claves que nunca se guardan en before/after de la auditoría.
     'audit' => [
         'redact' => ['password', 'password_confirmation', 'current_password', 'new_password', 'password_hash', 'session_token_hash', 'preview_token', 'mfa_secret', 'token', 'code_hash', 'secret', 'recovery_codes'],
