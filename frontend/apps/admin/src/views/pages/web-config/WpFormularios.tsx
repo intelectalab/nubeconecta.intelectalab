@@ -105,6 +105,7 @@ export default function WpFormularios({ sel, setSel }: { sel: string; setSel: (i
 
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
+      <Note kind="warn" icon="info">Pendiente de backend: el plugin expone lectura y envío públicos de formularios, pero el backend no ofrece CRUD administrativo para el constructor.</Note>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginBottom: 14 }}>
         <label className="field" htmlFor="fmSel">
           Formulario

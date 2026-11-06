@@ -7,6 +7,7 @@ import { catName } from '../comercial/catalogData';
 import { ScPreview } from './previews';
 import { ScBox } from './shared';
 import { scCode, scOpts, scValues, type ScVals } from './wpData';
+import { Note } from '../../../components/ui';
 
 const lbl = (k: string): string => {
   const l = k.replace('_', ' ');
@@ -20,6 +21,7 @@ export default function WpGenerador({ name, setName, vals, setVals, brand, setBr
   const set = (k: string, x: string | number | boolean) => setVals({ ...vals, [sc + '.' + k]: x });
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
+      <Note kind="warn" icon="info">Pendiente de backend: el generador depende de la configuración de shortcodes del plugin; no existe un endpoint administrativo para leer o guardar esta configuración.</Note>
       <div className="grid g-2">
         <div className="stack">
           <div className="form-grid">

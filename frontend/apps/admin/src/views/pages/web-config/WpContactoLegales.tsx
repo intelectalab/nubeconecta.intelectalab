@@ -52,6 +52,7 @@ export function WpContacto({ brand, setBrand }: { brand: BrandId; setBrand: (b: 
   };
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
+      <Note kind="warn" icon="info">Pendiente de backend: hay permisos de puntos de contacto, pero no se encontró una ruta administrativa CRUD disponible en el módulo; esta sección sigue usando datos de muestra.</Note>
       <div className="grid g-2">
         <div className="form-grid">
           <label className="field full" htmlFor="ctB">
@@ -140,6 +141,7 @@ export function WpLegales({ brand, setBrand }: { brand: BrandId; setBrand: (b: B
 
   return (
     <>
+      <div className="card-b" style={{ paddingTop: 12 }}><Note kind="warn" icon="info">Pendiente de backend: el plugin tiene lectura pública de documentos legales, pero no hay endpoints administrativos de edición o publicación en el módulo.</Note></div>
       <div className="toolbar">
         <label className="field" htmlFor="lgB">
           Marca
