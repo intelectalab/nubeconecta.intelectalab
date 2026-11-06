@@ -21,6 +21,7 @@ import { PageSkeleton } from './components/ui';
 import { ViewBoundary } from './components/ViewBoundary';
 import { ROLE_NAMES } from './data/config';
 import { AuthGate } from './auth/AuthGate';
+import { DEMO_MODE } from './auth/client';
 import { initials, useSession } from './auth/session';
 import { BRANDS, notifs } from './data/db';
 import type { BrandFilter, CurView, RoleName } from './data/types';
@@ -232,9 +233,11 @@ function Shell() {
               Alojamiento<span>Plus</span>
             </b>
           </a>
-          <span className="demo-badge" title="Toda la información mostrada es ficticia">
-            Datos de ejemplo
-          </span>
+          {DEMO_MODE ? (
+            <span className="demo-badge" title="Toda la información mostrada es ficticia">
+              Datos de ejemplo
+            </span>
+          ) : null}
           <button type="button" className="tb-search" onClick={() => { setPop(null); setPalOpen(true); }} aria-label="Buscar (Ctrl+K)">
             <Icon name="search" size="sm" />
             <span>Buscar clientes, dominios, facturas…</span>
