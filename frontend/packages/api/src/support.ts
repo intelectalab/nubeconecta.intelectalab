@@ -1,5 +1,6 @@
 import { newIdempotencyKey, toQuery, type HttpClient } from './http';
 import type { CursorPage, ListParams } from './customers';
+import type { FileAttachment } from './files';
 
 export type TicketType = 'incident' | 'request' | 'question' | 'billing' | 'complaint' | 'security';
 export type TicketStatus = 'new' | 'open' | 'in_progress' | 'waiting_customer' | 'waiting_provider' | 'escalated' | 'resolved' | 'closed' | 'reopened';
@@ -18,6 +19,8 @@ export interface Ticket {
   resolution_due_at: string | null; sla_breached: boolean; resolved_at: string | null; closed_at: string | null;
   department: string | null; category: string | null; level: number; version: number; created_at: string;
   messages: TicketMessage[];
+  /** Adjuntos ligados al ticket (solo presente en el detalle). */
+  attachments?: FileAttachment[];
 }
 export interface TicketInput {
   customer_id?: string | null; contact_id?: string | null; brand_id?: string | null; type?: TicketType;

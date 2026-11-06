@@ -10,6 +10,8 @@ use App\Modules\Settings\Models\Holiday;
 use App\Shared\Organization\CurrentOrganization;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Feature\Identity\IdentityTestCase;
 
@@ -35,6 +37,24 @@ final class SupportTest extends IdentityTestCase
         $this->postJson("/api/v1/admin/tickets/{$ticket}/messages", ['channel' => 'internal', 'body' => 'Revisar el acceso', 'is_internal' => true])->assertCreated()->assertJsonPath('data.is_internal', true);
         $this->patchJson("/api/v1/admin/tickets/{$ticket}", ['version' => 2, 'status' => 'open'])->assertOk()->assertJsonPath('data.status', 'open');
         $this->getJson('/api/v1/admin/tickets/'.Str::uuid())->assertNotFound();
+    }
+
+    public function test_ticket_show_includes_uploaded_attachments(): void
+    {
+        Storage::fake('local');
+        config(['hub.files.disk' => 'local']);
+        $ticket = $this->postJson('/api/v1/admin/tickets', ['brand_id' => $this->brand, 'channel' => 'portal', 'subject' => 'Adjunto evidencia'])->assertCreated()->json('data.id');
+
+        $fileId = $this->post('/api/v1/admin/files', [
+            'file' => UploadedFile::fake()->image('captura.jpg'),
+            'attachable_type' => 'ticket',
+            'attachable_id' => $ticket,
+        ])->assertCreated()->json('data.id');
+
+        $this->getJson("/api/v1/admin/tickets/{$ticket}")
+            ->assertOk()
+            ->assertJsonPath('data.attachments.0.id', $fileId)
+            ->assertJsonPath('data.attachments.0.original_name', 'captura.jpg');
     }
 
     public function test_complaint_and_official_response(): void

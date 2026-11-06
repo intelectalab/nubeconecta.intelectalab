@@ -1,10 +1,13 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { isProblem, type TicketMessageChannel, type TicketStatus } from '@hub/api';
+import { hub } from '../../../auth/client';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
 import { Chip, Note, Skeleton } from '../../../components/ui';
 import { errorText, useCan, useLoad } from '../clientes/shared';
 import { supportApi } from './api';
+
+const fileSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 const STATUSES: [TicketStatus, string][] = [['new', 'Nuevo'], ['open', 'Abierto'], ['in_progress', 'En progreso'], ['waiting_customer', 'Esperando cliente'], ['waiting_provider', 'Esperando proveedor'], ['escalated', 'Escalado'], ['resolved', 'Resuelto'], ['closed', 'Cerrado'], ['reopened', 'Reabierto']];
 const NEXT: Record<TicketStatus, TicketStatus[]> = {
@@ -23,8 +26,31 @@ export default function TicketDetail({ id }: { id: string }) {
   const [body, setBody] = useState('');
   const [internal, setInternal] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const write = can('helpdesk.ticket.update');
   const messageWrite = can('helpdesk.ticket_message.create');
+  const fileWrite = can('identity.file.create');
+  const fileDelete = can('identity.file.delete');
+
+  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; const t = detail.data;
+    e.target.value = '';
+    if (!file || !t) return;
+    setUploading(true);
+    try { await hub.files.upload(file, { attachable_type: 'ticket', attachable_id: t.id }); toast('Adjunto subido', file.name); detail.reload(); }
+    catch (err) { toast(isProblem(err) && err.status === 422 ? 'Archivo no permitido' : 'No se pudo subir el adjunto', errorText(err), 'err'); }
+    finally { setUploading(false); }
+  };
+  const openFile = async (fileId: string) => {
+    try { const f = await hub.files.get(fileId); if (f.url) window.open(f.url, '_blank', 'noopener'); else toast('El adjunto no está disponible', '', 'err'); }
+    catch (err) { toast('No se pudo abrir el adjunto', errorText(err), 'err'); }
+  };
+  const removeFile = async (fileId: string, version: number) => {
+    if (!window.confirm('¿Eliminar este adjunto? Esta acción no se puede deshacer.')) return;
+    try { await hub.files.remove(fileId, version); toast('Adjunto eliminado', '', 'warn'); detail.reload(); }
+    catch (err) { toast('No se pudo eliminar el adjunto', errorText(err), 'err'); detail.reload(); }
+  };
 
   const changeStatus = async (status: TicketStatus) => {
     const t = detail.data;
@@ -58,6 +84,19 @@ export default function TicketDetail({ id }: { id: string }) {
             <label className="check"><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Nota interna</label>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn primary" disabled={busy || !body.trim()}><Icon name="send" size="sm" /> {busy ? 'Enviando…' : 'Enviar'}</button></div>
           </form> : null}
+        </section>
+        <section className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h"><h2 className="sec">Adjuntos</h2>{fileWrite ? <>
+            <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style={{ display: 'none' }} onChange={(e) => void upload(e)} />
+            <button className="btn sm" type="button" disabled={uploading} onClick={() => fileInput.current?.click()}><Icon name="plus" size="sm" /> {uploading ? 'Subiendo…' : 'Adjuntar'}</button>
+          </> : null}</div>
+          {(detail.data.attachments ?? []).length ? <ul className="card-b" style={{ display: 'grid', gap: 8, listStyle: 'none', margin: 0 }}>{(detail.data.attachments ?? []).map((f) => <li key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Icon name="file" size="sm" />
+            <button type="button" className="rowlink" onClick={() => void openFile(f.id)}>{f.original_name}</button>
+            <span className="sub">{fileSize(f.size_bytes)}</span>
+            {f.scan_status === 'infected' ? <Chip kind="warn">Infectado</Chip> : f.scan_status === 'pending' ? <Chip>Sin escanear</Chip> : null}
+            {fileDelete ? <button className="btn sm ghost" type="button" onClick={() => void removeFile(f.id, f.version)} aria-label={`Eliminar ${f.original_name}`}><Icon name="trash" size="sm" /></button> : null}
+          </li>)}</ul> : <div className="card-b sub">Sin archivos adjuntos. Se permiten imágenes (JPG, PNG, WEBP) y PDF, hasta 10 MB.</div>}
         </section>
         <section className="card"><div className="card-h"><h2 className="sec">Detalles</h2></div><div className="card-b" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           <div><small className="sub">Estado</small><div>{write ? <select className="select" value={detail.data.status} onChange={(e) => void changeStatus(e.target.value as TicketStatus)}><option value={detail.data.status}>{statusLabel(detail.data.status)}</option>{NEXT[detail.data.status].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select> : statusLabel(detail.data.status)}</div></div>

@@ -13,6 +13,10 @@ import type { RouteId } from './routeMeta';
 export type NavCounts = Partial<Record<RouteId, [number, boolean]>>;
 
 export function navCounts(brand: BrandFilter): NavCounts {
+  // En producción (datos reales) no se calculan contadores desde los datos de
+  // ejemplo: evita badges falsos (p. ej. "Cobranza 85") sobre una base vacía.
+  // Los contadores reales llegan por API en useLiveNavCounts.
+  if (!DEMO_MODE) return {};
   const inv = fInv(brand);
   return {
     cobranza: [vouchers.filter((v) => v.st === 'Por validar' && inBrand(brand, v.cid)).length + inv.filter((v) => v.status === 'Vencida').length, true],

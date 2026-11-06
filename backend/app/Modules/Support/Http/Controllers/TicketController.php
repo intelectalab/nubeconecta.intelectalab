@@ -41,7 +41,7 @@ final class TicketController
         return CursorPagination::respond($query, $request, ['number', 'created_at', 'updated_at'], TicketResource::class, '-created_at');
     }
 
-    public function show(string $id): TicketResource { return new TicketResource(Ticket::query()->whereNull('deleted_at')->with(['messages.authorUser:id,name', 'messages.authorContact:id,name'])->findOrFail($id)); }
+    public function show(string $id): TicketResource { return new TicketResource(Ticket::query()->whereNull('deleted_at')->with(['messages.authorUser:id,name', 'messages.authorContact:id,name', 'attachments'])->findOrFail($id)); }
 
     public function store(Request $request): JsonResponse
     {

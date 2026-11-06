@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Support\Models;
 
+use App\Modules\Files\Models\File;
 use App\Shared\Database\Concerns\BelongsToOrganization;
 use App\Shared\Database\Concerns\TracksVersionAndActor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -27,4 +28,10 @@ class Ticket extends Model
     }
 
     public function messages(): HasMany { return $this->hasMany(TicketMessage::class)->orderBy('created_at'); }
+
+    /** Adjuntos ligados al ticket (archivos subidos con attachable_type='ticket'). */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(File::class, 'attachable_id')->where('attachable_type', 'ticket')->orderByDesc('created_at');
+    }
 }

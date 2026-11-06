@@ -18,6 +18,7 @@ final class FileResource extends JsonResource
             'size_bytes' => $this->size_bytes,
             'scan_status' => $this->scan_status,
             'visibility' => $this->visibility,
+            'version' => $this->version,
             'attachable_type' => $this->attachable_type,
             'attachable_id' => $this->attachable_id,
             'created_at' => $this->created_at,

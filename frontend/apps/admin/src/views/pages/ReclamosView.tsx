@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { isProblem, type Complaint, type ComplaintDocumentType, type ComplaintInput, type ComplaintStatus, type ComplaintType } from '@hub/api';
+import { hub } from '../../auth/client';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { Icon } from '../../components/Icon';
@@ -107,8 +108,14 @@ function ComplaintDetail({ id }: { id: string }) {
   const [reply, setReply] = useState('');
   const [preview, setPreview] = useState<{ body: string; previewedAt: string } | null>(null);
   const [testReason, setTestReason] = useState('');
+  const [evidence, setEvidence] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const c = detail.data;
+  const canAttach = can('identity.file.create');
+  const openFile = async (fileId: string) => {
+    try { const f = await hub.files.get(fileId); if (f.url) window.open(f.url, '_blank', 'noopener'); else toast('El adjunto no está disponible', '', 'err'); }
+    catch (err) { toast('No se pudo abrir el adjunto', errorText(err), 'err'); }
+  };
   const update = async (input: Partial<Pick<Complaint, 'status' | 'is_test' | 'test_reason'>>, success: string) => {
     if (!c) return;
     setBusy(true);
@@ -120,8 +127,10 @@ function ComplaintDetail({ id }: { id: string }) {
     if (!c || !preview) return;
     setBusy(true);
     try {
-      await supportApi.complaints.responses.add(c.id, { body: preview.body, body_html: bodyHtml(preview.body), previewed_at: preview.previewedAt, is_final: true });
-      toast('Respuesta oficial registrada', c.consumer_email); setReply(''); setPreview(null); detail.reload();
+      let file_id: string | undefined;
+      if (evidence) { const f = await hub.files.upload(evidence, { visibility: 'customer' }); file_id = f.id; }
+      await supportApi.complaints.responses.add(c.id, { body: preview.body, body_html: bodyHtml(preview.body), previewed_at: preview.previewedAt, is_final: true, file_id });
+      toast('Respuesta oficial registrada', c.consumer_email); setReply(''); setPreview(null); setEvidence(null); detail.reload();
     } catch (err) { toast(isProblem(err) && err.status === 422 ? 'Revise los campos' : 'No se pudo registrar la respuesta', errorText(err), 'err'); if (isProblem(err) && (err.status === 409 || err.code === 'version_conflict')) detail.reload(); }
     finally { setBusy(false); }
   };
@@ -151,9 +160,9 @@ function ComplaintDetail({ id }: { id: string }) {
           <div style={{ gridColumn: '1 / -1' }}><small className="sub">Detalle</small><p style={{ whiteSpace: 'pre-wrap' }}>{c.detail}</p></div><div style={{ gridColumn: '1 / -1' }}><small className="sub">Pedido del consumidor</small><p style={{ whiteSpace: 'pre-wrap' }}>{c.consumer_request}</p></div>
         </div></section>
         <section className="card" style={{ marginBottom: 16 }}><div className="card-h"><h2 className="sec">Respuestas oficiales</h2></div>
-          {c.responses.length ? <ol className="thread" aria-label="Respuestas oficiales">{c.responses.map((r) => <li key={r.id} className="msg agente"><div className="mh"><b>Respuesta oficial</b><time>{dateTime(r.sent_at)}</time></div><p style={{ whiteSpace: 'pre-wrap' }}>{r.body}</p><div className="sub">Enviada a {r.sent_to_email}{r.is_final ? ' · Final' : ''}</div></li>)}</ol> : <div className="card-b sub">Todavía no hay respuestas registradas.</div>}
-          {can('helpdesk.complaint.respond') && c.status !== 'answered' && c.status !== 'closed' ? <form className="composer" onSubmit={(e) => { e.preventDefault(); setPreview({ body: reply.trim(), previewedAt: new Date().toISOString() }); }}><label className="field">Respuesta al consumidor<textarea className="textarea" rows={5} required value={reply} onChange={(e) => { setReply(e.target.value); setPreview(null); }} /></label><div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn" type="submit" disabled={!reply.trim()}>Previsualizar respuesta</button></div></form> : null}
-          {preview ? <div className="card-b" style={{ borderTop: '1px solid var(--line)' }}><h3 className="sec">Vista previa · {dateTime(preview.previewedAt)}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{preview.body}</p><button className="btn primary" type="button" disabled={busy} onClick={() => void sendResponse()}>{busy ? 'Registrando…' : 'Registrar y enviar respuesta oficial'}</button>{' '}<button className="btn" type="button" onClick={() => setPreview(null)}>Editar</button></div> : null}
+          {c.responses.length ? <ol className="thread" aria-label="Respuestas oficiales">{c.responses.map((r) => <li key={r.id} className="msg agente"><div className="mh"><b>Respuesta oficial</b><time>{dateTime(r.sent_at)}</time></div><p style={{ whiteSpace: 'pre-wrap' }}>{r.body}</p><div className="sub">Enviada a {r.sent_to_email}{r.is_final ? ' · Final' : ''}{r.file_id ? <> · <button type="button" className="rowlink" onClick={() => void openFile(r.file_id!)}>Ver adjunto</button></> : ''}</div></li>)}</ol> : <div className="card-b sub">Todavía no hay respuestas registradas.</div>}
+          {can('helpdesk.complaint.respond') && c.status !== 'answered' && c.status !== 'closed' ? <form className="composer" onSubmit={(e) => { e.preventDefault(); setPreview({ body: reply.trim(), previewedAt: new Date().toISOString() }); }}><label className="field">Respuesta al consumidor<textarea className="textarea" rows={5} required value={reply} onChange={(e) => { setReply(e.target.value); setPreview(null); }} /></label>{canAttach ? <label className="field">Evidencia adjunta (opcional · imagen o PDF, máx. 10 MB)<input className="input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setEvidence(e.target.files?.[0] ?? null)} /></label> : null}<div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn" type="submit" disabled={!reply.trim()}>Previsualizar respuesta</button></div></form> : null}
+          {preview ? <div className="card-b" style={{ borderTop: '1px solid var(--line)' }}><h3 className="sec">Vista previa · {dateTime(preview.previewedAt)}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{preview.body}</p>{evidence ? <p className="sub">Se adjuntará: {evidence.name}</p> : null}<button className="btn primary" type="button" disabled={busy} onClick={() => void sendResponse()}>{busy ? 'Registrando…' : 'Registrar y enviar respuesta oficial'}</button>{' '}<button className="btn" type="button" onClick={() => setPreview(null)}>Editar</button></div> : null}
         </section>
       </>}
   </>;
