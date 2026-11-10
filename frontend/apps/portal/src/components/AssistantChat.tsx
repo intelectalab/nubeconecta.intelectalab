@@ -72,7 +72,7 @@ export interface AssistantChatProps {
 export const AssistantChat: FC<AssistantChatProps> = ({ userName, onOpenTicket }) => {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>(() => [
-    { from: 'bot', text: `¡Hola${userName ? `, ${userName}` : ''}! Soy el asistente de AlojamientoPlus. ¿En qué puedo ayudarte hoy?`, at: now() },
+    { from: 'bot', text: `¡Hola${userName ? `, ${userName}` : ''}! Soy el asistente de NubeConecta. ¿En qué puedo ayudarte hoy?`, at: now() },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -156,10 +156,10 @@ export const AssistantChat: FC<AssistantChatProps> = ({ userName, onOpenTicket }
         type="button"
         className={`chat-launcher${open ? ' is-open' : ''}`}
         onClick={() => (open ? close() : setOpen(true))}
-        aria-label={open ? 'Cerrar asistente' : 'Abrir asistente AlojamientoPlus'}
+        aria-label={open ? 'Cerrar asistente' : 'Abrir asistente NubeConecta'}
         aria-expanded={open}
         aria-controls={panelId}
-        title="Asistente AlojamientoPlus"
+        title="Asistente NubeConecta"
       >
         {open ? <CloseIcon /> : <ChatIcon />}
       </button>
@@ -169,7 +169,7 @@ export const AssistantChat: FC<AssistantChatProps> = ({ userName, onOpenTicket }
         className={`chat${open ? ' open' : ''}`}
         role="dialog"
         aria-modal="false"
-        aria-label="Asistente AlojamientoPlus"
+        aria-label="Asistente NubeConecta"
         hidden={!open}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
@@ -183,7 +183,7 @@ export const AssistantChat: FC<AssistantChatProps> = ({ userName, onOpenTicket }
             <ChatIcon />
           </span>
           <div className="ttl">
-            <b id={titleId}>Asistente AlojamientoPlus</b>
+            <b id={titleId}>Asistente NubeConecta</b>
             <small>
               <i className="online" aria-hidden="true" /> {typing ? 'Escribiendo…' : 'En línea · responde al instante'}
             </small>

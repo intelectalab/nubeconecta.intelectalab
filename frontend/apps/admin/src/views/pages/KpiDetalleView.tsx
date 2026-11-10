@@ -106,7 +106,7 @@ function KpiDetail({ k }: { k: KpiDef }) {
   useEffect(() => () => window.clearTimeout(qt.current), []);
 
   useEffect(() => {
-    document.title = `${k.n} · Panel AlojamientoPlus`;
+    document.title = `${k.n} · Panel NubeConecta`;
   }, [k.n]);
 
   const sp = KDS[k.id];

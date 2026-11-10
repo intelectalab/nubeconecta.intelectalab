@@ -256,13 +256,13 @@ export function PortalShell({ user, account, demo, cur, onCur, route, go, nav, c
         <button type="button" className="tb-btn" onClick={() => { if (isMobile()) setDrawer((v) => !v); }} aria-label="Abrir o plegar menú" aria-controls="sidebar" aria-expanded={drawer}>
           <MenuIcon />
         </button>
-        <a className="logo" href="#resumen" onClick={link('resumen')} aria-label="AlojamientoPlus, ir al resumen del portal">
+        <a className="logo" href="#resumen" onClick={link('resumen')} aria-label="NubeConecta, ir al resumen del portal">
           <svg viewBox="0 0 48 36" aria-hidden="true">
             <path d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z" fill="none" stroke="#5f9a32" strokeWidth="3.2" strokeLinejoin="round" />
             <path d="M25.6 9.5 17.8 21h6l-2.2 9.5L31 17.6h-6.2l2.6-8.1z" fill="#f2b71a" stroke="#f2b71a" strokeWidth="1" strokeLinejoin="round" />
           </svg>
           <b>
-            Alojamiento<span>Plus</span>
+            Nube<span>Conecta</span>
           </b>
         </a>
         <span className={`demo-badge${demo ? '' : ' live'}`} title={demo ? 'Toda la información mostrada es ficticia' : 'Información real de su cuenta'}>

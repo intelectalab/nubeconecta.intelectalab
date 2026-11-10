@@ -21,7 +21,7 @@ export const AuthLogo: FC = () => (
       />
     </svg>
     <b>
-      Alojamiento<span>Plus</span>
+      Nube<span>Conecta</span>
     </b>
   </span>
 );
@@ -50,7 +50,7 @@ export const AuthArt: FC = () => (
             />
           </svg>
           <b>
-            Alojamiento<span style={{ color: '#c9d8ff' }}>Plus</span>
+            Nube<span style={{ color: '#c9d8ff' }}>Conecta</span>
           </b>
         </span>
       </div>
@@ -58,7 +58,7 @@ export const AuthArt: FC = () => (
       <div style={{ display: 'grid', gap: 14 }}>
         <h2>Tu infraestructura en la nube, dominios y finanzas bajo control</h2>
         <p>
-          Portal seguro para clientes corporativos de AlojamientoPlus. Supervisa tus servidores, renueva dominios, paga facturas con comprobantes SUNAT y contacta a la guardia técnica 24/7.
+          Portal seguro para clientes corporativos de NubeConecta. Supervisa tus servidores, renueva dominios, paga facturas con comprobantes SUNAT y contacta a la guardia técnica 24/7.
         </p>
 
         <ul>
@@ -87,7 +87,7 @@ export const AuthArt: FC = () => (
       </div>
 
       <div className="auth-art-foot">
-        <span>AlojamientoPlus · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117</span>
+        <span>NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117</span>
         <span>Soporte NOC: guardia@alojamientoplus.pe</span>
       </div>
     </div>

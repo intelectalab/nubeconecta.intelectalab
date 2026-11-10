@@ -245,7 +245,7 @@ export const LoginView: FC<LoginViewProps> = ({ onLoggedIn, notice, changeFor })
         />
       </svg>
       <b>
-        Alojamiento<span>Plus</span>
+        Nube<span>Conecta</span>
       </b>
     </span>
   );
@@ -467,7 +467,7 @@ export const LoginView: FC<LoginViewProps> = ({ onLoggedIn, notice, changeFor })
               <div className="note" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 <Icon name="shield" className="sm" />
                 <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                  Abre tu aplicación (Google Authenticator, Microsoft Authenticator o 1Password) y copia el código de <b>AlojamientoPlus</b>.
+                  Abre tu aplicación (Google Authenticator, Microsoft Authenticator o 1Password) y copia el código de <b>NubeConecta</b>.
                 </div>
               </div>
             )}

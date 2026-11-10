@@ -113,7 +113,7 @@ function Shell() {
     setPop(null);
     if (isMobile()) setDrawer(false);
     if (mainRef.current) mainRef.current.scrollTop = 0;
-    document.title = `${ROUTE_META[route].t} · Panel AlojamientoPlus`;
+    document.title = `${ROUTE_META[route].t} · Panel NubeConecta`;
     const t = window.setTimeout(() => setLoading(false), reducedMotion() ? 60 : 240);
     return () => window.clearTimeout(t);
   }, [route, param, navSeq]);
@@ -227,10 +227,10 @@ function Shell() {
           <button ref={btnMenu} type="button" className="tb-btn" onClick={toggleNav} aria-label="Abrir o plegar menú" aria-controls="sidebar" aria-expanded={isMobile() ? drawer : !collapsed}>
             <Icon name="menu" />
           </button>
-          <a className="logo" href="#inicio" aria-label="AlojamientoPlus, ir al inicio">
+          <a className="logo" href="#inicio" aria-label="NubeConecta, ir al inicio">
             <LogoMark />
             <b>
-              Alojamiento<span>Plus</span>
+              Nube<span>Conecta</span>
             </b>
           </a>
           {DEMO_MODE ? (

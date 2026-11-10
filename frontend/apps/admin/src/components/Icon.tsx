@@ -85,7 +85,7 @@ export function SevIcon({ sev, small }: { sev: Sev; small?: boolean }) {
   );
 }
 
-/** Logo AlojamientoPlus (nube + rayo) del prototipo. */
+/** Logo NubeConecta (nube + rayo) del prototipo. */
 export function LogoMark({ cloud = '#5f9a32', bolt = '#f2b71a' }: { cloud?: string; bolt?: string }) {
   return (
     <svg viewBox="0 0 48 36" aria-hidden="true">
