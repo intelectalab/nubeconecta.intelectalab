@@ -3103,6 +3103,40 @@
       "notes": "Propuesta del kit."
     },
     {
+      "key": "web_connector.embed.cache_seconds",
+      "group": "Conector web (WordPress)",
+      "description": "Segundos de caché HTTP de las respuestas al widget embebible (Cache-Control y ETag).",
+      "type": "integer",
+      "default": 60,
+      "requires_definition": false,
+      "levels": ["global", "brand"],
+      "edit_roles": ["admin"],
+      "edit_permission": "settings.setting.update",
+      "unit": "seconds"
+    },
+    {
+      "key": "web_connector.embed.max_origins",
+      "group": "Conector web (WordPress)",
+      "description": "Máximo de orígenes permitidos por sitio de tipo embed.",
+      "type": "integer",
+      "default": 5,
+      "requires_definition": false,
+      "levels": ["global"],
+      "edit_roles": ["admin"],
+      "edit_permission": "settings.setting.update"
+    },
+    {
+      "key": "web_connector.embed.requests_per_minute",
+      "group": "Conector web (WordPress)",
+      "description": "Límite de peticiones por minuto y por visitante (HMAC de la IP) con una clave publicable.",
+      "type": "integer",
+      "default": 120,
+      "requires_definition": false,
+      "levels": ["global"],
+      "edit_roles": ["admin"],
+      "edit_permission": "settings.setting.update"
+    },
+    {
       "key": "web_connector.stale_max_hours",
       "group": "Conector web (WordPress)",
       "description": "Horas durante las que el plugin sigue mostrando la última copia si el sistema no responde; pasado ese plazo muestra un aviso con los datos de contacto.",

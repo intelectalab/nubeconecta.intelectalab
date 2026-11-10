@@ -53,8 +53,18 @@ final class WebConnectorServiceProvider extends ServiceProvider
         $router->aliasMiddleware('wp.site', AuthenticateWpSite::class);
 
         // Límite por token del sitio; la doc no fija el valor (config hub.web_connector).
-        RateLimiter::for('wp-plugin', fn (Request $request) => Limit::perMinute((int) config('hub.web_connector.requests_per_minute', 120))
-            ->by('wp:'.($request->attributes->get('wp_site_token_id') ?? $request->ip())));
+        RateLimiter::for('wp-plugin', function (Request $request): Limit {
+            if ($request->attributes->get('wp_site_token_scope') === 'embed') {
+                $site = $request->attributes->get('wp_site');
+                $ipHash = hash_hmac('sha256', (string) $request->ip(), (string) config('app.key'));
+
+                return Limit::perMinute(max(1, app(\App\Shared\Settings\SettingsReader::class)->int('web_connector.embed.requests_per_minute', 120)))
+                    ->by('wcn-embed:'.$site->organization_id.':'.$site->id.':'.$ipHash);
+            }
+
+            return Limit::perMinute((int) config('hub.web_connector.requests_per_minute', 120))
+                ->by('wp:'.($request->attributes->get('wp_site_token_id') ?? $request->ip()));
+        });
 
         Event::listen([BrandUpdated::class, BrandThemeVersionPublished::class, BrandThemeVersionReverted::class], InvalidateBrandSites::class);
         Event::listen([PlanChanged::class, PlanPriceChanged::class], InvalidateCatalogSites::class);

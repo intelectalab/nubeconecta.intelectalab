@@ -24,19 +24,20 @@ class WpSite extends Model
 
     protected $table = 'wp_sites';
 
-    protected $fillable = ['brand_id', 'name', 'base_url', 'network_site_id', 'webhook_url', 'allowed_origins', 'thank_you_url'];
+    protected $fillable = ['brand_id', 'name', 'base_url', 'network_site_id', 'kind', 'webhook_url', 'allowed_origins', 'thank_you_url'];
 
     protected $hidden = ['webhook_secret_id'];
 
     protected $appends = ['has_webhook_secret'];
 
-    protected $attributes = ['version' => 1, 'status' => 'pending', 'allowed_origins' => '{}'];
+    protected $attributes = ['version' => 1, 'status' => 'pending', 'kind' => 'wordpress', 'allowed_origins' => '{}'];
 
     protected function casts(): array
     {
         return [
             'allowed_origins' => PgTextArray::class,
             'network_site_id' => 'integer',
+            'kind' => 'string',
             'last_seen_at' => 'datetime',
             'last_invalidation_at' => 'datetime',
             'version' => 'integer',

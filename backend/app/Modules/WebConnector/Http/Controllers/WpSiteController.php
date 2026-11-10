@@ -43,11 +43,14 @@ final class WpSiteController extends ResourceController
         $required = $model === null ? 'required' : 'sometimes';
         $org = app(CurrentOrganization::class)->id();
         $https = 'regex:/^https:\/\/[a-z0-9.-]+(:[0-9]+)?(\/.*)?$/';
+        $kind = (string) $request->input('kind', $model?->kind ?? 'wordpress');
+        $maxOrigins = $kind === 'embed' ? max(0, app(\App\Shared\Settings\SettingsReader::class)->int('web_connector.embed.max_origins', 5)) : 20;
 
         return [
             'brand_id' => [$required, 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)->whereNull('deleted_at')],
             'name' => [$required, 'string', 'max:200'],
             'base_url' => [$required, 'string', 'max:500', $https],
+            'kind' => ['sometimes', 'in:wordpress,embed'],
             'network_site_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'webhook_url' => ['sometimes', 'nullable', 'string', 'max:500', $https, static function (string $attribute, mixed $value, \Closure $fail): void {
                 // SSRF: el destino no puede ser ni resolver a una red privada, local o de metadatos.
@@ -55,7 +58,7 @@ final class WpSiteController extends ResourceController
                     $fail($error);
                 }
             }],
-            'allowed_origins' => ['sometimes', 'array', 'max:20'],
+            'allowed_origins' => ['sometimes', 'array', 'max:'.$maxOrigins],
             'allowed_origins.*' => ['string', 'max:255', 'regex:/^https:\/\/[a-z0-9.-]+(:[0-9]+)?$/'],
             'thank_you_url' => ['sometimes', 'nullable', 'string', 'max:500', $https],
         ];
@@ -73,10 +76,23 @@ final class WpSiteController extends ResourceController
 
     protected function beforeSave(Model $model, array $data, bool $creating): void
     {
+        /** @var WpSite $model */
+        $model->kind = $model->kind ?: 'wordpress';
         if (isset($data['base_url'])) {
             $model->base_url = rtrim($data['base_url'], '/');
         }
-        if ($model->status === 'active' && $model->webhook_url === null) {
+        if ($model->kind === 'embed') {
+            if (count((array) $model->allowed_origins) < 1) {
+                throw \App\Shared\Http\Problem\ProblemException::validation(['allowed_origins' => ['Un sitio embed necesita al menos un origen permitido.']]);
+            }
+            if ($model->webhook_url !== null || $model->webhook_secret_id !== null) {
+                throw \App\Shared\Http\Problem\ProblemException::validation(['webhook_url' => ['Un sitio embed no puede tener webhook ni secreto de firma.']]);
+            }
+            if ($creating) {
+                $model->status = 'active';
+            }
+        }
+        if ($model->kind === 'wordpress' && $model->status === 'active' && ($model->webhook_url === null || $model->webhook_secret_id === null)) {
             throw \App\Shared\Http\Problem\ProblemException::validation(['webhook_url' => ['Un sitio activo necesita la ruta del plugin.']]);
         }
     }

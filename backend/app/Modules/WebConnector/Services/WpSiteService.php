@@ -58,16 +58,21 @@ final class WpSiteService
     }
 
     /** @return array{token: WpSiteToken, plain: string} */
-    public function createToken(WpSite $site, string $name): array
+    public function createToken(WpSite $site, string $name, ?string $scope = null): array
     {
+        $scope ??= $site->kind === 'embed' ? 'embed' : 'read';
+        if (($site->kind === 'embed' && $scope !== 'embed') || ($site->kind !== 'embed' && $scope !== 'read')) {
+            throw ProblemException::validation(['scope' => ['El alcance del token no corresponde al tipo de sitio.']]);
+        }
         $plain = 'hubwp_'.Str::random(48);
         $days = $this->settings->int('web_connector.token_expiry_days', 365);
 
-        $token = DB::transaction(function () use ($site, $name, $plain, $days): WpSiteToken {
+        $token = DB::transaction(function () use ($site, $name, $plain, $days, $scope): WpSiteToken {
             $token = new WpSiteToken(['name' => $name]);
             $token->forceFill([
                 'organization_id' => $site->organization_id,
                 'wp_site_id' => $site->id,
+                'scope' => $scope,
                 'token_hash' => hash('sha256', $plain),
                 'token_last_four' => substr($plain, -4),
                 'expires_at' => $days > 0 ? now()->addDays($days) : null,
@@ -113,13 +118,26 @@ final class WpSiteService
     public function activate(WpSite $site): WpSite
     {
         $errors = [];
+        if ($site->kind === 'embed') {
+            if (count((array) $site->allowed_origins) < 1) {
+                $errors['allowed_origins'][] = 'El sitio embed necesita por lo menos un origen permitido.';
+            }
+            if (! WpSiteToken::query()->where('wp_site_id', $site->id)->where('scope', 'embed')->usable()->exists()) {
+                $errors['tokens'][] = 'El sitio necesita un token embed vigente.';
+            }
+            if ($errors !== []) {
+                throw ProblemException::validation($errors);
+            }
+
+            return $this->changeStatus($site, 'active', null, 'wp_site.activated');
+        }
         if ($site->webhook_url === null) {
             $errors['webhook_url'][] = 'Falta la ruta del plugin.';
         }
         if ($site->webhook_secret_id === null) {
             $errors['webhook_secret'][] = 'Falta generar el secreto de firma.';
         }
-        if (! WpSiteToken::query()->where('wp_site_id', $site->id)->usable()->exists()) {
+        if (! WpSiteToken::query()->where('wp_site_id', $site->id)->where('scope', 'read')->usable()->exists()) {
             $errors['tokens'][] = 'El sitio necesita un token vigente.';
         }
         $secretCreated = $site->webhook_secret_id ? DB::table('secrets')->where('id', $site->webhook_secret_id)->value('last_rotated_at') : null;

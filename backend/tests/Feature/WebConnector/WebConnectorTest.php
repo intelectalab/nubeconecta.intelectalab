@@ -98,6 +98,8 @@ final class WebConnectorTest extends IdentityTestCase
     private function plugin(string $uri, ?string $token, array $headers = []): \Illuminate\Testing\TestResponse
     {
         $this->app['auth']->forgetGuards();
+        // Las solicitudes del plugin representan tráfico servidor a servidor, sin Origin.
+        $this->flushHeaders();
 
         return $this->getJson($uri, array_filter($headers + ['Authorization' => $token ? "Bearer {$token}" : null, 'X-Hub-Plugin-Version' => '1.2.0'], fn ($v) => $v !== null && $v !== ''));
     }
@@ -386,6 +388,8 @@ final class WebConnectorTest extends IdentityTestCase
     private function pluginPost(string $uri, ?string $token, array $body, array $headers = []): \Illuminate\Testing\TestResponse
     {
         $this->app['auth']->forgetGuards();
+        // El plugin reenvía el envío servidor a servidor, sin Origin (igual que plugin()).
+        $this->flushHeaders();
 
         return $this->postJson($uri, $body, array_filter($headers + ['Authorization' => $token ? "Bearer {$token}" : null, 'X-Hub-Plugin-Version' => '1.3.0'], fn ($v) => $v !== null && $v !== ''));
     }
@@ -731,5 +735,55 @@ final class WebConnectorTest extends IdentityTestCase
         $this->assertProblem($this->plugin("{$uri}?name=abe&tlds=pe", $token, $badHeader), 429, 'rate_limited');
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.12']);
         $this->plugin("{$uri}?name=abf&tlds=pe", $token, $badHeader)->assertOk();
+    }
+
+    public function test_embed_site_origin_scope_and_browser_security(): void
+    {
+        $brand = $this->brand('embed-test');
+        $uri = '/api/v1/admin/web-connector/sites';
+        $base = ['brand_id' => $brand, 'name' => 'Widget', 'base_url' => 'https://www.embed-test.test'];
+
+        $this->assertProblem($this->postJson($uri, $base + ['kind' => 'embed', 'allowed_origins' => []]), 422, 'validation_failed');
+        $tooMany = array_map(fn (int $n) => "https://web{$n}.embed-test.test", range(1, 6));
+        $this->assertProblem($this->postJson($uri, $base + ['kind' => 'embed', 'allowed_origins' => $tooMany]), 422, 'validation_failed');
+        $this->assertProblem($this->postJson($uri, $base + ['kind' => 'embed', 'allowed_origins' => ['https://shop.embed-test.test'], 'webhook_url' => 'https://www.embed-test.test/hook']), 422, 'validation_failed');
+
+        $origin = 'https://shop.embed-test.test';
+        $site = $this->postJson($uri, $base + ['kind' => 'embed', 'allowed_origins' => [$origin]])
+            ->assertCreated()->assertJsonPath('data.kind', 'embed')->assertJsonPath('data.status', 'active')->json('data.id');
+        $tokenUrl = "{$uri}/{$site}/tokens";
+        $this->assertProblem($this->postJson($tokenUrl, ['name' => 'Plugin equivocado', 'scope' => 'read']), 422, 'validation_failed');
+        $token = $this->postJson($tokenUrl, ['name' => 'Clave publicable', 'scope' => 'embed'])->assertCreated()->json('data.token');
+
+        $this->options('/api/v1/public/wp/catalog/plans', [], [
+            'Origin' => $origin,
+            'Access-Control-Request-Method' => 'GET',
+            'Access-Control-Request-Headers' => 'authorization,content-type',
+        ])->assertNoContent()->assertHeader('Access-Control-Allow-Origin', $origin)->assertHeader('Access-Control-Allow-Methods', 'GET, POST');
+        $this->getJson('/api/v1/public/wp/catalog/plans', ['Authorization' => "Bearer {$token}", 'Origin' => $origin])
+            ->assertOk()->assertHeader('Access-Control-Allow-Origin', $origin)->assertHeader('Vary', 'Origin');
+        $this->getJson('/api/v1/public/wp/catalog/plans', ['Authorization' => "Bearer {$token}", 'Origin' => 'https://otro.test'])
+            ->assertStatus(403)->assertJsonPath('code', 'origin_not_allowed');
+        $this->flushHeaders();
+        $this->getJson('/api/v1/public/wp/catalog/plans', ['Authorization' => "Bearer {$token}"])
+            ->assertStatus(403)->assertJsonPath('code', 'origin_not_allowed');
+        $this->postJson('/api/v1/admin/web-connector/sites', [], ['Authorization' => "Bearer {$token}", 'Origin' => $origin])
+            ->assertStatus(403);
+        $this->getJson('/api/v1/portal/auth/password-policy', ['Authorization' => "Bearer {$token}", 'Origin' => $origin])
+            ->assertStatus(403);
+        $this->postJson('/api/v1/public/communication-unsubscribes', [], ['Authorization' => "Bearer {$token}", 'Origin' => $origin])
+            ->assertStatus(403);
+        $this->assertSame(2, DB::table('audit_events')->where('entity_type', 'wp_site')->where('entity_id', $site)->where('action', 'wp_site.embed_origin_denied')->count());
+    }
+
+    public function test_read_token_is_rejected_when_sent_by_a_browser(): void
+    {
+        $brand = $this->brand('wordpress-origin');
+        ['token' => $token] = $this->activeSite($brand);
+        $this->getJson('/api/v1/public/wp/catalog/plans', [
+            'Authorization' => "Bearer {$token}",
+            'Origin' => 'https://www.marca-a.test',
+            'X-Hub-Plugin-Version' => '1.2.0',
+        ])->assertStatus(403);
     }
 }

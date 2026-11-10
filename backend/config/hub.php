@@ -95,6 +95,11 @@ return [
     // WebConnector (M-WCN): límite de la API del plugin por token (la doc no lo fija).
     'web_connector' => [
         'requests_per_minute' => (int) env('HUB_WP_REQUESTS_PER_MINUTE', 120),
+        'embed' => [
+            'cache_seconds' => 60,
+            'max_origins' => 5,
+            'requests_per_minute' => 120,
+        ],
     ],
 
     // Disponibilidad de dominios con RDAP/WHOIS públicos (D-35, solución inicial).

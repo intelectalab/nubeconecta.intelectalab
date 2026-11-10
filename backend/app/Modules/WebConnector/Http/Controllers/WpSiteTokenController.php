@@ -30,8 +30,8 @@ final class WpSiteTokenController
 
     public function store(Request $request, string $id): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
-        $result = $this->sites->createToken(WpSite::query()->findOrFail($id), $data['name']);
+        $data = $request->validate(['name' => ['required', 'string', 'max:120'], 'scope' => ['sometimes', 'in:read,embed']]);
+        $result = $this->sites->createToken(WpSite::query()->findOrFail($id), $data['name'], $data['scope'] ?? null);
 
         return response()->json(['data' => $result['token']->toArray() + ['token' => $result['plain']]], 201)->header('Cache-Control', 'no-store');
     }

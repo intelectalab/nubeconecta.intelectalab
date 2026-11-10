@@ -312,6 +312,10 @@ final class WpPublicController
     /** web_connector.cache_ttl_seconds es por marca (M-WCN §11). */
     private function ttl(Request $request): int
     {
+        if ($request->attributes->get('wp_site_token_scope') === 'embed') {
+            return max(0, (int) ($this->resolver->get('web_connector.embed.cache_seconds', ['brand' => $this->wpSite($request)->brand_id]) ?? 60));
+        }
+
         return max(0, (int) ($this->resolver->get('web_connector.cache_ttl_seconds', ['brand' => $this->wpSite($request)->brand_id]) ?? 600));
     }
 

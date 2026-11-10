@@ -120,7 +120,8 @@ final class CatalogTest extends IdentityTestCase
         DB::table('wp_sites')->insert(['id' => $site, 'organization_id' => $org, 'brand_id' => $this->brand, 'name' => 'Web AP', 'base_url' => 'https://www.ap.test']);
         $plain = 'demo-token-'.Str::random(20);
         DB::table('wp_site_tokens')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'wp_site_id' => $site, 'name' => 'Plugin', 'token_hash' => hash('sha256', $plain), 'token_last_four' => substr($plain, -4), 'expires_at' => now()->addDay()]);
-        $plans = $this->withHeaders(['Authorization' => "Bearer {$plain}", 'X-Hub-Plugin-Version' => '99.0.0'])
+        // El plugin consulta servidor a servidor, sin cabecera Origin.
+        $plans = $this->flushHeaders()->withHeaders(['Authorization' => "Bearer {$plain}", 'X-Hub-Plugin-Version' => '99.0.0'])
             ->getJson('/api/v1/public/wp/catalog/plans?type=hosting&currency=PEN')->assertOk();
         $codes = array_column($plans->json('data'), 'code');
         $this->assertContains('demo-hp2-a', $codes);

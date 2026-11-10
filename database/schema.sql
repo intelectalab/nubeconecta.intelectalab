@@ -16,7 +16,7 @@
 --     notification_deliveries, webhook_events, más dos auxiliares agregadas
 --     (notification_delivery_events, webhook_event_processings) que guardan el
 --     estado cambiante de avisos y webhooks sin modificar las filas originales,
---     y ai_messages (registro de conversaciones del asistente, docs/00 §25),
+    --     y ai_messages (registro de conversaciones del asistente, docs/00 §25),
 --     legal_acceptances (aceptación de documentos legales), lead_stage_changes
 --     (historial de etapas del CRM) y complaint_deletions (bitácora de hojas de
 --     prueba eliminadas del Libro de Reclamaciones) y rich_text_versions (historial
@@ -3844,6 +3844,7 @@ CREATE TABLE wp_sites (
     name               text NOT NULL,
     base_url           text NOT NULL,                  -- URL pública del sitio (https://www.servercreativo.com)
     network_site_id    integer NULL CHECK (network_site_id >= 1),   -- id del sitio dentro de WordPress Multisite (blog_id)
+    kind               text NOT NULL DEFAULT 'wordpress' CHECK (kind IN ('wordpress','embed')),
     status             text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','disabled')),
     webhook_url        text NULL,                      -- ruta REST del plugin que recibe la invalidación (…/wp-json/hub-connector/v1/invalidate)
     webhook_secret_id  uuid NULL REFERENCES secrets(id),   -- secreto HMAC de la firma en la bóveda (owner_type wp_site)
@@ -3862,7 +3863,8 @@ CREATE TABLE wp_sites (
     CHECK (webhook_url IS NULL OR webhook_url ~ '^https://'),
     CHECK (thank_you_url IS NULL OR thank_you_url ~ '^https://'),
     -- Un sitio activo recibe avisos: necesita la ruta del plugin y el secreto de firma.
-    CHECK (status <> 'active' OR (webhook_url IS NOT NULL AND webhook_secret_id IS NOT NULL)),
+    CHECK (status <> 'active' OR kind = 'embed' OR (webhook_url IS NOT NULL AND webhook_secret_id IS NOT NULL)),
+    CHECK (kind <> 'embed' OR (cardinality(allowed_origins) >= 1 AND webhook_url IS NULL)),
     CHECK (status <> 'disabled' OR disabled_reason IS NOT NULL)
 );
 CREATE UNIQUE INDEX wp_sites_base_url_uq ON wp_sites (lower(base_url)) WHERE deleted_at IS NULL;
@@ -3876,7 +3878,7 @@ CREATE TABLE wp_site_tokens (
     name              text NOT NULL,
     token_hash        char(64) NOT NULL UNIQUE,        -- sha256 del token; el valor plano se muestra una sola vez
     token_last_four   char(4) NOT NULL,                -- para reconocerlo en el panel
-    scope             text NOT NULL DEFAULT 'read' CHECK (scope IN ('read')),   -- solo lectura: el plugin nunca escribe con el token
+    scope             text NOT NULL DEFAULT 'read' CHECK (scope IN ('read','embed')),
     expires_at        timestamptz NULL,                -- según web_connector.token_expiry_days
     last_used_at      timestamptz NULL,
     last_used_ip_hash char(64) NULL,

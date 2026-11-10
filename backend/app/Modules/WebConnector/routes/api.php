@@ -60,4 +60,18 @@ Route::prefix('public/wp')->name('public.wp.')->middleware(['wp.site', 'throttle
     Route::get('forms/{code}', [WpPublicController::class, 'form'])->where('code', '[a-z0-9]+(-[a-z0-9]+)*')->name('forms.show');
     // Envío en modo reenvío del plugin (docs/13 §9); el límite por IP del visitante va en el controlador.
     Route::post('forms/{code}/submissions', [WpFormSubmissionController::class, 'store'])->where('code', '[a-z0-9]+(-[a-z0-9]+)*')->name('forms.submissions.store');
+    // Preflight CORS del widget embebible (docs/15 §4): refleja el origen solicitado.
+    // La pertenencia a allowed_origins se exige en la petición real (403 origin_not_allowed).
+    Route::options('{any}', function (\Illuminate\Http\Request $request) {
+        $response = response()->noContent();
+        $origin = trim((string) $request->header('Origin', ''));
+        if ($origin !== '') {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Vary', 'Origin');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST');
+            $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        }
+
+        return $response;
+    })->where('any', '.*')->name('preflight');
 });

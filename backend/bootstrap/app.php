@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // cuando su origen está en SANCTUM_STATEFUL_DOMAINS (docs/00 §2).
         $middleware->statefulApi();
 
-        $middleware->api(prepend: [AssignRequestId::class, SetLocaleFromHeader::class]);
+        $middleware->api(prepend: [AssignRequestId::class, SetLocaleFromHeader::class, App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite::class]);
 
         // Contratos para los módulos (backend/README.md, "Contratos compartidos").
         $middleware->alias([
