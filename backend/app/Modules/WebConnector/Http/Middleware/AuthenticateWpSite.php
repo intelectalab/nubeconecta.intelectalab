@@ -18,32 +18,20 @@ use Symfony\Component\HttpFoundation\Response;
 final class AuthenticateWpSite
 {
     /** Rutas de datos públicos que puede consumir el widget embebible. */
+    // Rutas GET que la clave publicable del widget (scope embed) puede leer desde
+    // el navegador. Deben coincidir con las rutas reales de routes/api.php.
     private const EMBED_ROUTES = [
         '#^/api/v1/public/wp/catalog/plans$#',
         '#^/api/v1/public/wp/catalog/plans/[0-9a-f-]{36}$#i',
         '#^/api/v1/public/wp/catalog/compare$#',
-        '#^/api/v1/public/wp/catalog/bundles/[0-9a-f-]{36}$#i',
+        '#^/api/v1/public/wp/catalog/bundles/[A-Za-z0-9][A-Za-z0-9_-]{0,80}$#',
+        '#^/api/v1/public/wp/catalog/servers$#',
         '#^/api/v1/public/wp/catalog/domain-prices$#',
-        '#^/api/v1/public/wp/public/domain-availability$#',
-        '#^/api/v1/public/wp/domain-availability$#',
         '#^/api/v1/public/wp/domains/availability$#',
-        '#^/api/v1/public/wp/whois$#',
-        '#^/api/v1/public/wp/servers$#',
-        '#^/api/v1/public/wp/promotions/[0-9a-f-]{36}$#i',
-        '#^/api/v1/public/wp/legal-documents/[a-z0-9_-]+$#',
-        '#^/api/v1/public/wp/service-status$#',
-        '#^/api/v1/public/wp/forms/[a-z0-9-]+$#',
-        '#^/api/v1/public/wp/complaint-form$#',
-        '#^/api/v1/public/wp/web-forms/[a-z0-9-]+$#',
-        '#^/api/v1/public/wp/wp/whois$#',
-        '#^/api/v1/public/wp/wp/servers$#',
-        '#^/api/v1/public/wp/wp/promotions/[0-9a-f-]{36}$#i',
-        '#^/api/v1/public/wp/wp/contact$#',
         '#^/api/v1/public/wp/contact$#',
-        '#^/api/v1/public/wp/wp/legal-documents/[a-z0-9_-]+$#',
-        '#^/api/v1/public/wp/wp/service-status$#',
-        '#^/api/v1/public/wp/wp/forms/[a-z0-9-]+$#',
-        '#^/api/v1/public/wp/wp/complaint-form$#',
+        '#^/api/v1/public/wp/legal-documents/[a-z0-9]+([_-][a-z0-9]+)*$#',
+        '#^/api/v1/public/wp/forms/[a-z0-9]+(-[a-z0-9]+)*$#',
+        '#^/api/v1/public/wp/status$#',
     ];
 
     public function __construct(private readonly CurrentOrganization $organization) {}

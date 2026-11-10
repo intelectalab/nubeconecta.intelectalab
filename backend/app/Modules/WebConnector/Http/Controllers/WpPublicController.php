@@ -98,6 +98,117 @@ final class WpPublicController
         return $this->cached($request, $this->presentPlan($row, $filters['lang'] ?? null));
     }
 
+    /**
+     * Catálogo de servidores (VPS/dedicados) de la marca con las especificaciones
+     * técnicas públicas de `vps_plan_specs`: vCPU, RAM, disco, tráfico, SO,
+     * ubicación. Nunca proveedor de origen, referencia del plan ni costo
+     * (RN-WCN-004). Bloque [hub_servidores] / data-hub-block="servidores".
+     */
+    public function servers(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'tipo' => ['sometimes', 'string', 'max:60'],
+            'ids' => ['sometimes', 'string', 'max:2000'],
+            'cycle' => ['sometimes', 'in:monthly,quarterly,semiannual,annual,biennial,triennial,one_time'],
+            'currency' => ['sometimes', 'in:PEN,USD'],
+            'lang' => ['sometimes', 'string', 'max:10'],
+        ]);
+        $query = $this->planQuery($request, $filters)
+            ->join('vps_plan_specs as vs', 'vs.product_id', '=', 'p.id')
+            ->addSelect([
+                'vs.vcpu', 'vs.ram_mb', 'vs.disk_gb', 'vs.transfer_gb', 'vs.os_options',
+                'vs.is_managed', 'vs.location', 'vs.cpu_model', 'vs.disk_type',
+            ]);
+        if (isset($filters['tipo'])) {
+            $tipo = $filters['tipo'] === 'dedicated' ? 'dedicado' : $filters['tipo'];
+            $query->where(fn (Builder $q) => $q->where('c.shortcode_type', $tipo)->orWhere('c.code', $tipo));
+        }
+        if (isset($filters['ids'])) {
+            $ids = array_values(array_filter(array_map('trim', explode(',', $filters['ids']))));
+            $query->where(fn (Builder $q) => $q->whereIn('pl.code', $ids)->orWhereIn(DB::raw('pl.id::text'), $ids));
+        }
+        if (isset($filters['cycle'])) {
+            $query->where('pl.cycle', $filters['cycle']);
+        }
+
+        return $this->cached($request, $query->get()->map(fn ($row) => $this->presentServer($row, $filters['lang'] ?? null))->all());
+    }
+
+    /**
+     * Paquete (bundle) de la marca por código o id: el plan del paquete con su
+     * precio y los planes incluidos con su cantidad (nombre y cantidad, sin
+     * precios ni costos de los ítems). Bloque [hub_paquete].
+     */
+    public function bundle(Request $request, string $id): JsonResponse
+    {
+        $filters = $request->validate(['currency' => ['sometimes', 'in:PEN,USD'], 'lang' => ['sometimes', 'string', 'max:10']]);
+        $lang = $filters['lang'] ?? null;
+        $site = $this->wpSite($request);
+        $isUuid = preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id) === 1;
+        $bundle = $this->planQuery($request, $filters)
+            ->where(fn (Builder $q) => $isUuid ? $q->where('pl.id', $id) : $q->where('pl.code', $id))
+            ->first() ?? throw ProblemException::notFound();
+
+        $lang2 = strtolower(substr($lang ?? 'es', 0, 2));
+        $pick = function (mixed $json, string $fallback) use ($lang2): string {
+            $value = json_decode((string) $json, true);
+            $text = is_array($value) ? ($value[$lang2] ?? $value['es'] ?? reset($value)) : null;
+
+            return is_string($text) && $text !== '' ? $text : $fallback;
+        };
+        $items = DB::table('bundle_items as bi')
+            ->join('plans as pl', 'pl.id', '=', 'bi.item_plan_id')
+            ->join('products as p', 'p.id', '=', 'pl.product_id')
+            ->join('product_categories as c', 'c.id', '=', 'p.category_id')
+            ->leftJoin('product_listings as l', fn ($j) => $j->on('l.product_id', '=', 'p.id')->where('l.brand_id', $site->brand_id)->whereNull('l.deleted_at'))
+            ->where('bi.bundle_plan_id', $bundle->id)
+            ->where('bi.organization_id', $site->organization_id)
+            ->whereNull('pl.deleted_at')
+            ->orderBy('pl.code')
+            ->get(['pl.name as plan_name', 'l.display_name', 'c.shortcode_type', 'bi.quantity'])
+            ->map(fn ($r) => [
+                'name' => $pick($r->display_name, (string) $r->plan_name),
+                'type' => $r->shortcode_type,
+                'quantity' => (float) $r->quantity,
+            ])->all();
+
+        return $this->cached($request, $this->presentPlan($bundle, $lang) + ['items' => $items]);
+    }
+
+    /**
+     * Portal de estado de la marca (bloque [hub_estado_servicios]): incidencias
+     * marcadas como públicas con su resumen público, y un estado general. Nunca
+     * causa raíz, notas internas ni monitores crudos (RN-WCN-004).
+     */
+    public function status(Request $request): JsonResponse
+    {
+        $site = $this->wpSite($request);
+        $incidents = DB::table('incidents')
+            ->where('organization_id', $site->organization_id)
+            ->where('is_public', true)
+            ->orderByRaw("(status = 'resolved')")
+            ->orderByDesc('started_at')
+            ->limit(20)
+            ->get(['title', 'public_summary', 'kind', 'severity', 'status', 'started_at', 'resolved_at']);
+        $open = $incidents->where('status', '!=', 'resolved');
+        $overall = $open->isEmpty()
+            ? 'operational'
+            : ($open->contains(fn ($i) => in_array($i->severity, ['critical', 'high'], true)) ? 'major' : 'minor');
+
+        return $this->cached($request, [
+            'status' => $overall,
+            'incidents' => $incidents->map(fn ($i) => [
+                'title' => $i->title,
+                'summary' => $i->public_summary,
+                'kind' => $i->kind,
+                'severity' => $i->severity,
+                'state' => $i->status,
+                'started_at' => $i->started_at ? CarbonImmutable::parse($i->started_at)->toIso8601String() : null,
+                'resolved_at' => $i->resolved_at ? CarbonImmutable::parse($i->resolved_at)->toIso8601String() : null,
+            ])->all(),
+        ]);
+    }
+
     public function contact(Request $request): JsonResponse
     {
         $filters = $request->validate(['field' => ['sometimes', 'in:phone,email,whatsapp,address,hours']]);
@@ -296,6 +407,39 @@ final class WpPublicController
             'sellable_online' => (bool) $row->listing_online && (bool) $row->product_online,
             'price' => ['currency' => trim((string) $row->currency), 'amount_minor' => (int) $row->price_minor, 'setup_fee_minor' => (int) $row->setup_fee_minor],
         ];
+    }
+
+    /** presentPlan + especificaciones técnicas públicas del servidor. */
+    private function presentServer(object $row, ?string $lang): array
+    {
+        return $this->presentPlan($row, $lang) + ['specs' => [
+            'vcpu' => (int) $row->vcpu,
+            'ram_mb' => (int) $row->ram_mb,
+            'disk_gb' => (int) $row->disk_gb,
+            'transfer_gb' => $row->transfer_gb !== null ? (int) $row->transfer_gb : null,
+            'os_options' => $this->pgArray($row->os_options),
+            'is_managed' => (bool) $row->is_managed,
+            'location' => $row->location,
+            'cpu_model' => $row->cpu_model,
+            'disk_type' => $row->disk_type,
+        ]];
+    }
+
+    /** Convierte un `text[]` de PostgreSQL ("{a,b}") en un array PHP. */
+    private function pgArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values($value);
+        }
+        $s = trim((string) $value);
+        if ($s === '' || $s === '{}') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(fn ($x) => trim($x, " \"'"), str_getcsv(trim($s, '{}'))),
+            fn ($x) => $x !== ''
+        ));
     }
 
     private function cached(Request $request, mixed $data): JsonResponse

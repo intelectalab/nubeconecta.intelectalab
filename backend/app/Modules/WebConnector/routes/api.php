@@ -51,6 +51,9 @@ Route::prefix('public/wp')->name('public.wp.')->middleware(['wp.site', 'throttle
     Route::get('catalog/categories', [WpPublicController::class, 'categories'])->name('catalog.categories');
     Route::get('catalog/plans', [WpPublicController::class, 'plans'])->name('catalog.plans');
     Route::get('catalog/plans/{id}', [WpPublicController::class, 'plan'])->whereUuid('id')->name('catalog.plans.show');
+    Route::get('catalog/servers', [WpPublicController::class, 'servers'])->name('catalog.servers');
+    Route::get('catalog/bundles/{id}', [WpPublicController::class, 'bundle'])->where('id', '[A-Za-z0-9][A-Za-z0-9_-]{0,80}')->name('catalog.bundles.show');
+    Route::get('status', [WpPublicController::class, 'status'])->name('status');
     Route::get('contact', [WpPublicController::class, 'contact'])->name('contact');
     Route::get('catalog/compare', [WpPublicController::class, 'compare'])->name('catalog.compare');
     Route::get('catalog/domain-prices', [WpPublicController::class, 'domainPrices'])->name('catalog.domain-prices');

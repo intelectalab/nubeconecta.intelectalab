@@ -312,6 +312,31 @@ final class WebConnectorTest extends IdentityTestCase
         return $plan;
     }
 
+    /** @param array{vcpu:int,ram_mb:int,disk_gb:int} $specs */
+    private function catalogServer(string $brandId, string $code, int $priceMinor, array $specs): string
+    {
+        $org = DB::table('organizations')->value('id');
+        $category = DB::table('product_categories')->where('shortcode_type', 'vps')->value('id');
+        if ($category === null) {
+            $category = (string) Str::uuid();
+            DB::table('product_categories')->insert(['id' => $category, 'organization_id' => $org, 'code' => 'vps', 'name' => 'VPS', 'kind' => 'vps', 'shortcode_type' => 'vps']);
+        }
+        $provider = DB::table('providers')->where('type', 'server')->value('id');
+        if ($provider === null) {
+            $provider = (string) Str::uuid();
+            DB::table('providers')->insert(['id' => $provider, 'organization_id' => $org, 'code' => 'contabo', 'name' => 'Contabo', 'type' => 'server']);
+        }
+        $product = (string) Str::uuid();
+        DB::table('products')->insert(['id' => $product, 'organization_id' => $org, 'code' => "prod-{$code}", 'category_id' => $category, 'brand_id' => $brandId, 'name' => $code, 'billing_type' => 'recurring', 'sellable_online' => true]);
+        $plan = (string) Str::uuid();
+        DB::table('plans')->insert(['id' => $plan, 'organization_id' => $org, 'product_id' => $product, 'code' => $code, 'name' => $code, 'cycle' => 'monthly', 'cost_minor' => 1000, 'cost_currency' => 'PEN']);
+        DB::table('plan_prices')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'plan_id' => $plan, 'currency' => 'PEN', 'price_minor' => $priceMinor, 'effective_from' => now()->subDay()->toDateString()]);
+        DB::table('product_listings')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'product_id' => $product, 'brand_id' => $brandId, 'display_name' => json_encode(['es' => strtoupper($code)]), 'sellable_online' => true]);
+        DB::table('vps_plan_specs')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'product_id' => $product, 'vcpu' => $specs['vcpu'], 'ram_mb' => $specs['ram_mb'], 'disk_gb' => $specs['disk_gb'], 'os_options' => '{ubuntu,debian}', 'location' => 'Lima, Perú', 'disk_type' => 'nvme', 'provider_id' => $provider, 'provider_plan_ref' => "ref-{$code}"]);
+
+        return $plan;
+    }
+
     /** @param list<string> $ips */
     private function resolveHostsTo(array $ips): void
     {
@@ -774,6 +799,57 @@ final class WebConnectorTest extends IdentityTestCase
         $this->postJson('/api/v1/public/communication-unsubscribes', [], ['Authorization' => "Bearer {$token}", 'Origin' => $origin])
             ->assertStatus(403);
         $this->assertSame(2, DB::table('audit_events')->where('entity_type', 'wp_site')->where('entity_id', $site)->where('action', 'wp_site.embed_origin_denied')->count());
+    }
+
+    public function test_embed_blocks_servers_bundles_and_status(): void
+    {
+        $org = DB::table('organizations')->value('id');
+        $brand = $this->brand('blocks');
+        $origin = 'https://shop.blocks.test';
+        $site = $this->postJson('/api/v1/admin/web-connector/sites', ['brand_id' => $brand, 'name' => 'Widget', 'base_url' => 'https://www.blocks.test', 'kind' => 'embed', 'allowed_origins' => [$origin]])
+            ->assertCreated()->json('data.id');
+        $token = $this->postJson("/api/v1/admin/web-connector/sites/{$site}/tokens", ['name' => 'Clave', 'scope' => 'embed'])->assertCreated()->json('data.token');
+        $h = ['Authorization' => "Bearer {$token}", 'Origin' => $origin];
+
+        // Servidores (VPS) con especificaciones públicas; nunca costo ni proveedor.
+        $this->catalogServer($brand, 'vps-1', 2990, ['vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 80]);
+        $servers = $this->getJson('/api/v1/public/wp/catalog/servers?tipo=vps', $h)->assertOk()->json('data');
+        $this->assertCount(1, $servers);
+        $this->assertSame(2, $servers[0]['specs']['vcpu']);
+        $this->assertSame(4096, $servers[0]['specs']['ram_mb']);
+        $this->assertSame(['ubuntu', 'debian'], $servers[0]['specs']['os_options']);
+        $this->assertSame(2990, $servers[0]['price']['amount_minor']);
+        $this->assertArrayNotHasKey('cost_minor', $servers[0]);
+        $this->assertArrayNotHasKey('provider_id', $servers[0]['specs']);
+        $this->assertArrayNotHasKey('provider_plan_ref', $servers[0]['specs']);
+
+        // Paquete (bundle) con sus ítems (nombre y cantidad, sin precios de ítem).
+        $itemPlan = $this->catalogPlan($brand, 'hosting-pro', 1990);
+        $bundlePlan = $this->catalogPlan($brand, 'combo', 4990);
+        DB::table('bundle_items')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'bundle_plan_id' => $bundlePlan, 'item_plan_id' => $itemPlan, 'quantity' => 2]);
+        $bundle = $this->getJson('/api/v1/public/wp/catalog/bundles/combo', $h)->assertOk()->json('data');
+        $this->assertSame(4990, $bundle['price']['amount_minor']);
+        $this->assertCount(1, $bundle['items']);
+        $this->assertEquals(2.0, $bundle['items'][0]['quantity']);
+        $this->assertSame('Hosting Pro', $bundle['items'][0]['name']);
+        $this->getJson('/api/v1/public/wp/catalog/bundles/no-existe', $h)->assertStatus(404);
+
+        // Estado: solo incidencias públicas, con estado general.
+        $incident = function (string $title, string $sev, string $status, bool $public) use ($org): void {
+            DB::table('incidents')->insert(['id' => Str::uuid(), 'organization_id' => $org, 'number' => 'INC-'.Str::upper(Str::random(6)), 'title' => $title, 'severity' => $sev, 'status' => $status, 'started_at' => now()->subHour(), 'resolved_at' => $status === 'resolved' ? now() : null, 'is_public' => $public, 'public_summary' => $public ? 'Resumen público' : null]);
+        };
+        $incident('Caída del servidor web', 'high', 'open', true);
+        $incident('Incidencia interna', 'low', 'open', false);
+        $status = $this->getJson('/api/v1/public/wp/status', $h)->assertOk()->json('data');
+        $this->assertSame('major', $status['status']);
+        $this->assertCount(1, $status['incidents']);
+        $this->assertSame('Caída del servidor web', $status['incidents'][0]['title']);
+        $this->assertSame('Resumen público', $status['incidents'][0]['summary']);
+
+        // Los nuevos bloques exigen origen permitido como el resto del widget.
+        $this->flushHeaders();
+        $this->getJson('/api/v1/public/wp/catalog/servers', ['Authorization' => "Bearer {$token}", 'Origin' => 'https://evil.test'])
+            ->assertStatus(403)->assertJsonPath('code', 'origin_not_allowed');
     }
 
     public function test_read_token_is_rejected_when_sent_by_a_browser(): void

@@ -271,6 +271,64 @@
       sel.setAttribute('aria-label', 'Moneda');
       sel.addEventListener('change', function () { state.currency = sel.value === 'USD' ? 'USD' : 'PEN'; cache = {}; renderAll(); });
       wrap.appendChild(sel);
+    },
+    servidores: function (div, wrap) {
+      loading(wrap, 'Cargando servidores');
+      api('/catalog/servers', { tipo: div.dataset.tipo, ids: div.dataset.ids, cycle: div.dataset.ciclo, currency: state.currency, lang: LANG }).then(function (rows) {
+        if (!rows) return; wrap.innerHTML = '';
+        if (!rows.length) { wrap.appendChild(el('div', 'hub-msg', 'No hay servidores disponibles.')); return; }
+        var cols = Math.max(1, Math.min(4, parseInt(div.dataset.columnas, 10) || 3));
+        var grid = el('div', 'hub-grid'); grid.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(0,1fr))';
+        rows.forEach(function (s) { grid.appendChild(serverCard(s)); });
+        wrap.appendChild(grid);
+      }).catch(function (e) { fail(wrap, e); });
+    },
+    paquete: function (div, wrap) {
+      if (!div.dataset.id) { fail(wrap, 'falta data-id'); return; }
+      loading(wrap, 'Cargando paquete');
+      api('/catalog/bundles/' + encodeURIComponent(div.dataset.id), { currency: state.currency, lang: LANG }).then(function (b) {
+        if (!b) return; wrap.innerHTML = '';
+        var card = el('div', 'hub-card' + (b.featured ? ' feat' : ''));
+        card.appendChild(el('h3', 'hub-name', b.name));
+        if (b.tagline) card.appendChild(el('p', 'hub-tag', b.tagline));
+        var price = el('div', 'hub-price'); price.appendChild(document.createTextNode(money(b.price.amount_minor, b.price.currency)));
+        var cyc = cycleLabel(b.cycle); if (cyc) price.appendChild(el('small', null, ' / ' + cyc));
+        card.appendChild(price);
+        if (b.items && b.items.length) {
+          card.appendChild(el('p', 'hub-tag', 'Incluye:'));
+          var ul = el('ul', 'hub-list');
+          b.items.forEach(function (it) { var q = it.quantity && it.quantity !== 1 ? (it.quantity + '× ') : ''; ul.appendChild(el('li', null, q + it.name)); });
+          card.appendChild(ul);
+        }
+        if (b.sellable_online) { var a = el('a', 'hub-btn', div.dataset.texto || 'Contratar'); a.href = ORIGIN + '/cart?add=' + encodeURIComponent(b.id); a.target = '_blank'; a.rel = 'noopener'; card.appendChild(a); }
+        wrap.appendChild(card);
+      }).catch(function (e) { fail(wrap, e); });
+    },
+    whois: function (div, wrap) {
+      // Reutiliza la búsqueda de disponibilidad (RDAP/WHOIS público).
+      RENDER['buscar-dominio'](div, wrap);
+    },
+    estado: function (div, wrap) {
+      loading(wrap, 'Cargando estado');
+      api('/status', {}).then(function (d) {
+        if (!d) return; wrap.innerHTML = '';
+        var map = { operational: ['ok', 'Todos los servicios operativos'], minor: ['unk', 'Incidencia menor en curso'], major: ['no', 'Incidencia mayor en curso'] };
+        var st = map[d.status] || map.operational;
+        var head = el('div'); head.style.marginBottom = '10px';
+        head.appendChild(el('span', 'hub-badge ' + st[0], st[1]));
+        wrap.appendChild(head);
+        if (!d.incidents || !d.incidents.length) { wrap.appendChild(el('div', 'hub-msg', 'Sin incidencias reportadas.')); return; }
+        var ul = el('ul', 'hub-list'); ul.style.listStyle = 'none';
+        d.incidents.forEach(function (i) {
+          var li = el('li'); li.style.padding = '8px 0';
+          li.appendChild(el('b', null, i.title));
+          var badge = i.state === 'resolved' ? el('span', 'hub-badge ok', 'Resuelto') : el('span', 'hub-badge no', i.state === 'monitoring' ? 'En observación' : 'Abierto');
+          badge.style.marginLeft = '8px'; li.appendChild(badge);
+          if (i.summary) li.appendChild(el('p', 'hub-tag', i.summary));
+          ul.appendChild(li);
+        });
+        wrap.appendChild(ul);
+      }).catch(function (e) { fail(wrap, e); });
     }
   };
 
@@ -288,6 +346,28 @@
     }
     if (p.sellable_online) {
       var a = el('a', 'hub-btn', 'Contratar'); a.href = ORIGIN + '/cart?add=' + encodeURIComponent(p.id); a.target = '_blank'; a.rel = 'noopener'; card.appendChild(a);
+    }
+    return card;
+  }
+
+  function serverCard(s) {
+    var card = el('div', 'hub-card' + (s.featured ? ' feat' : ''));
+    card.appendChild(el('h3', 'hub-name', s.name));
+    if (s.tagline) card.appendChild(el('p', 'hub-tag', s.tagline));
+    var price = el('div', 'hub-price'); price.appendChild(document.createTextNode(money(s.price.amount_minor, s.price.currency)));
+    var cyc = cycleLabel(s.cycle); if (cyc) price.appendChild(el('small', null, ' / ' + cyc));
+    card.appendChild(price);
+    var sp = s.specs || {};
+    var ul = el('ul', 'hub-list');
+    if (sp.vcpu) ul.appendChild(el('li', null, sp.vcpu + ' vCPU'));
+    if (sp.ram_mb) ul.appendChild(el('li', null, (sp.ram_mb >= 1024 ? (sp.ram_mb / 1024) + ' GB' : sp.ram_mb + ' MB') + ' RAM'));
+    if (sp.disk_gb) ul.appendChild(el('li', null, sp.disk_gb + ' GB ' + (sp.disk_type ? String(sp.disk_type).toUpperCase() : 'disco')));
+    if (sp.transfer_gb) ul.appendChild(el('li', null, sp.transfer_gb + ' GB de tráfico'));
+    if (sp.location) ul.appendChild(el('li', null, sp.location));
+    if (sp.is_managed) ul.appendChild(el('li', null, 'Administrado'));
+    card.appendChild(ul);
+    if (s.sellable_online) {
+      var a = el('a', 'hub-btn', 'Contratar'); a.href = ORIGIN + '/cart?add=' + encodeURIComponent(s.id); a.target = '_blank'; a.rel = 'noopener'; card.appendChild(a);
     }
     return card;
   }
