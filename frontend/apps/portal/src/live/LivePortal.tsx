@@ -38,6 +38,7 @@ import {
   type PasswordPolicy,
   type Me,
   type PortalTicket,
+  type PortalTicketAttachment,
   type PortalTicketStatus,
   type PortalTicketType,
   type PortalTicketPriority,
@@ -987,6 +988,7 @@ function SupportPage({ openTicket }: { openTicket: (id: string) => void }) {
 
 function SupportTickets({ openTicket }: { openTicket: (id: string) => void }) {
   const [cursor, setCursor] = useState<string | null>(null);
+  const [ticketFilter, setTicketFilter] = useState<'open' | 'closed' | 'all'>('open');
   const [creating, setCreating] = useState(false);
   const [subject, setSubject] = useState('');
   const [type, setType] = useState<PortalTicketType>('question');
@@ -997,6 +999,9 @@ function SupportTickets({ openTicket }: { openTicket: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const res = useLoad(() => hub.support.portalTickets.list({ size: 25, cursor }), [cursor]);
   const rows = res.data?.data ?? [];
+  const openRows = rows.filter((t) => !['resolved', 'closed'].includes(t.status));
+  const closedRows = rows.filter((t) => ['resolved', 'closed'].includes(t.status));
+  const visibleRows = ticketFilter === 'open' ? openRows : ticketFilter === 'closed' ? closedRows : rows;
   const meta = res.data?.meta;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setMsg(null); setErrors({});
@@ -1024,8 +1029,11 @@ function SupportTickets({ openTicket }: { openTicket: (id: string) => void }) {
       <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Creando…' : 'Crear ticket'}</button>
     </form></Card> : null}
     <Card title="Mis tickets" icon="msg">
-      {res.loading && !res.data ? <Loading inCard /> : !rows.length ? <Empty icon="msg">Aún no tiene tickets de soporte.</Empty> : <Table cols={[{ label: 'Número' }, { label: 'Asunto' }, { label: 'Estado' }, { label: 'Fecha' }, { label: 'Acción', right: true }]}>
-        {rows.map((t) => <tr key={t.id}><td className="mono nw">{t.number}</td><td>{t.subject}</td><td><TicketStatusChip status={t.status} /></td><td className="nw">{fDate(t.created_at)}</td><td className="r nw"><button type="button" className="btn sm" onClick={() => openTicket(t.id)}>Ver conversación →</button></td></tr>)}
+      <div className="card-b" style={{ paddingBottom: 0 }}>
+        <Seg label="Filtrar tickets" value={ticketFilter} onChange={(v) => setTicketFilter(v as typeof ticketFilter)} options={[{ id: 'open', label: `Abiertos (${openRows.length})` }, { id: 'closed', label: `Resueltos y cerrados (${closedRows.length})` }, { id: 'all', label: `Todos (${rows.length})` }]} />
+      </div>
+      {res.loading && !res.data ? <Loading inCard /> : !visibleRows.length ? <Empty icon="msg">{rows.length ? 'No hay tickets en esta vista.' : 'Aún no tiene tickets de soporte.'}</Empty> : <Table cols={[{ label: 'C\u00f3digo' }, { label: 'Asunto' }, { label: 'Tipo' }, { label: 'Prioridad' }, { label: '\u00daltima actividad' }, { label: 'Estado' }, { label: 'Acci\u00f3n', right: true }]}>
+        {visibleRows.map((t) => <tr key={t.id}><td className="mono nw" style={{ fontWeight: 700 }}>{t.number}</td><td><b>{t.subject}</b></td><td>{TICKET_TYPE_LABELS[t.type]}</td><td><Chip tone={t.priority === 'critical' || t.priority === 'high' ? 'danger' : t.priority === 'medium' ? 'info' : ''}>{TICKET_PRIORITY_LABELS[t.priority]}</Chip></td><td className="nw">{fDate(t.updated_at)}</td><td><TicketStatusChip status={t.status} /></td><td className="r nw"><button type="button" className="btn sm primary" onClick={() => openTicket(t.id)}>Ver conversaci&#243;n &#8594;</button></td></tr>)}
       </Table>}
       <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
     </Card>
@@ -1038,29 +1046,72 @@ function SupportTicketPage({ id, back }: { id: string; back: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const ticket: PortalTicket | null = res.data;
+  const formatTicketDate = (value: string) => new Date(value).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' });
+  const formatFileSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const openAttachment = async (attachment: PortalTicketAttachment) => {
+    setAttachmentError(null);
+    try {
+      const f = await hub.portalFiles.get(attachment.id);
+      if (f.url) window.open(f.url, '_blank', 'noopener');
+      else setAttachmentError('No se pudo abrir este adjunto.');
+    } catch (err) { setAttachmentError(errorText(err)); }
+  };
+  const uploadAttachment = async (file?: File) => {
+    if (!file || !ticket) return;
+    setAttachmentError(null);
+    if (file.size > 5 * 1024 * 1024) {
+      setAttachmentError('El archivo supera el l\u00edmite de 5 MB.');
+      if (fileInput.current) fileInput.current.value = '';
+      return;
+    }
+    setUploading(true);
+    try { await hub.portalFiles.upload(file, 'ticket', ticket.id); res.reload(); }
+    catch (err) { setAttachmentError(errorText(err)); }
+    finally { setUploading(false); if (fileInput.current) fileInput.current.value = ''; }
+  };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setMsg(null); setErrors({});
     try { await hub.support.portalTickets.addMessage(id, { body }); setBody(''); setMsg('Enviamos su respuesta.'); res.reload(); }
     catch (err) {
       if (isProblem(err) && err.status === 422) setMsg('Revise los campos indicados.');
-      else if (isProblem(err) && err.status === 409) { setMsg('El ticket cambió. Recargamos la conversación.'); res.reload(); }
+      else if (isProblem(err) && err.status === 409) { setMsg('El ticket cambi\u00f3. Recargamos la conversaci\u00f3n.'); res.reload(); }
       else setMsg(errorText(err));
       if (isProblem(err)) setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0] ?? ''])));
     } finally { setBusy(false); }
   };
   return <div style={{ display: 'grid', gap: 20 }}>
-    <PageHead back={{ label: 'Volver a soporte', onClick: back }} title={ticket?.subject ?? 'Ticket'} lead={ticket ? `${ticket.number} · Creado el ${fDate(ticket.created_at)}` : undefined} actions={ticket ? <TicketStatusChip status={ticket.status} /> : undefined} />
+    <PageHead back={{ label: 'Volver a soporte', onClick: back }} title={ticket?.subject ?? 'Ticket'} lead={ticket ? `${ticket.number} \u00b7 Creado el ${fDate(ticket.created_at)}` : undefined} actions={ticket ? <><Chip tone={ticket.priority === 'critical' || ticket.priority === 'high' ? 'danger' : 'info'}>Prioridad {TICKET_PRIORITY_LABELS[ticket.priority]}</Chip><TicketStatusChip status={ticket.status} /></> : undefined} />
     {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
     {msg ? <Alert tone={msg.startsWith('Enviamos') ? 'info' : 'warn'} role="alert" title={msg} /> : null}
     {res.loading && !ticket ? <Loading /> : null}
-    {ticket ? <>
-      <Card title="Detalle del ticket" icon="msg"><CardBody><Kv rows={[["Tipo", TICKET_TYPE_LABELS[ticket.type]], ["Prioridad", TICKET_PRIORITY_LABELS[ticket.priority]], ["Estado", TICKET_STATUS_LABELS[ticket.status]], ["Última actualización", fDate(ticket.updated_at)]]} /></CardBody></Card>
-      <Card title="Conversación" icon="msg">
-        {ticket.messages.length ? <div className="card-b" style={{ display: 'grid', gap: 14 }}>{ticket.messages.map((m) => <article key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><b>{m.author}</b><time className="sub">{new Date(m.created_at).toLocaleString('es-PE')}</time></div><p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{m.body}</p></article>)}</div> : <CardBody><Empty>Aún no hay mensajes en este ticket.</Empty></CardBody>}
-      </Card>
-      <Card title="Responder" icon="msg"><form className="card-b" onSubmit={(e) => void submit(e)} noValidate><Field label="Mensaje *" error={errors.body}><textarea className="input" rows={4} value={body} onChange={(e) => setBody(e.target.value)} /></Field><button className="btn primary" type="submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar respuesta'}</button></form></Card>
-    </> : null}
+    {ticket ? <div className="tk-detail">
+      <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
+        <Card title="Conversación" icon="msg" sub={`${ticket.messages.length} mensajes intercambiados`}>
+          {ticket.messages.length ? <div className="card-b" style={{ padding: '16px 18px' }}><ul className="thread">{ticket.messages.map((m) => {
+            const isCustomer = m.author !== 'Soporte';
+            return <li key={m.id} className={`msg ${isCustomer ? 'cliente' : 'agente'}`}><div className="mh"><span className="av" aria-hidden="true">{isCustomer ? 'T' : <Icon name="msg" className="sm" />}</span><b>{isCustomer ? <>T&#250;</> : 'Soporte'}</b><span className={`chip ${isCustomer ? 'outline' : 'info'}`}>{isCustomer ? 'Cliente' : 'Equipo de soporte'}</span><time>{formatTicketDate(m.created_at)}</time></div><p style={{ whiteSpace: 'pre-wrap' }}>{m.body}</p></li>;
+          })}</ul></div> : <CardBody><Empty>A&#250;n no hay mensajes en este ticket.</Empty></CardBody>}
+          <form className="composer" onSubmit={(e) => void submit(e)} noValidate>
+            <Field label="Responder a este ticket" error={errors.body}><textarea className="input" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Escriba su mensaje para soporte" /></Field>
+            <input ref={fileInput} type="file" hidden accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Seleccionar adjunto" onChange={(e) => void uploadAttachment(e.target.files?.[0])} />
+            <div className="comp-tools"><button className="btn sm" type="button" disabled={uploading} onClick={() => fileInput.current?.click()}><Icon name="file" className="sm" /> Adjuntar</button>{uploading ? <span role="status" className="sub">{'Subiendo\u2026'}</span> : null}<span className="sub">Im&#225;genes o PDF, hasta 5 MB.</span></div>
+            {attachmentError ? <p role="alert" style={{ color: 'var(--danger-text)', margin: 0 }}>{attachmentError}</p> : null}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}><span className="sub">Respuesta promedio: menos de 15 min en horario h&#225;bil</span><button type="submit" className="btn primary" disabled={busy}><Icon name="check" className="sm" /> {busy ? 'Enviando\u2026' : 'Enviar respuesta'}</button></div>
+          </form>
+        </Card>
+        <Card title="Adjuntos" icon="file" sub={`${ticket.attachments?.length ?? 0} archivo(s)`}>
+          {ticket.attachments?.length ? <div className="card-b" style={{ display: 'grid', gap: 10 }}>{ticket.attachments.map((a) => <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}><Icon name="file" /><button type="button" className="btn sm ghost" onClick={() => void openAttachment(a)} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.original_name}</button><span className="sub nw">{formatFileSize(a.size_bytes)}</span></div>)}</div> : <CardBody><Empty icon="file">A&#250;n no hay adjuntos en este ticket.</Empty></CardBody>}
+        </Card>
+      </div>
+      <aside style={{ display: 'grid', gap: 16 }}>
+        <Card title="Detalles del Caso" icon="info"><CardBody style={{ display: 'grid', gap: 12 }}><Kv rows={[["Tipo", TICKET_TYPE_LABELS[ticket.type]], ["Prioridad", TICKET_PRIORITY_LABELS[ticket.priority]], ["Estado", TICKET_STATUS_LABELS[ticket.status]], ["Última actualización", formatTicketDate(ticket.updated_at)], ["Canal", 'Portal web']]} /><Note tone="warn">SLA de respuesta: en cumplimiento (menos de 30 min).</Note></CardBody></Card>
+        <div className="card" style={{ background: 'var(--surface-2)' }}><div className="card-b" style={{ padding: '14px 18px', fontSize: 12.5, color: 'var(--muted)' }}><strong style={{ color: 'var(--text)', display: 'block', marginBottom: 4 }}>&#191;Problema urgente?</strong>Para ca&#237;das cr&#237;ticas fuera de horario, la guardia NOC 24/7 atiende solicitudes marcadas con prioridad alta.</div></div>
+      </aside>
+    </div> : null}
   </div>;
 }
 
