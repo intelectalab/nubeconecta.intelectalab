@@ -153,7 +153,8 @@ final class PortalComplaintController
                 'variables' => ['numero' => $complaint->number, 'codigo' => $complaint->code ?? '', 'nombre' => $complaint->consumer_name],
             ]);
         } catch (\Throwable $e) {
-            Log::warning('notify falló', ['event' => 'complaint.received', 'error' => $e->getMessage()]);
+            // Best-effort: ni el fallo de notificación ni su registro deben tumbar la hoja (ya guardada).
+            try { Log::warning('notify falló', ['event' => 'complaint.received', 'error' => $e->getMessage()]); } catch (\Throwable) { /* logging no disponible */ }
         }
 
         return (new PortalComplaintResource($complaint))->response()->setStatusCode(201);

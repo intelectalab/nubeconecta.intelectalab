@@ -131,7 +131,8 @@ final class TicketController
                     ]);
                 }
             } catch (\Throwable $e) {
-                Log::warning('notify falló', ['event' => 'ticket.customer_reply', 'error' => $e->getMessage()]);
+                // Best-effort: ni el fallo de notificación ni su registro deben tumbar el mensaje (ya guardado).
+                try { Log::warning('notify falló', ['event' => 'ticket.customer_reply', 'error' => $e->getMessage()]); } catch (\Throwable) { /* logging no disponible */ }
             }
         }
         $message->setRelation('authorUser', auth()->user());
