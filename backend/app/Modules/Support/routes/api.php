@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Modules\Support\Http\Controllers\ComplaintController;
+use App\Modules\Support\Http\Controllers\KbArticleController;
+use App\Modules\Support\Http\Controllers\KbCategoryController;
 use App\Modules\Support\Http\Controllers\Portal\PortalComplaintController;
+use App\Modules\Support\Http\Controllers\Portal\PortalKbController;
 use App\Modules\Support\Http\Controllers\Portal\PortalTicketController;
 use App\Modules\Support\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +24,9 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('tickets/{id}/messages', [TicketController::class, 'addMessage'])->whereUuid('id')->middleware(['permission:helpdesk.ticket_message.create', 'idempotency:optional'])->name('tickets.messages.store');
     $crud('complaints', ComplaintController::class, 'helpdesk.complaint');
     Route::post('complaints/{id}/responses', [ComplaintController::class, 'addResponse'])->whereUuid('id')->middleware(['permission:helpdesk.complaint.respond', 'idempotency:optional'])->name('complaints.responses.store');
+    // Base de conocimientos / centro de ayuda (helpdesk.kb_*).
+    $crud('kb-categories', KbCategoryController::class, 'helpdesk.kb_category');
+    $crud('kb-articles', KbArticleController::class, 'helpdesk.kb_article');
 });
 
 Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
@@ -31,4 +37,7 @@ Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:cus
     Route::post('tickets', [PortalTicketController::class, 'store'])->middleware(['permission:portal.ticket.create', 'idempotency:optional'])->name('tickets.store');
     Route::get('tickets/{id}', [PortalTicketController::class, 'show'])->whereUuid('id')->middleware('permission:portal.ticket.view')->name('tickets.show');
     Route::post('tickets/{id}/messages', [PortalTicketController::class, 'addMessage'])->whereUuid('id')->middleware(['permission:portal.ticket.create', 'idempotency:optional'])->name('tickets.messages.store');
+    // Centro de ayuda del cliente (solo lectura, artículos públicos publicados).
+    Route::get('kb-articles', [PortalKbController::class, 'index'])->middleware('permission:portal.kb_article.view')->name('kb-articles.index');
+    Route::get('kb-articles/{id}', [PortalKbController::class, 'show'])->whereUuid('id')->middleware('permission:portal.kb_article.view')->name('kb-articles.show');
 });
