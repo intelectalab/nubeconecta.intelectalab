@@ -12,6 +12,7 @@ export const ROUTES = [
   'facturas',
   'pagar',
   'soporte',
+  'ayuda',
   'ticket-detalle',
   'respaldos',
   'contratos',
@@ -30,6 +31,7 @@ export const CRUMBS: Record<Route, string> = {
   facturas: 'Facturas y pagos',
   pagar: 'Pagar facturas en línea',
   soporte: 'Centro de soporte',
+  ayuda: 'Centro de ayuda',
   'ticket-detalle': 'Ticket',
   respaldos: 'Respaldos automáticos',
   contratos: 'Contratos y acuerdos legales',
@@ -47,6 +49,7 @@ export const NAV_OF: Record<Route, Route> = {
   facturas: 'facturas',
   pagar: 'facturas',
   soporte: 'soporte',
+  ayuda: 'ayuda',
   'ticket-detalle': 'soporte',
   respaldos: 'respaldos',
   contratos: 'contratos',
@@ -84,6 +87,7 @@ export function navGroups(badges: Partial<Record<Route, number>> = {}): NavGroup
       items: [
         { id: 'facturas', label: 'Facturas y pagos', icon: 'wallet', badge: badges.facturas, hot: true },
         { id: 'soporte', label: 'Centro de soporte', icon: 'msg' },
+        { id: 'ayuda', label: 'Centro de ayuda', icon: 'book' },
       ],
     },
     {

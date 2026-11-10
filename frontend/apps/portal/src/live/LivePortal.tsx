@@ -46,12 +46,14 @@ import {
   type PortalComplaintStatus,
   type PortalComplaintType,
   type PortalComplaintCurrency,
+  type PortalKbArticle,
 } from '@hub/api';
 import { hub } from '../auth/client';
 import { Alert, Card, CardBody, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
+import { RichOut } from '../components/richOut';
 
-export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ticket-detalle';
-export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ticket-detalle'];
+export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ayuda' | 'ticket-detalle';
+export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ayuda', 'ticket-detalle'];
 
 const MONEY: Record<string, Intl.NumberFormat> = {
   PEN: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }),
@@ -178,12 +180,76 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
   if (route === 'servicios') return <ServicesPage openService={openService} />;
   if (route === 'servicio-detalle') return serviceId ? <ServicePage id={serviceId} back={() => go('servicios')} /> : <ServicesPage openService={openService} />;
   if (route === 'soporte') return <SupportPage openTicket={openTicket} />;
+  if (route === 'ayuda') return <HelpPage go={go} />;
   if (route === 'ticket-detalle') return ticketId ? <SupportTicketPage id={ticketId} back={() => go('soporte')} /> : <SupportPage openTicket={openTicket} />;
   if (route === 'perfil') return <ProfilePage />;
   if (route === 'usuarios') return <ContactsPage />;
   if (route === 'seguridad') return <SecurityPage />;
   if (route === 'pagar') return <PaymentsPage go={go} />;
   return invoiceId ? <InvoicePage id={invoiceId} back={() => setInvoiceId(null)} canPay={can('portal.payment.create')} /> : <InvoicesPage openInvoice={setInvoiceId} go={go} />;
+}
+
+/* ---------- Centro de ayuda ---------- */
+function HelpPage({ go }: { go: (r: LiveRoute) => void }) {
+  const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const res = useLoad(() => hub.support.portalKb.list({ q: q.trim() || undefined, size: 25, cursor }), [q, cursor]);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+
+  if (articleId) return <HelpArticlePage id={articleId} back={() => setArticleId(null)} />;
+
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead
+      title="Centro de ayuda"
+      lead="Encuentre respuestas y guías para sus servicios."
+      actions={<button type="button" className="btn primary" onClick={() => go('soporte')}>¿Necesitas ayuda? Abre un ticket</button>}
+    />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    <Card title="Artículos" icon="book" sub={res.data ? `${rows.length} artículo(s)` : undefined}>
+      <div className="card-b" style={{ paddingBottom: 0 }}>
+        <Field label="Buscar artículos">
+          <input
+            className="input"
+            type="search"
+            value={q}
+            placeholder="Escriba una palabra o tema"
+            onChange={(e) => { setQ(e.target.value); setCursor(null); }}
+          />
+        </Field>
+      </div>
+      {res.loading && !res.data ? <Loading inCard /> : !rows.length ? (
+        <Empty icon="book"><b>Sin artículos</b>{q.trim() ? 'No encontramos artículos para esta búsqueda.' : 'Aún no hay artículos publicados.'}</Empty>
+      ) : (
+        <Table cols={[{ label: 'Artículo' }, { label: 'Categoría' }, { label: 'Actualizado' }, { label: 'Acción', right: true }]}>
+          {rows.map((article) => <tr key={article.id}>
+            <td><b>{article.title}</b></td>
+            <td>{article.category?.name ?? 'General'}</td>
+            <td className="nw">{fDate(article.updated_at ?? article.published_at)}</td>
+            <td className="r nw"><button type="button" className="btn sm" onClick={() => setArticleId(article.id)}>Leer artículo →</button></td>
+          </tr>)}
+        </Table>
+      )}
+      <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
+    </Card>
+  </div>;
+}
+
+function HelpArticlePage({ id, back }: { id: string; back: () => void }) {
+  const res = useLoad(() => hub.support.portalKb.get(id), [id]);
+  const article: PortalKbArticle | null = res.data;
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <PageHead
+      back={{ label: 'Volver al centro de ayuda', onClick: back }}
+      title={article?.title ?? 'Artículo de ayuda'}
+      lead={article?.category?.name ?? undefined}
+      actions={<button type="button" className="btn primary" onClick={() => back()}>Ver artículos</button>}
+    />
+    {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+    {res.loading && !article ? <Loading /> : null}
+    {article ? <Card title={article.title} icon="book"><div className="card-b"><RichOut html={article.body ?? ''} /></div></Card> : null}
+  </div>;
 }
 
 /* ---------- P-PRT-02 Resumen ---------- */
