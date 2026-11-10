@@ -1,17 +1,16 @@
 /**
  * Datos y helpers del generador de shortcodes (prototipo l.2401-2470 y
  * l.3256-3280): opciones por atributo, código generado, búsqueda de productos,
- * WHOIS simulado y catálogo de servidores.
+ * y catálogo de servidores.
  */
 import {
-  BRANDS, BR, BUNDLES, FORMS, HPLANS, LEGDOCS, PROMOS, SCDEF, VPLANS, domains, kHash, type HostingPlan, type VpsPlan,
+  BRANDS, BR, BUNDLES, FORMS, HPLANS, LEGDOCS, PROMOS, SCDEF, VPLANS, type HostingPlan, type VpsPlan,
 } from '../../../data';
 import { DEDI, GENPROD, allCats, type GenProduct } from '../comercial/catalogData';
 
 /* Shortcodes agregados en la ampliación del prototipo (l.3257). */
-if (!SCDEF.hub_whois) {
+if (!SCDEF.hub_servidores) {
   Object.assign(SCDEF, {
-    hub_whois: { d: 'Buscador WHOIS con disponibilidad, precios y sugerencias', o: [['extensiones', 'txt', '.pe,.com.pe,.com,.net'], ['sugerencias', 'chk', true], ['mostrar_whois', 'chk', true], ['moneda', 'sel', 'auto']] },
     hub_servidores: { d: 'Catálogo de VPS o dedicados con filtros y configurador', o: [['tipo', 'sel', 'vps'], ['ids', 'txt', ''], ['filtros', 'chk', true], ['configurador', 'chk', true], ['ciclo', 'sel', 'mensual'], ['moneda', 'sel', 'auto']] },
   });
 }
@@ -43,7 +42,7 @@ export function scCode(name: string, vals: ScVals): string {
 /** Equivalencia shortcode → bloque del widget embebible (docs/15 §3). */
 const BLOCK_NAME: Record<string, string> = {
   hub_planes: 'planes', hub_plan: 'plan', hub_comparador: 'comparador', hub_paquete: 'paquete',
-  hub_dominios: 'dominios', hub_buscar_dominio: 'buscar-dominio', hub_whois: 'whois', hub_servidores: 'servidores',
+  hub_dominios: 'dominios', hub_buscar_dominio: 'buscar-dominio', hub_servidores: 'servidores',
   hub_promocion: 'promocion', hub_contacto: 'contacto', hub_documento_legal: 'documento-legal',
   hub_estado_servicios: 'estado', hub_formulario: 'formulario', hub_libro_reclamaciones: 'libro-reclamaciones',
   hub_boton_contratar: 'boton-contratar', hub_selector_moneda: 'moneda',
@@ -108,9 +107,8 @@ export function prodById(id: string): Prod | null {
   return g ? { kind: 'gp', x: g } : null;
 }
 
-/* ---------- WHOIS y servidores ---------- */
+/* ---------- Servidores ---------- */
 export const LOCS: Record<string, string> = { Contabo: 'St. Louis, EE.UU.', DigitalOcean: 'Nueva York, EE.UU.', Propio: 'Lima, Perú' };
-export const whoisTaken = (d: string): boolean => domains.some((x) => x.d === d) || kHash(d) % 3 === 0;
 export interface SrvRow {
   id: string;
   name: string;

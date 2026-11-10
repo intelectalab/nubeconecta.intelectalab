@@ -7,11 +7,11 @@ import { useApp } from '../../../app/context';
 import { useViewState } from '../../../app/storage';
 import {
   ADDONS, BR, BUNDLES, CONTACT, FORMS, HPLANS, LEGAL, NF0, NF2, PROMOS, TC, TLDS, TODAY, VPLANS, WPS,
-  addD, diffD, fD, fromIso, kHash, moneyRaw, mwBtnCls, mwVars, norm, type BrandId, type WebForm,
+  diffD, fD, fromIso, moneyRaw, mwBtnCls, mwVars, norm, type BrandId, type WebForm,
 } from '../../../data';
 import { GENPROD } from '../comercial/catalogData';
 import { MwBar, MwPlanCard } from './shared';
-import { prodById, scValues, srvList, whoisTaken, type Prod, type ScVals } from './wpData';
+import { prodById, scValues, srvList, type Prod, type ScVals } from './wpData';
 
 const s = (v: unknown): string => (v == null ? '' : String(v));
 
@@ -135,137 +135,6 @@ function pickList(t: string, ids: string, b: BrandId): Prod[] {
   return listFor(t, b);
 }
 
-function Whois({ v, b }: { v: ScVals; b: BrandId }) {
-  const { toast } = useApp();
-  const [q, setQ] = useViewState('wp.whQ', 'andestravel');
-  const [done, setDone] = useViewState('wp.whDone', false);
-  const [open, setOpen] = useViewState<string | null>('wp.whOpen', null);
-  const ex = s(v.extensiones).split(',').map((x) => x.trim()).filter(Boolean);
-  const qq = norm(q).replace(/^www\./, '').replace(/\..*$/, '').replace(/[^a-z0-9-]/g, '');
-  const ok = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(qq);
-  const go = () => {
-    setDone(true);
-    setOpen(null);
-    toast('Búsqueda WHOIS (simulada)', `${q} · ${s(v.extensiones)}`, 'info');
-  };
-  const Row = ({ d }: { d: string }) => {
-    const tk = whoisTaken(d);
-    const tld = TLDS.find((t) => d.endsWith(t.tld) && (t.tld !== '.pe' || !d.endsWith('.com.pe')));
-    return (
-      <>
-        <div className="wh-row">
-          <b className="mono">{d}</b>
-          {tk ? <span className="wh-no">✕ No disponible</span> : <span className="wh-ok">✓ Disponible</span>}
-          <span className="wh-p">{tld ? scMoney(tld.pPEN, s(v.moneda)) + '/año' : ''}</span>
-          {tk ? (
-            <>
-              <button type="button" className="mw-b o sm" onClick={() => toast('Transferencia iniciada (vista previa)', `${d} · se pedirá el código EPP`, 'info')}>
-                Transferir
-              </button>
-              {v.mostrar_whois ? (
-                <button type="button" className="mw-link" aria-expanded={open === d} onClick={() => setOpen(open === d ? null : d)} style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}>
-                  WHOIS
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <button type="button" className={`${mwBtnCls(b)} sm`} onClick={() => toast('Agregado al carrito (vista previa)', `${d} · registro por 1 año`)}>
-              Registrar
-            </button>
-          )}
-        </div>
-        {open === d && tk && v.mostrar_whois ? (
-          <dl className="wh-who">
-            <dt>Dominio</dt>
-            <dd>{d.toUpperCase()}</dd>
-            <dt>Registrador</dt>
-            <dd>{d.endsWith('.pe') ? 'Red Científica Peruana (vía PoloDomains)' : 'NameCheap, Inc.'}</dd>
-            <dt>Creado</dt>
-            <dd>{fD(addD(TODAY, -(kHash(d) % 2000) - 200))}</dd>
-            <dt>Expira</dt>
-            <dd>{fD(addD(TODAY, (kHash(d) % 300) + 20))}</dd>
-            <dt>Estado</dt>
-            <dd>clientTransferProhibited</dd>
-            <dt>Servidores DNS</dt>
-            <dd>ns1.alojamientoplus.pe · ns2.alojamientoplus.pe</dd>
-            <dt>Titular</dt>
-            <dd>REDACTED FOR PRIVACY · privacidad de datos activada</dd>
-            <dt>Contacto</dt>
-            <dd>Formulario del registrador</dd>
-          </dl>
-        ) : null}
-      </>
-    );
-  };
-  const sug = [qq + 'peru', 'mi' + qq, qq + 'online', qq + '-sac', qq + 'app'].map((s2) => s2 + (ex.find((x) => !whoisTaken(s2 + x)) || ex[0] || '.com'));
-  const alt = TLDS.filter((t) => t.online && !ex.includes(t.tld));
-  return (
-    <>
-      <h3 className="mw-h">Busca tu dominio</h3>
-      <div className="mw-search">
-        <input
-          className="input wh-in"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              go();
-            }
-          }}
-          aria-label="Nombre de dominio"
-          placeholder="tuempresa"
-        />
-        <button type="button" className={mwBtnCls(b)} onClick={go}>
-          Buscar
-        </button>
-      </div>
-      <div className="mw-tlds">
-        {ex.map((e) => {
-          const t = TLDS.find((x) => x.tld === e);
-          return t ? (
-            <span key={e}>
-              {e} <b>{scMoney(t.pPEN, s(v.moneda))}</b>
-            </span>
-          ) : null;
-        })}
-      </div>
-      {done ? (
-        !ok ? (
-          <p className="wh-err">Escriba un nombre de 3 a 63 caracteres: letras, números y guiones.</p>
-        ) : (
-          <>
-            <div className="wh-res">
-              {ex.map((e) => (
-                <Row key={e} d={qq + e} />
-              ))}
-            </div>
-            {v.sugerencias ? (
-              <>
-                <h4 className="mw-h wh-h">Sugerencias de nombres</h4>
-                <div className="wh-res">
-                  {sug.map((d) => (
-                    <Row key={d} d={d} />
-                  ))}
-                </div>
-              </>
-            ) : null}
-            {alt.length ? (
-              <>
-                <h4 className="mw-h wh-h">Otras extensiones</h4>
-                <div className="wh-res">
-                  {alt.map((t) => (
-                    <Row key={t.tld} d={qq + t.tld} />
-                  ))}
-                </div>
-              </>
-            ) : null}
-          </>
-        )
-      ) : null}
-    </>
-  );
-}
 
 interface SrvState {
   cpu: number;
@@ -404,8 +273,7 @@ export function ScPreview({ name, vals, brand }: { name: string; vals: ScVals; b
   const b = brand;
   const B = mwBtnCls(b);
   let h: ReactNode = null;
-  if (name === 'hub_whois') h = <Whois v={v} b={b} />;
-  else if (name === 'hub_servidores') h = <Servers v={v} b={b} />;
+  if (name === 'hub_servidores') h = <Servers v={v} b={b} />;
   else if (name === 'hub_planes') {
     const l = pickList(s(v.tipo), s(v.ids), b).filter((p) => v.destacados || !(p.kind === 'hp' && p.x.feat));
     h = l.length ? (

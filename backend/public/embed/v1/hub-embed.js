@@ -304,10 +304,6 @@
         wrap.appendChild(card);
       }).catch(function (e) { fail(wrap, e); });
     },
-    whois: function (div, wrap) {
-      // Reutiliza la búsqueda de disponibilidad (RDAP/WHOIS público).
-      RENDER['buscar-dominio'](div, wrap);
-    },
     estado: function (div, wrap) {
       loading(wrap, 'Cargando estado');
       api('/status', {}).then(function (d) {
