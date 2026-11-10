@@ -1135,7 +1135,7 @@ export default function App() {
           )}
 
           {/* VISTA 7: SOPORTE Y TICKETS */}
-          {route === 'soporte' && (() => {
+          {!live && route === 'soporte' && (() => {
             const filteredTickets = ticketsList.filter((t) => {
               if (tkFilter === 'abiertos') return t.st !== 'Resuelto';
               if (tkFilter === 'cerrados') return t.st === 'Resuelto';
@@ -1232,7 +1232,7 @@ export default function App() {
           })()}
 
           {/* VISTA 8: HILO DE CONVERSACIÓN DE UN TICKET */}
-          {route === 'ticket-detalle' && (
+          {!live && route === 'ticket-detalle' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div>
@@ -1463,7 +1463,7 @@ export default function App() {
           )}
 
           {/* VISTA 11: USUARIOS DE LA EMPRESA */}
-          {route === 'usuarios' && (
+          {!live && route === 'usuarios' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
@@ -1532,7 +1532,7 @@ export default function App() {
           )}
 
           {/* VISTA 12: SEGURIDAD Y 2FA */}
-          {route === 'seguridad' && (
+          {!live && route === 'seguridad' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
                 <div>
