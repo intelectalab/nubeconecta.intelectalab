@@ -9,6 +9,8 @@ use App\Modules\Customers\Models\Contact;
 use App\Modules\Support\Models\Ticket;
 use App\Modules\Support\Models\TicketMessage;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Feature\Identity\IdentityTestCase;
 
@@ -92,6 +94,40 @@ final class PortalTicketTest extends IdentityTestCase
         $this->assertFalse($created->is_internal);
         $this->assertSame('portal', $created->channel);
         $this->assertSame(404, $this->postJson('/api/v1/portal/tickets/'.$foreignTicket->id.'/messages', ['body' => 'No autorizado'])->getStatusCode());
+    }
+
+    public function test_ticket_show_exposes_only_customer_attachments(): void
+    {
+        Storage::fake('local');
+        config(['hub.files.disk' => 'local', 'hub.files.max_bytes' => 10 * 1024 * 1024]);
+
+        $customer = $this->createCustomer('Cliente Ticket E SAC', '20100070970');
+        $contact = $this->createPortalContact($customer['id'], 'Contacto Ticket E', 'ticket-e@cliente.test');
+
+        $this->actAs($contact['user']);
+        $ticket = $this->postJson('/api/v1/portal/tickets', ['subject' => 'Con adjunto'])->assertCreated()->json('data.id');
+
+        // El cliente sube su adjunto (el backend fuerza visibility=customer).
+        $customerFile = $this->post('/api/v1/portal/files', [
+            'file' => UploadedFile::fake()->image('captura.png'),
+            'attachable_type' => 'ticket', 'attachable_id' => $ticket,
+        ])->assertCreated()->json('data.id');
+
+        // El staff adjunta un archivo interno al mismo ticket.
+        $this->actAs($this->admin);
+        $this->post('/api/v1/admin/files', [
+            'file' => UploadedFile::fake()->create('interno.pdf', 50, 'application/pdf'),
+            'attachable_type' => 'ticket', 'attachable_id' => $ticket, 'visibility' => 'internal',
+        ])->assertCreated();
+
+        // El cliente ve solo su adjunto, sin campos internos ni el archivo interno.
+        $this->actAs($contact['user']);
+        $show = $this->getJson('/api/v1/portal/tickets/'.$ticket)->assertOk();
+        $this->assertSame([$customerFile], array_column($show->json('data.attachments'), 'id'));
+        $this->assertStringNotContainsString('interno.pdf', json_encode($show->json()));
+        $this->assertArrayNotHasKey('visibility', $show->json('data.attachments.0'));
+        $this->assertArrayNotHasKey('scan_status', $show->json('data.attachments.0'));
+        $this->assertArrayNotHasKey('path', $show->json('data.attachments.0'));
     }
 
     /** @return array<string, mixed> */

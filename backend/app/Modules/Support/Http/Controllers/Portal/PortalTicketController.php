@@ -40,7 +40,10 @@ final class PortalTicketController
     {
         $customer = $this->customer($request);
         $ticket = Ticket::query()->where('customer_id', $customer->id)->whereNull('deleted_at')
-            ->with(['messages' => fn ($query) => $query->where('is_internal', false)->orderBy('created_at')])
+            ->with([
+                'messages' => fn ($query) => $query->where('is_internal', false)->orderBy('created_at'),
+                'attachments' => fn ($query) => $query->where('visibility', 'customer'),
+            ])
             ->findOrFail($id);
 
         return new PortalTicketResource($ticket);

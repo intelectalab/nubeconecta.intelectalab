@@ -23,6 +23,17 @@ final class PortalTicketResource extends JsonResource
             'resolved_at' => $this->resolved_at,
             'closed_at' => $this->closed_at,
             'messages' => $this->whenLoaded('messages', fn ($messages) => PortalTicketMessageResource::collection($messages->where('is_internal', false))),
+            // Solo adjuntos visibles para el cliente; nunca los internos del staff.
+            'attachments' => $this->whenLoaded('attachments', fn ($files) => $files
+                ->where('visibility', 'customer')
+                ->values()
+                ->map(fn ($file) => [
+                    'id' => $file->id,
+                    'original_name' => $file->original_name,
+                    'mime_type' => $file->mime_type,
+                    'size_bytes' => $file->size_bytes,
+                    'created_at' => $file->created_at,
+                ])),
         ];
     }
 }

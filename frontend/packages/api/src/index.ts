@@ -18,7 +18,7 @@ import { createInventoryApi } from './inventory';
 import { createFinanceApi } from './finance';
 import { createBrandsApi } from './brands';
 import { createNotificationsApi } from './notifications';
-import { createFilesApi } from './files';
+import { createFilesApi, createPortalFilesApi } from './files';
 
 export * from './http';
 export * from './auth';
@@ -47,7 +47,7 @@ export function createHubApi(opts: HttpClientOptions = {}) {
   const http = new HttpClient(opts);
   const billing = createBillingApi(http);
   /** `invoices` es alias de `billing` (comprobantes de M-BIL). */
-  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http), notifications: createNotificationsApi(http), files: createFilesApi(http) };
+  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http), notifications: createNotificationsApi(http), files: createFilesApi(http), portalFiles: createPortalFilesApi(http) };
 }
 
 /** Cliente por defecto: mismo origen (proxy de Vite en desarrollo). */

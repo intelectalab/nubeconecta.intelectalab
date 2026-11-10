@@ -42,6 +42,14 @@ export interface PortalTicketMessage {
   created_at: string;
   author: 'Tú' | 'Soporte';
 }
+/** Adjunto del ticket visible para el cliente (sin campos internos). */
+export interface PortalTicketAttachment {
+  id: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+}
 export interface PortalTicket {
   id: string;
   number: string;
@@ -54,6 +62,8 @@ export interface PortalTicket {
   resolved_at: string | null;
   closed_at: string | null;
   messages: PortalTicketMessage[];
+  /** Adjuntos del cliente (solo presente en el detalle). */
+  attachments?: PortalTicketAttachment[];
 }
 export interface PortalTicketInput {
   subject: string;

@@ -31,6 +31,33 @@ interface Envelope<T> {
 
 const enc = encodeURIComponent;
 
+/** Adjunto visible para el cliente (portal). Sin campos internos; `url` solo al consultar uno. */
+export interface PortalFileAttachment {
+  id: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+  url?: string;
+}
+
+/** Cliente de Files del portal del cliente: subir y consultar adjuntos (visibilidad forzada a `customer`). */
+export function createPortalFilesApi(http: HttpClient) {
+  const base = '/api/v1/portal/files';
+  return {
+    /** Sube un archivo ligado a una entidad del cliente (p. ej. attachable_type='ticket'). */
+    upload: (file: File, attachableType: FileAttachableType, attachableId: string): Promise<PortalFileAttachment> => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('attachable_type', attachableType);
+      form.append('attachable_id', attachableId);
+      return http.post<Envelope<PortalFileAttachment>>(base, form).then((r) => r.data);
+    },
+    /** Trae el adjunto con una `url` firmada temporal para verlo o descargarlo. */
+    get: (id: string): Promise<PortalFileAttachment> => http.get<Envelope<PortalFileAttachment>>(`${base}/${enc(id)}`).then((r) => r.data),
+  };
+}
+
 /** Cliente del módulo Files: subir, consultar (URL temporal) y borrar adjuntos. */
 export function createFilesApi(http: HttpClient) {
   const base = '/api/v1/admin/files';
