@@ -40,6 +40,28 @@ export function scCode(name: string, vals: ScVals): string {
     .join('')}]`;
 }
 
+/** Equivalencia shortcode → bloque del widget embebible (docs/15 §3). */
+const BLOCK_NAME: Record<string, string> = {
+  hub_planes: 'planes', hub_plan: 'plan', hub_comparador: 'comparador', hub_paquete: 'paquete',
+  hub_dominios: 'dominios', hub_buscar_dominio: 'buscar-dominio', hub_whois: 'whois', hub_servidores: 'servidores',
+  hub_promocion: 'promocion', hub_contacto: 'contacto', hub_documento_legal: 'documento-legal',
+  hub_estado_servicios: 'estado', hub_formulario: 'formulario', hub_libro_reclamaciones: 'libro-reclamaciones',
+  hub_boton_contratar: 'boton-contratar', hub_selector_moneda: 'moneda',
+};
+/** Equivalente del shortcode para webs a medida: `<div data-hub-block>` con atributos data-*. */
+export function embedCode(name: string, vals: ScVals): string {
+  const block = BLOCK_NAME[name] ?? name.replace(/^hub_/, '').replace(/_/g, '-');
+  const v = scValues(name, vals);
+  const attrs = SCDEF[name].o
+    .map(([k, t]) => {
+      const x = v[k];
+      if (x === '' || x == null) return '';
+      return ` data-${k.replace(/_/g, '-')}="${t === 'chk' ? (x ? 'si' : 'no') : x}"`;
+    })
+    .join('');
+  return `<div data-hub-block="${block}"${attrs}></div>`;
+}
+
 /** Opciones de los atributos tipo lista (scOpts). */
 export function scOpts(k: string, name: string): [string, string][] {
   if (name === 'hub_servidores' && k === 'tipo') return [['vps', 'VPS'], ['dedicado', 'Servidores dedicados']];

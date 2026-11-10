@@ -1,6 +1,6 @@
 /** WordPress: administración de sitios, credenciales de plugin y avisos de caché. */
 import { useState, type FormEvent } from 'react';
-import { isProblem, type CursorPage, type WpCacheInvalidation, type WpSite, type WpSiteInput, type WpSiteToken } from '@hub/api';
+import { isProblem, type CursorPage, type WpCacheInvalidation, type WpSite, type WpSiteInput, type WpSiteKind, type WpSiteToken } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
@@ -14,7 +14,7 @@ import { ScBox } from './shared';
 const PER = 25;
 const api = hub.webConnector;
 const page = <T,>(rows: T[]): CursorPage<T> => ({ data: rows, meta: { next_cursor: null, prev_cursor: null, has_more: false, page_size: PER }, links: { next: null, prev: null } });
-const demoSites: WpSite[] = WPS.map((w, i) => ({ id: w.id, organization_id: '', brand_id: w.brand, name: w.host, base_url: `https://${w.host}`, network_site_id: null, webhook_url: w.wh || null, allowed_origins: [`https://${w.host}`], thank_you_url: null, status: w.st === 'Conectado' ? 'active' : 'pending', plugin_version: w.plugin || null, wordpress_version: w.wp || null, disabled_reason: null, has_webhook_secret: !!w.wh, last_seen_at: null, last_invalidation_at: w.inv?.toISOString() ?? null, version: 1, created_at: new Date(Date.now() - i * 86400000).toISOString(), updated_at: new Date().toISOString(), created_by: null, updated_by: null }));
+const demoSites: WpSite[] = WPS.map((w, i) => ({ id: w.id, organization_id: '', brand_id: w.brand, name: w.host, base_url: `https://${w.host}`, kind: 'wordpress', network_site_id: null, webhook_url: w.wh || null, allowed_origins: [`https://${w.host}`], thank_you_url: null, status: w.st === 'Conectado' ? 'active' : 'pending', plugin_version: w.plugin || null, wordpress_version: w.wp || null, disabled_reason: null, has_webhook_secret: !!w.wh, last_seen_at: null, last_invalidation_at: w.inv?.toISOString() ?? null, version: 1, created_at: new Date(Date.now() - i * 86400000).toISOString(), updated_at: new Date().toISOString(), created_by: null, updated_by: null }));
 const SITE_LABEL = { pending: 'Pendiente', active: 'Activo', disabled: 'Desactivado' } as const;
 const SITE_CHIP = { pending: 'warn', active: 'ok', disabled: 'neutral' } as const;
 const INVALIDATION_CHIP: Record<string, 'info' | 'ok' | 'danger' | 'neutral'> = { pending: 'info', delivered: 'ok', failed: 'danger' };
@@ -42,11 +42,12 @@ export default function WpSitios() {
 
   const columns: Column<WpSite>[] = [
     { key: 'site', header: 'Sitio', className: 'strong', render: (s) => <><span>{s.name}</span><div className="sub">{s.base_url}</div></> },
+    { key: 'kind', header: 'Tipo', render: (s) => s.kind === 'embed' ? <Chip kind="info">Web a medida</Chip> : <Chip kind="neutral">WordPress</Chip> },
     { key: 'status', header: 'Estado', render: (s) => <Chip kind={SITE_CHIP[s.status]}>{SITE_LABEL[s.status]}</Chip> },
-    { key: 'secret', header: 'Secreto webhook', render: (s) => s.has_webhook_secret ? <Chip kind="ok">Configurado</Chip> : <Chip kind="warn">Pendiente</Chip> },
+    { key: 'secret', header: 'Secreto webhook', render: (s) => s.kind === 'embed' ? <span className="sub">No aplica</span> : s.has_webhook_secret ? <Chip kind="ok">Configurado</Chip> : <Chip kind="warn">Pendiente</Chip> },
     { key: 'seen', header: 'Última actividad', className: 'nw', render: (s) => fDateTime(s.last_seen_at) },
     { key: 'actions', header: '', align: 'r', render: (s) => <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-      {can('web_connector.site.update') ? <><button className="btn sm" onClick={() => setEditing(s)}>Editar</button><button className="btn sm" disabled={busyId === s.id} onClick={() => void test(s)}><Icon name="activity" size="sm" /> Probar webhook</button><button className="btn sm" disabled={busyId === s.id} onClick={() => void rotate(s)}><Icon name="lock" size="sm" /> Rotar secreto</button>{s.status === 'active' ? <button className="btn sm" disabled={busyId === s.id} onClick={() => void disable(s)}>Desactivar</button> : <button className="btn sm" disabled={busyId === s.id} onClick={() => void activate(s)}>Activar</button>}</> : null}
+      {can('web_connector.site.update') ? <><button className="btn sm" onClick={() => setEditing(s)}>Editar</button>{s.kind === 'wordpress' ? <><button className="btn sm" disabled={busyId === s.id} onClick={() => void test(s)}><Icon name="activity" size="sm" /> Probar webhook</button><button className="btn sm" disabled={busyId === s.id} onClick={() => void rotate(s)}><Icon name="lock" size="sm" /> Rotar secreto</button></> : null}{s.status === 'active' ? <button className="btn sm" disabled={busyId === s.id} onClick={() => void disable(s)}>Desactivar</button> : <button className="btn sm" disabled={busyId === s.id} onClick={() => void activate(s)}>Activar</button>}</> : null}
       {can('web_connector.site_token.view') ? <button className="btn sm" onClick={() => setOpenSite(openSite === s.id ? null : s.id)}>{openSite === s.id ? 'Cerrar tokens' : 'Tokens'}</button> : null}
       {can('web_connector.site.delete') ? <button className="btn sm danger" onClick={() => removeSite(s)}>Eliminar</button> : null}
     </div> },
@@ -108,6 +109,7 @@ function SiteForm({ site, onClose, onSaved }: { site?: WpSite; onClose: () => vo
   const { toast } = useApp();
   const can = useCan();
   const brands = useLoad(() => hub.customers.brands(), []);
+  const [kind, setKind] = useState<WpSiteKind>(site?.kind ?? 'wordpress');
   const [brandId, setBrandId] = useState(site?.brand_id ?? '');
   const [name, setName] = useState(site?.name ?? '');
   const [baseUrl, setBaseUrl] = useState(site?.base_url ?? 'https://');
@@ -117,22 +119,31 @@ function SiteForm({ site, onClose, onSaved }: { site?: WpSite; onClose: () => vo
   const [thankYouUrl, setThankYouUrl] = useState(site?.thank_you_url ?? '');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const embed = kind === 'embed';
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setMessage('');
-    const input: WpSiteInput = { brand_id: brandId, name: name.trim(), base_url: baseUrl.trim(), network_site_id: networkId ? Number(networkId) : null, webhook_url: webhookUrl.trim() || null, allowed_origins: origins.split('\n').map((x) => x.trim()).filter(Boolean), thank_you_url: thankYouUrl.trim() || null };
+    const list = origins.split('\n').map((x) => x.trim()).filter(Boolean);
+    const input: WpSiteInput = embed
+      ? { brand_id: brandId, name: name.trim(), base_url: baseUrl.trim(), kind, allowed_origins: list, webhook_url: null, network_site_id: null, thank_you_url: null }
+      : { brand_id: brandId, name: name.trim(), base_url: baseUrl.trim(), kind, network_site_id: networkId ? Number(networkId) : null, webhook_url: webhookUrl.trim() || null, allowed_origins: list, thank_you_url: thankYouUrl.trim() || null };
     try { if (site) await api.sites.update(site.id, site.version, input); else await api.sites.create(input); toast(site ? 'Sitio actualizado' : 'Sitio creado', name); onSaved(); onClose(); }
     catch (e) { setMessage(errorText(e)); if (isProblem(e) && e.code === 'version_conflict') { setMessage(`${errorText(e)} Se recargó el listado.`); onSaved(); } }
     finally { setBusy(false); }
   };
-  return <Modal open wide bare onClose={onClose} title={site ? `Editar ${site.name}` : 'Nuevo sitio WordPress'}>
+  return <Modal open wide bare onClose={onClose} title={site ? `Editar ${site.name}` : embed ? 'Nuevo sitio · Web a medida' : 'Nuevo sitio WordPress'}>
     <form className="modal-b" onSubmit={(e) => void submit(e)}><div className="form-grid">
+      <label className="field">Tipo de sitio*<select className="select" value={kind} disabled={!!site} onChange={(e) => setKind(e.target.value as WpSiteKind)}><option value="wordpress">WordPress (plugin Hub Connector)</option><option value="embed">Web a medida (widget hub-embed.js)</option></select></label>
       <label className="field">Marca*<select required className="select" value={brandId} onChange={(e) => setBrandId(e.target.value)}><option value="">Seleccione…</option>{(brands.data ?? []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-      <label className="field">Nombre*<input required className="input" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field full">Nombre*<input required className="input" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></label>
       <label className="field full">URL base HTTPS*<input required type="url" className="input" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://www.ejemplo.com" /></label>
-      <label className="field">ID del sitio en Multisite<input type="number" min={1} className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value)} /></label>
-      <label className="field">URL del webhook del plugin<input type="url" className="input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://…" /></label>
-      <label className="field full">Orígenes permitidos (uno por línea)<textarea className="input" rows={3} value={origins} onChange={(e) => setOrigins(e.target.value)} /></label>
-      <label className="field full">URL de agradecimiento<input type="url" className="input" value={thankYouUrl} onChange={(e) => setThankYouUrl(e.target.value)} /></label>
+      {embed ? <label className="field full">Orígenes permitidos* (uno por línea · HTTPS, p. ej. https://www.miempresa.pe)<textarea required className="input" rows={3} value={origins} onChange={(e) => setOrigins(e.target.value)} placeholder={'https://www.miempresa.pe\nhttps://miempresa.pe'} /></label>
+        : <>
+          <label className="field">ID del sitio en Multisite<input type="number" min={1} className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value)} /></label>
+          <label className="field">URL del webhook del plugin<input type="url" className="input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://…" /></label>
+          <label className="field full">Orígenes permitidos (uno por línea)<textarea className="input" rows={3} value={origins} onChange={(e) => setOrigins(e.target.value)} /></label>
+          <label className="field full">URL de agradecimiento<input type="url" className="input" value={thankYouUrl} onChange={(e) => setThankYouUrl(e.target.value)} /></label>
+        </>}
+      {embed ? <div className="field full"><Note icon="info">Una web a medida no usa webhook: se activa al guardar con al menos un origen. Después crea una <b>clave publicable</b> en «Tokens» para obtener el fragmento a pegar.</Note></div> : null}
     </div><div className="err" role="alert">{message}</div><div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy || !can(site ? 'web_connector.site.update' : 'web_connector.site.create')}>{busy ? 'Guardando…' : 'Guardar'}</button></div></form>
   </Modal>;
 }
@@ -142,10 +153,19 @@ function TokenPanel({ siteId, site, onChanged }: { siteId: string; site?: WpSite
   const [reload, setReload] = useState(0); const [name, setName] = useState(''); const [busy, setBusy] = useState(false);
   const res = useLoad(() => api.tokens.list(siteId, { size: PER, sort: '-created_at' }), [siteId, reload]);
   const rows = res.data?.data ?? [];
+  const embed = site?.kind === 'embed';
+  const snippet = (key: string) => `<script src="${location.origin}/embed/v1/hub-embed.js" data-hub-key="${key}" defer></script>\n<div data-hub-block="planes" data-tipo="hosting" data-columnas="3"></div>`;
   async function create() {
     if (!name.trim()) return; setBusy(true);
-    try { const token = await api.tokens.create(siteId, { name: name.trim() }); setName(''); setReload((x) => x + 1); onChanged(); dialogs.open(<><Note kind="warn" icon="tri">Copie el token ahora. No se volverá a mostrar después de cerrar este cuadro.</Note><ScBox code={token.token ?? ''} label="Token del plugin" /></>, { title: 'Token creado', sub: site?.base_url, footer: <button className="btn primary" onClick={() => dialogs.close()}>Listo</button> }); }
-    catch (e) { toast('No se pudo crear el token', errorText(e), 'err'); } finally { setBusy(false); }
+    try {
+      const token = await api.tokens.create(siteId, { name: name.trim(), scope: embed ? 'embed' : 'read' }); setName(''); setReload((x) => x + 1); onChanged();
+      const key = token.token ?? '';
+      dialogs.open(embed
+        ? <><Note kind="warn" icon="tri">Copia la clave ahora. No se volverá a mostrar después de cerrar este cuadro.</Note><ScBox code={key} label="Clave publicable" /><p className="sub" style={{ marginTop: 12 }}>Pega este fragmento en tu web (cambia el bloque por los que necesites; el generador tiene todos):</p><textarea className="input mono" readOnly rows={3} value={snippet(key)} aria-label="Fragmento para la web" onFocus={(e) => e.currentTarget.select()} /></>
+        : <><Note kind="warn" icon="tri">Copie el token ahora. No se volverá a mostrar después de cerrar este cuadro.</Note><ScBox code={key} label="Token del plugin" /></>,
+        { title: embed ? 'Clave publicable creada' : 'Token creado', sub: site?.base_url, footer: <button className="btn primary" onClick={() => dialogs.close()}>Listo</button> });
+    }
+    catch (e) { toast(embed ? 'No se pudo crear la clave' : 'No se pudo crear el token', errorText(e), 'err'); } finally { setBusy(false); }
   }
   function revoke(token: WpSiteToken) { dialogs.form({ title: 'Revocar token', sub: token.name, fields: [{ id: 'reason', label: 'Motivo', type: 'textarea', req: true, full: true }], submit: 'Revocar', onSubmit: async ({ reason }) => { try { await api.tokens.remove(siteId, token.id, reason); toast('Token revocado', token.name, 'warn'); setReload((x) => x + 1); onChanged(); } catch (e) { toast('No se pudo revocar', errorText(e), 'err'); } } }); }
   const columns: Column<WpSiteToken>[] = [
@@ -154,10 +174,10 @@ function TokenPanel({ siteId, site, onChanged }: { siteId: string; site?: WpSite
     { key: 'state', header: 'Estado', render: (t) => t.revoked_at ? <Chip kind="neutral">Revocado</Chip> : <Chip kind="ok">Activo</Chip> },
     { key: 'actions', header: '', align: 'r', render: (t) => can('web_connector.site_token.delete') && !t.revoked_at ? <button className="btn sm danger" onClick={() => revoke(t)}>Revocar</button> : null },
   ];
-  return <section className="card"><Toolbar count={`Tokens · ${rows.length}`}>
-    {can('web_connector.site_token.create') ? <><input className="input" aria-label="Nombre del token" placeholder="Nombre del token" value={name} onChange={(e) => setName(e.target.value)} /><button className="btn primary" disabled={busy || !name.trim()} onClick={() => void create()}><Icon name="plus" size="sm" /> Crear token</button></> : null}
+  return <section className="card"><Toolbar count={`${embed ? 'Claves publicables' : 'Tokens'} · ${rows.length}`}>
+    {can('web_connector.site_token.create') ? <><input className="input" aria-label={embed ? 'Nombre de la clave' : 'Nombre del token'} placeholder={embed ? 'Nombre de la clave' : 'Nombre del token'} value={name} onChange={(e) => setName(e.target.value)} /><button className="btn primary" disabled={busy || !name.trim()} onClick={() => void create()}><Icon name="plus" size="sm" /> {embed ? 'Crear clave publicable' : 'Crear token'}</button></> : null}
   </Toolbar>
-  {res.error ? <div className="card-b"><Note kind="warn">No se pudieron cargar tokens: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : !rows.length ? <EmptyState title="Sin tokens" text="Cree un token para autenticar el plugin de este sitio." /> : <DataTable columns={columns} rows={rows} rowKey={(t) => t.id} caption="Tokens del sitio" />}
+  {res.error ? <div className="card-b"><Note kind="warn">No se pudieron cargar {embed ? 'las claves' : 'los tokens'}: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : !rows.length ? <EmptyState title={embed ? 'Sin claves publicables' : 'Sin tokens'} text={embed ? 'Crea una clave publicable para obtener el fragmento del widget.' : 'Cree un token para autenticar el plugin de este sitio.'} /> : <DataTable columns={columns} rows={rows} rowKey={(t) => t.id} caption={embed ? 'Claves publicables del sitio' : 'Tokens del sitio'} />}
   </section>;
 }
 

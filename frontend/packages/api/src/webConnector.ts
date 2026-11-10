@@ -65,8 +65,11 @@ export interface WebSubmissionChange {
 }
 
 export type WpSiteStatus = 'pending' | 'active' | 'disabled';
+/** `wordpress` = plugin Hub Connector; `embed` = web a medida con hub-embed.js (docs/15). */
+export type WpSiteKind = 'wordpress' | 'embed';
+export type WpTokenScope = 'read' | 'embed';
 export interface WpSite {
-  id: string; organization_id: string; brand_id: string; name: string; base_url: string;
+  id: string; organization_id: string; brand_id: string; name: string; base_url: string; kind: WpSiteKind;
   network_site_id: number | null; webhook_url: string | null; allowed_origins: string[];
   thank_you_url: string | null; status: WpSiteStatus; webhook_secret_id?: string;
   plugin_version: string | null; wordpress_version: string | null; disabled_reason: string | null;
@@ -74,17 +77,17 @@ export interface WpSite {
   version: number; created_at: string; updated_at: string; created_by: string | null; updated_by: string | null;
 }
 export interface WpSiteInput {
-  brand_id: string; name: string; base_url: string; network_site_id?: number | null;
+  brand_id: string; name: string; base_url: string; kind?: WpSiteKind; network_site_id?: number | null;
   webhook_url?: string | null; allowed_origins?: string[]; thank_you_url?: string | null;
 }
 export interface WpSiteFilters { brand_id?: string; status?: WpSiteStatus; }
 export interface WpSiteToken {
-  id: string; organization_id: string; wp_site_id: string; name: string; scope: string;
+  id: string; organization_id: string; wp_site_id: string; name: string; scope: WpTokenScope;
   token_last_four: string; expires_at: string | null; last_used_at: string | null; revoked_at: string | null;
   revoked_by: string | null; revoke_reason: string | null; version: number; created_at: string; updated_at: string;
   created_by: string | null; updated_by: string | null; token?: string;
 }
-export interface WpSiteTokenInput { name: string; }
+export interface WpSiteTokenInput { name: string; scope?: WpTokenScope; }
 export interface WpCacheInvalidation {
   id: string; organization_id: string; wp_site_id: string; event_id: string;
   scope: string; keys: string[]; trigger_event: string | null; status: 'pending' | 'delivered' | 'failed';

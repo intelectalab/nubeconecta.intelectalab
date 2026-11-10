@@ -2,11 +2,12 @@
  * WordPress › Generador de shortcodes (prototipo vWp, pestaña «generador»;
  * handlers scName, scOpt, scBrand; l.2479-2481 y l.2500-2502).
  */
+import { useState } from 'react';
 import { BRANDS, SCDEF, type BrandId } from '../../../data';
 import { catName } from '../comercial/catalogData';
 import { ScPreview } from './previews';
 import { ScBox } from './shared';
-import { scCode, scOpts, scValues, type ScVals } from './wpData';
+import { embedCode, scCode, scOpts, scValues, type ScVals } from './wpData';
 import { Note } from '../../../components/ui';
 
 const lbl = (k: string): string => {
@@ -19,6 +20,7 @@ export default function WpGenerador({ name, setName, vals, setVals, brand, setBr
   const d = SCDEF[sc];
   const v = scValues(sc, vals);
   const set = (k: string, x: string | number | boolean) => setVals({ ...vals, [sc + '.' + k]: x });
+  const [fmt, setFmt] = useState<'wp' | 'embed'>('wp');
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
       <Note kind="warn" icon="info">Pendiente de backend: el generador depende de la configuración de shortcodes del plugin; no existe un endpoint administrativo para leer o guardar esta configuración.</Note>
@@ -91,9 +93,16 @@ export default function WpGenerador({ name, setName, vals, setVals, brand, setBr
             </label>
           </div>
           <div className="field">
-            Código para pegar en WordPress
-            <ScBox code={scCode(sc, vals)} id="scOut" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>Código para pegar</span>
+              <div className="seg" role="group" aria-label="Formato del código">
+                <button type="button" aria-pressed={fmt === 'wp'} onClick={() => setFmt('wp')}>WordPress</button>
+                <button type="button" aria-pressed={fmt === 'embed'} onClick={() => setFmt('embed')}>Web a medida</button>
+              </div>
+            </div>
+            <ScBox code={fmt === 'embed' ? embedCode(sc, vals) : scCode(sc, vals)} id="scOut" />
           </div>
+          {fmt === 'embed' ? <Note icon="info">Pega este bloque en tu web a medida. Una sola vez por página, agrega también el <code>&lt;script&gt;</code> con tu <b>clave publicable</b> (lo entrega «Sitios → Web a medida → clave publicable»).</Note> : null}
           <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)' }}>Incluidos los productos personalizados del catálogo (tipo «{catName('personalizados')}» y categorías nuevas).</p>
         </div>
         <div>
