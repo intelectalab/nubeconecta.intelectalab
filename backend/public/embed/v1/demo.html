@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Prueba del widget embebible — NubeConecta</title>
+  <meta name="robots" content="noindex">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 980px; margin: 0 auto; padding: 24px 16px; color: #1f2430; }
+    h1 { font-size: 22px; } h2 { font-size: 16px; margin: 28px 0 8px; border-bottom: 1px solid #e3e6ec; padding-bottom: 6px; }
+    .warn { background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+    /* Un estilo agresivo de la página NO debe romper los bloques (van en Shadow DOM) */
+    * { }
+  </style>
+</head>
+<body>
+  <h1>Prueba del widget embebible</h1>
+  <p class="warn" id="note">Carga esta página con tu clave publicable: <code>demo.html?key=hubwp_...</code> &middot; opcional <code>&amp;moneda=USD</code>. El origen de esta página debe estar en los <b>orígenes permitidos</b> del sitio embed.</p>
+
+  <h2>Selector de moneda</h2>
+  <div data-hub-block="moneda"></div>
+
+  <h2>Planes (hosting)</h2>
+  <div data-hub-block="planes" data-tipo="hosting" data-columnas="3">Ver nuestros planes de hosting.</div>
+
+  <h2>Comparador (hosting)</h2>
+  <div data-hub-block="comparador" data-tipo="hosting"></div>
+
+  <h2>Precios de dominios</h2>
+  <div data-hub-block="dominios"></div>
+
+  <h2>Buscar dominio</h2>
+  <div data-hub-block="buscar-dominio"></div>
+
+  <h2>Contacto</h2>
+  <div data-hub-block="contacto"></div>
+
+  <h2>Formulario (contacto)</h2>
+  <div data-hub-block="formulario" data-codigo="contacto"></div>
+
+  <h2>Documento legal (términos)</h2>
+  <div data-hub-block="documento-legal" data-tipo="terms"></div>
+
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var key = q.get('key');
+      if (!key) { document.getElementById('note').style.background = '#ffe6e6'; return; }
+      var s = document.createElement('script');
+      s.src = 'hub-embed.js';
+      s.setAttribute('data-hub-key', key);
+      if (q.get('moneda')) s.setAttribute('data-moneda', q.get('moneda'));
+      if (q.get('idioma')) s.setAttribute('data-idioma', q.get('idioma'));
+      s.defer = true;
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
+</html>
