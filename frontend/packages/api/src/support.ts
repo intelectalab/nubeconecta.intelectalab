@@ -128,6 +128,30 @@ export interface ComplaintResponseInput {
   body: string; body_html: string; previewed_at: string; template_id?: string | null; file_id?: string | null; is_final?: boolean;
 }
 export interface ComplaintFilters { status?: ComplaintStatus | ''; brand_id?: string; }
+
+/* ---------- Base de conocimientos / centro de ayuda (KB) ---------- */
+export type KbVisibility = 'public' | 'internal';
+export type KbStatus = 'draft' | 'published' | 'archived';
+export interface KbCategory {
+  id: string; organization_id: string; parent_id: string | null; name: string; slug: string;
+  visibility: KbVisibility; sort_order: number; version: number; created_at: string; updated_at: string;
+}
+export interface KbCategoryInput { name: string; slug: string; visibility?: KbVisibility; parent_id?: string | null; sort_order?: number; }
+export interface KbCategoryFilters { visibility?: KbVisibility | ''; }
+export interface KbArticle {
+  id: string; organization_id: string; kb_category_id: string | null; brand_id: string | null; locale: string;
+  title: string; slug: string; body: string; visibility: KbVisibility; status: KbStatus; published_at: string | null;
+  version: number; created_at: string; updated_at: string;
+  category?: { id: string; name: string; slug: string } | null;
+  brand?: { id: string; name: string } | null;
+}
+export interface KbArticleInput { kb_category_id?: string | null; brand_id?: string | null; locale?: string; title: string; slug: string; body: string; visibility?: KbVisibility; status?: KbStatus; }
+export interface KbArticleFilters { visibility?: KbVisibility | ''; status?: KbStatus | ''; kb_category_id?: string; brand_id?: string; }
+export interface PortalKbArticle {
+  id: string; title: string; slug: string; locale: string; body?: string;
+  category: { id: string; name: string; slug: string } | null; published_at: string | null; updated_at: string | null;
+}
+
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
@@ -179,6 +203,31 @@ export function createSupportApi(http: HttpClient) {
       get: (id: string) => http.get<Envelope<PortalComplaint>>(`/api/v1/portal/complaints/${enc(id)}`).then((r) => r.data),
       create: (input: PortalComplaintInput, idempotencyKey = newIdempotencyKey()) =>
         http.post<Envelope<PortalComplaint>>('/api/v1/portal/complaints', input, { idempotencyKey }).then((r) => r.data),
+    },
+    kb: {
+      categories: {
+        list: (params: ListParams & { filter?: KbCategoryFilters } = {}) =>
+          http.get<CursorPage<KbCategory>>(`/api/v1/admin/kb-categories${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, 'filter[visibility]': params.filter?.visibility || undefined })}`),
+        get: (id: string) => http.get<Envelope<KbCategory>>(`/api/v1/admin/kb-categories/${enc(id)}`).then((r) => r.data),
+        create: (input: KbCategoryInput) => http.post<Envelope<KbCategory>>('/api/v1/admin/kb-categories', input).then((r) => r.data),
+        update: (id: string, version: number, input: Partial<KbCategoryInput>) => http.patch<Envelope<KbCategory>>(`/api/v1/admin/kb-categories/${enc(id)}`, { ...input, version }).then((r) => r.data),
+        remove: (id: string, version: number) => http.delete<void>(`/api/v1/admin/kb-categories/${enc(id)}`, { version }),
+      },
+      articles: {
+        list: (params: ListParams & { filter?: KbArticleFilters } = {}) => {
+          const f = params.filter;
+          return http.get<CursorPage<KbArticle>>(`/api/v1/admin/kb-articles${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, 'filter[visibility]': f?.visibility || undefined, 'filter[status]': f?.status || undefined, 'filter[kb_category_id]': f?.kb_category_id || undefined, 'filter[brand_id]': f?.brand_id || undefined })}`);
+        },
+        get: (id: string) => http.get<Envelope<KbArticle>>(`/api/v1/admin/kb-articles/${enc(id)}`).then((r) => r.data),
+        create: (input: KbArticleInput) => http.post<Envelope<KbArticle>>('/api/v1/admin/kb-articles', input).then((r) => r.data),
+        update: (id: string, version: number, input: Partial<KbArticleInput>) => http.patch<Envelope<KbArticle>>(`/api/v1/admin/kb-articles/${enc(id)}`, { ...input, version }).then((r) => r.data),
+        remove: (id: string, version: number) => http.delete<void>(`/api/v1/admin/kb-articles/${enc(id)}`, { version }),
+      },
+    },
+    portalKb: {
+      list: (params: ListParams = {}) =>
+        http.get<CursorPage<PortalKbArticle>>(`/api/v1/portal/kb-articles${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
+      get: (id: string) => http.get<Envelope<PortalKbArticle>>(`/api/v1/portal/kb-articles/${enc(id)}`).then((r) => r.data),
     },
   };
 }

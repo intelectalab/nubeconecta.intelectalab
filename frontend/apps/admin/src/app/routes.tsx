@@ -25,6 +25,7 @@ const FacturasView = lazy(() => import('../views/pages/FacturasView'));
 const ReportesView = lazy(() => import('../views/pages/ReportesView'));
 const TicketsView = lazy(() => import('../views/pages/TicketsView'));
 const ReclamosView = lazy(() => import('../views/pages/ReclamosView'));
+const AyudaView = lazy(() => import('../views/pages/AyudaView'));
 const InfraView = lazy(() => import('../views/pages/InfraView'));
 const MonitoreoView = lazy(() => import('../views/pages/MonitoreoView'));
 const ProveedoresView = lazy(() => import('../views/pages/ProveedoresView'));
@@ -75,6 +76,7 @@ export const VIEWS: Record<RouteId, LazyExoticComponent<ComponentType<ViewProps>
   reportes: ReportesView,
   tickets: TicketsView,
   reclamos: ReclamosView,
+  ayuda: AyudaView,
   infra: InfraView,
   monitoreo: MonitoreoView,
   proveedores: ProveedoresView,
