@@ -36,7 +36,7 @@ final class KbArticleController
         }
         KbService::applySearch($query, (string) $request->query('q', ''));
 
-        return CursorPagination::respond($query, $request, ['created_at', 'title', 'status', 'published_at'], KbArticleResource::class);
+        return CursorPagination::respond($query, $request, ['created_at', 'updated_at', 'title', 'status', 'published_at'], KbArticleResource::class);
     }
 
     public function store(Request $request): JsonResponse

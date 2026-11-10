@@ -31,7 +31,7 @@ export default function AyudaView(_props: ViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const changed = () => setReload((n) => n + 1);
-  const articleList = useLoad(() => api.support.kb.articles.list({ q: query.trim() || undefined, filter: section === 'articles' ? { visibility, status } : {}, cursor: section === 'articles' ? cursor : null, size: PAGE_SIZE, sort: '-created_at' }), [query, visibility, status, cursor, section, reload]);
+  const articleList = useLoad(() => api.support.kb.articles.list({ q: query.trim() || undefined, filter: section === 'articles' ? { visibility, status } : {}, cursor: section === 'articles' ? cursor : null, size: PAGE_SIZE, sort: '-updated_at' }), [query, visibility, status, cursor, section, reload]);
   const categoryList = useLoad(() => api.support.kb.categories.list({ q: section === 'categories' ? query.trim() || undefined : undefined, cursor: categoryCursor, size: PAGE_SIZE, sort: 'sort_order' }), [section, query, categoryCursor, reload]);
   const brands = useLoad(() => api.brands.list({ size: PAGE_SIZE, sort: 'name', filter: { status: 'active' } }), []);
   const rows = articleList.data?.data ?? [];

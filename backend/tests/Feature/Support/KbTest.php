@@ -53,6 +53,8 @@ final class KbTest extends IdentityTestCase
         $this->getJson('/api/v1/admin/kb-articles?filter.status=published')->assertOk()->assertJsonPath('data.0.id', $article['id']);
         $this->getJson('/api/v1/admin/kb-articles?q=acceder')->assertOk()->assertJsonPath('data.0.id', $article['id']);
         $this->getJson('/api/v1/admin/kb-articles?q=inexistente-xyz')->assertOk()->assertJsonCount(0, 'data');
+        // Se puede ordenar por fecha de última edición (whitelist de orden del admin).
+        $this->getJson('/api/v1/admin/kb-articles?sort=-updated_at')->assertOk();
 
         // Borrado (soft).
         $this->deleteJson("/api/v1/admin/kb-articles/{$article['id']}", ['version' => 2])->assertNoContent();
