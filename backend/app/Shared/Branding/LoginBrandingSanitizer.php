@@ -71,6 +71,9 @@ final class LoginBrandingSanitizer
         if (! is_string($value)) {
             return null;
         }
+        // Acota el input ANTES de la regex: evita trabajo O(n²) sobre un valor enorme
+        // guardado a propósito (la salida se recorta igual al final con mb_substr).
+        $value = mb_substr($value, 0, 4096);
         // strip_tags conserva el texto interno de las etiquetas: elimina primero los
         // bloques con contenido ejecutable (script/style/…) antes de quitar el resto.
         $value = preg_replace('#<(script|style|iframe|object|embed|template)\b[^>]*>.*?</\1>#is', '', $value) ?? '';
