@@ -23,6 +23,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // La app corre tras el nginx del host (gateway Docker 172.16/12). Confiamos en
+        // el proxy SOLO para -For (IP real del cliente: auditoría y rate-limit por IP) y
+        // -Proto (esquema https). NO confiamos en -Host ni -Port: el host nginx reenvía
+        // X-Forwarded-Host VACÍO y Symfony Request::getPort() hacía $host[0] sobre ''
+        // ("Uninitialized string offset 0") → 500 en cada request (incidente 2026-11-11).
+        $middleware->trustProxies(
+            at: ['172.16.0.0/12', '127.0.0.1', '::1'],
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         // Sanctum: las SPA (admin y portal) se autentican con cookie de sesión
         // cuando su origen está en SANCTUM_STATEFUL_DOMAINS (docs/00 §2).
         $middleware->statefulApi();
