@@ -27,18 +27,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // cuando su origen está en SANCTUM_STATEFUL_DOMAINS (docs/00 §2).
         $middleware->statefulApi();
 
-        // Detrás del nginx del host (reenvía X-Forwarded-For/-Proto). Confiar en el
-        // proxy para que $request->ip() sea la IP real del cliente: sin esto, todos
-        // los rate-limits por IP comparten una clave global y la auditoría registra
-        // la IP del proxy. El contenedor solo escucha en 127.0.0.1, así que confiar en
-        // la red Docker/loopback es seguro; trustProxies toma la IP más a la derecha
-        // no-confiable del XFF, por lo que un cliente no puede falsear su IP.
-        $middleware->trustProxies(
-            at: ['172.16.0.0/12', '127.0.0.1', '::1'],
-            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
-        );
-
         $middleware->api(prepend: [AssignRequestId::class, SetLocaleFromHeader::class, App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite::class]);
 
         // Contratos para los módulos (backend/README.md, "Contratos compartidos").
