@@ -11,7 +11,7 @@ final class PublicLoginBrandingTest extends IdentityTestCase
     {
         $this->getJson('/api/v1/public/login-branding')
             ->assertOk()
-            ->assertHeader('Cache-Control', 'max-age=300, public')
+            ->assertHeader('Cache-Control', 'max-age=60, public, stale-while-revalidate=600')
             ->assertJsonPath('data.brand_name', 'NubeConecta')
             ->assertJsonPath('data.hero_title', 'Tu infraestructura en la nube, dominios y finanzas bajo control')
             ->assertJsonPath('data.logo_url', null)

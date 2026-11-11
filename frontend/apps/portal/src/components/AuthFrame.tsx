@@ -20,17 +20,37 @@ const FALLBACK: LoginBranding = {
   footer_line2: 'Soporte NOC: guardia@alojamientoplus.pe',
   colors: { bg_from: null, bg_mid: null, bg_to: null, accent: null },
 };
+const STORAGE_KEY = 'nubeconecta.login_branding';
 let brandingCache: LoginBranding | null = null;
 let brandingRequest: Promise<LoginBranding> | null = null;
+
+/** Guarda mínima para no renderizar un objeto corrupto (el render ya es seguro ante texto). */
+function isBranding(v: unknown): v is LoginBranding {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  const b = v as LoginBranding;
+  return typeof b.brand_name === 'string' && Array.isArray(b.bullets) && !!b.colors && typeof b.colors === 'object';
+}
+/** Lee el branding cacheado en el navegador (visitas previas): render instantáneo sin esperar la red. */
+function readStored(): LoginBranding | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    return isBranding(parsed) ? parsed : null;
+  } catch { return null; }
+}
+function writeStored(data: LoginBranding): void {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* modo privado / almacenamiento bloqueado */ }
+}
+
 function useLoginBranding() {
-  const [branding, setBranding] = useState<LoginBranding>(brandingCache ?? FALLBACK);
+  const [branding, setBranding] = useState<LoginBranding>(() => brandingCache ?? readStored() ?? FALLBACK);
   useEffect(() => {
-    if (brandingCache) { setBranding(brandingCache); return; }
     let active = true;
-    brandingRequest ??= fetch('/api/v1/public/login-branding').then((response) => {
+    // Revalida siempre en segundo plano; brandingRequest dedupe = un solo fetch por carga.
+    brandingRequest ??= fetch('/api/v1/public/login-branding', { credentials: 'omit' }).then((response) => {
       if (!response.ok) throw new Error('No se pudo cargar el branding');
       return response.json() as Promise<{ data: LoginBranding }>;
-    }).then(({ data }) => { brandingCache = data; return data; }).catch((error: unknown) => { brandingRequest = null; throw error; });
+    }).then(({ data }) => { brandingCache = data; writeStored(data); return data; }).catch((error: unknown) => { brandingRequest = null; throw error; });
     void brandingRequest.then((data) => { if (active) setBranding(data); }).catch(() => undefined);
     return () => { active = false; };
   }, []);

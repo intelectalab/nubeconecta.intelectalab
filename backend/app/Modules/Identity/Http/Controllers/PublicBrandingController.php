@@ -27,7 +27,9 @@ final class PublicBrandingController
 
         $response = response()->json(['data' => $data]);
         $response->setEtag(sha1((string) $response->getContent()));
-        $response->headers->set('Cache-Control', 'public, max-age=300');
+        // Caché corta + stale-while-revalidate: un cambio del admin se ve en ~60s,
+        // pero la respuesta se sirve rápida (revalida en segundo plano hasta 10 min).
+        $response->headers->set('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
         $response->isNotModified($request); // 304 sin cuerpo si coincide If-None-Match
 
         return $response;
