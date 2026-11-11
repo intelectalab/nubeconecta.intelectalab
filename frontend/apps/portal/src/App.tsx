@@ -40,9 +40,10 @@ export default function App() {
   const enter = useCallback((user: Me) => {
     if (user.type !== 'customer' && !user.impersonation) {
       // OJO: NO cerrar sesión aquí. El panel y el portal comparten la cookie de sesión
-      // (mismo host), así que un logout botaría también la sesión del panel. Solo avisamos;
-      // el personal entra al portal de un cliente desde el botón "Ver como cliente" del panel.
-      setAuth({ k: 'anon', notice: 'Esta cuenta es del personal. Para ver el portal de un cliente usa el botón «Ver como cliente» en su ficha, dentro del panel de administración.' });
+      // (mismo host), así que un logout botaría también la sesión del panel. Solo avisamos.
+      // Mensaje genérico a propósito: no revelar el tipo de cuenta ni la existencia o el
+      // flujo del panel de administración (dato que ayudaría a un ataque de credenciales).
+      setAuth({ k: 'anon', notice: 'Esta cuenta no tiene acceso al portal de clientes.' });
       return;
     }
     if (user.password.change_required) {

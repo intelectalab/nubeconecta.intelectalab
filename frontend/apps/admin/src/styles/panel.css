@@ -1,19 +1,19 @@
 /* Panel AlojamientoPlus — CSS portado de prototipo/panel.html (l.6-907). No editar en vistas: añadir estilos propios en el CSS de cada vista. */
 :root{
-  --bg:#eef2f8; --surface:#ffffff; --surface-2:#f6f8fc; --surface-3:#e9eef7; --hover:#eef3fd;
-  --border:#d9e0ec; --border-strong:#b8c3d6; --text:#0f1b2e; --text-2:#33425c; --muted:#5d6b84; --faint:#8a96ab;
-  --brand:#0a3fc4; --brand-hover:#0834a3; --brand-ink:#ffffff; --brand-soft:#e3ebfd; --brand-text:#0a3fc4; --brand-line:#9db6f2;
-  --topbar:#0a3fc4; --topbar-2:#0835aa; --topbar-ink:#ffffff; --topbar-muted:#c9d8ff; --topbar-field:#0632a0;
-  --ok:#4c8a26; --ok-strong:#5f9a32; --ok-bg:#e8f3df; --ok-text:#3b6e1c;
-  --warn:#f2b71a; --warn-bg:#fdf3d6; --warn-text:#7a5500;
-  --high:#d9700b; --high-bg:#fdebd9; --high-text:#9a4b00;
-  --danger:#c62a2a; --danger-bg:#fbe5e5; --danger-text:#a11d1d;
-  --info:#0a3fc4; --info-bg:#e3ebfd; --info-text:#0a3fc4;
-  --neutral-bg:#eceff5; --neutral-text:#4b5870;
-  --chart-bar:#a9c0f5; --chart-line:#0a3fc4; --c1:#0a3fc4; --c2:#4c8a26; --c3:#c99300; --c4:#d9700b; --c5:#0f8b8d; --heat:#0a3fc4; --chart-grid:#e3e8f1; --chart-axis:#5d6b84;
-  --scrim:rgba(10,20,40,.45); --shadow:0 1px 2px rgba(15,27,46,.06),0 1px 1px rgba(15,27,46,.04);
-  --shadow-pop:0 12px 32px rgba(15,27,46,.18),0 2px 6px rgba(15,27,46,.08);
-  --focus:#f2b71a; --skel:#e4e9f2; --skel-2:#f1f4f9;
+  --bg:#f5f3ee; --surface:#fffdfa; --surface-2:#f7f4ee; --surface-3:#eee9df; --hover:#f1eee7;
+  --border:#d9d2c5; --border-strong:#b8ad9d; --text:#292923; --text-2:#48483f; --muted:#5e5c52; --faint:#777469;
+  --brand:#416784; --brand-hover:#34546d; --brand-ink:#ffffff; --brand-soft:#e5edf1; --brand-text:#355e79; --brand-line:#a8bfcd;
+  --topbar:#3c6079; --topbar-2:#34566f; --topbar-ink:#ffffff; --topbar-muted:#d5e0e6; --topbar-field:#2f5068;
+  --ok:#4e7f3e; --ok-strong:#5b8b49; --ok-bg:#eaf1e5; --ok-text:#365a2b;
+  --warn:#bd851c; --warn-bg:#fbf2dc; --warn-text:#72500c;
+  --high:#b9611c; --high-bg:#faebdf; --high-text:#854315;
+  --danger:#b74943; --danger-bg:#f8e8e6; --danger-text:#86342f;
+  --info:#426b8d; --info-bg:#e8eff3; --info-text:#31546f;
+  --neutral-bg:#eeece6; --neutral-text:#555349;
+  --chart-bar:#9cb7c7; --chart-line:#426b8d; --c1:#426b8d; --c2:#60824c; --c3:#ae852b; --c4:#bd7042; --c5:#438b87; --heat:#426b8d; --chart-grid:#e5e0d6; --chart-axis:#625f55;
+  --scrim:rgba(35,31,24,.42); --shadow:0 1px 2px rgba(41,41,35,.07),0 1px 1px rgba(41,41,35,.04);
+  --shadow-pop:0 12px 32px rgba(41,41,35,.16),0 2px 6px rgba(41,41,35,.07);
+  --focus:#8c5c10; --skel:#eae6dc; --skel-2:#f3f0e9;
   --f-head:"Poppins","Nunito","Segoe UI",system-ui,sans-serif;
   --f-body:"Plus Jakarta Sans","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
