@@ -41,11 +41,15 @@ final class WpFormSubmissionController
         $ipHash = hash_hmac('sha256', $ip, (string) config('app.key'));
         $limiterKey = 'wcn-form:'.$site->organization_id.':'.$ipHash;
         $max = max(1, $this->settings->int('web_connector.forms.submissions_per_ip_per_hour', 10));
-        if (RateLimiter::tooManyAttempts($limiterKey, $max)) {
-            $retry = RateLimiter::availableIn($limiterKey);
+        // X-Hub-Visitor-Ip lo reenvía el plugin y es falsificable: un tope por sitio (10×)
+        // acota el abuso aunque se rote la IP del visitante para burlar el límite por IP.
+        $siteKey = 'wcn-form-site:'.$site->organization_id;
+        if (RateLimiter::tooManyAttempts($limiterKey, $max) || RateLimiter::tooManyAttempts($siteKey, $max * 10)) {
+            $retry = max(RateLimiter::availableIn($limiterKey), RateLimiter::availableIn($siteKey));
             throw new ProblemException(429, 'rate_limited', 'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.', ['retry_after' => $retry], ['Retry-After' => (string) $retry]);
         }
         RateLimiter::hit($limiterKey, 3600);
+        RateLimiter::hit($siteKey, 3600);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:120'],

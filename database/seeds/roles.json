@@ -23,7 +23,8 @@
       "billing.refund.authorize",
       "complaints.complaint.delete",
       "web_connector.site_token.create",
-      "identity.security_policy.update"
+      "identity.security_policy.update",
+      "customers.customer.impersonate"
     ]
   },
   "roles": [

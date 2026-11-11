@@ -73,8 +73,12 @@ final class AuthController
             throw ValidationException::withMessages(['code' => [__('problems.invalid_credentials')]]);
         }
 
+        // Incremento atómico (Redis INCR): cuenta el intento ANTES de verificar y decide
+        // con el valor devuelto, cerrando la carrera entre comprobar y registrar — varios
+        // intentos concurrentes ya no pueden exceder mfa_max_attempts (fuerza bruta del código).
         $limiterKey = 'identity:mfa-verify:'.$user->id;
-        if (RateLimiter::tooManyAttempts($limiterKey, (int) config('hub.auth.mfa_max_attempts'))) {
+        $attempts = RateLimiter::hit($limiterKey, (int) config('hub.auth.mfa_pending_minutes') * 60);
+        if ($attempts > (int) config('hub.auth.mfa_max_attempts')) {
             $request->session()->forget(AuthSessionManager::MFA_PENDING_KEY);
             throw ValidationException::withMessages(['code' => [__('problems.invalid_mfa_code')]]);
         }
@@ -84,7 +88,6 @@ final class AuthController
             : $mfa->verifyTotp($user, $data['code']);
 
         if (! $ok) {
-            RateLimiter::hit($limiterKey, (int) config('hub.auth.mfa_pending_minutes') * 60);
             $this->audit->record('user.mfa_failed', 'user', $user->id, null, null, ['method' => $data['method']], actor: ['type' => 'user', 'id' => $user->id]);
             throw ValidationException::withMessages(['code' => [__('problems.invalid_mfa_code')]]);
         }

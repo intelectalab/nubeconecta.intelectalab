@@ -27,7 +27,8 @@ export function sanitize(html: string): string {
         const name = attribute.name.toLowerCase();
         const value = attribute.value.trim();
         let keep = false;
-        if (tag === 'A' && name === 'href') keep = /^(https?:|mailto:|#|\/)/i.test(value);
+        // `\/(?!\/)` permite rutas relativas (/x) pero NO protocolo-relativas (//evil.com → redirección abierta).
+        if (tag === 'A' && name === 'href') keep = /^(https?:|mailto:|#|\/(?!\/))/i.test(value);
         else if (tag === 'IMG' && name === 'src') keep = /^(https?:|data:image\/(png|jpe?g|gif|webp);)/i.test(value);
         else if (tag === 'IMG' && name === 'alt') keep = true;
         else if ((tag === 'TD' || tag === 'TH') && name === 'colspan') keep = /^\d{1,2}$/.test(value);

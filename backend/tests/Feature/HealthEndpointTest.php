@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Tests\TestCase;
 
 class HealthEndpointTest extends TestCase
@@ -16,7 +17,7 @@ class HealthEndpointTest extends TestCase
 
         $response->assertJsonStructure([
             'status',
-            'app' => ['status', 'name', 'env', 'laravel'],
+            'app' => ['status', 'name'],
             'checks' => [
                 'database' => ['status', 'latency_ms'],
                 'redis' => ['status', 'latency_ms'],
@@ -27,5 +28,24 @@ class HealthEndpointTest extends TestCase
         $response->assertJsonPath('app.status', 'up');
         // En pruebas la base es SQLite en memoria: siempre disponible.
         $response->assertJsonPath('checks.database.status', 'up');
+    }
+
+    public function test_environment_and_version_are_hidden_from_anonymous_callers(): void
+    {
+        $response = $this->getJson('/api/v1/health');
+
+        // Un monitor anónimo no debe ver el entorno ni la versión del framework.
+        $this->assertArrayNotHasKey('env', $response->json('app'));
+        $this->assertArrayNotHasKey('laravel', $response->json('app'));
+    }
+
+    public function test_environment_and_version_are_visible_to_authenticated_staff(): void
+    {
+        $this->actingAs(User::factory()->make(['type' => 'staff']));
+
+        $response = $this->getJson('/api/v1/health');
+
+        $response->assertJsonPath('app.env', 'testing');
+        $this->assertNotEmpty($response->json('app.laravel'));
     }
 }

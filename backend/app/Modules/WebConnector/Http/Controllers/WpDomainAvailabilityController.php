@@ -45,13 +45,17 @@ final class WpDomainAvailabilityController
 
         $ip = trim((string) $request->header('X-Hub-Visitor-Ip', ''));
         $ip = filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : (string) $request->ip();
-        $key = 'wcn-domain:'.$site->organization_id.':'.hash_hmac('sha256', $ip, (string) config('app.key'));
         $max = max(1, (int) config('hub.domain_availability.requests_per_ip_per_10min', 30));
-        if (RateLimiter::tooManyAttempts($key, $max)) {
-            $retry = RateLimiter::availableIn($key);
+        $key = 'wcn-domain:'.$site->organization_id.':'.hash_hmac('sha256', $ip, (string) config('app.key'));
+        // La IP del visitante la reenvía el plugin (X-Hub-Visitor-Ip) y es falsificable, así
+        // que además del límite por IP hay un tope por sitio (10×) que rotar la IP no evade.
+        $siteKey = 'wcn-domain-site:'.$site->organization_id;
+        if (RateLimiter::tooManyAttempts($key, $max) || RateLimiter::tooManyAttempts($siteKey, $max * 10)) {
+            $retry = max(RateLimiter::availableIn($key), RateLimiter::availableIn($siteKey));
             throw new ProblemException(429, 'rate_limited', 'Demasiadas consultas desde esta conexión. Intenta de nuevo en unos minutos.', ['retry_after' => $retry], ['Retry-After' => (string) $retry]);
         }
         RateLimiter::hit($key, 600);
+        RateLimiter::hit($siteKey, 600);
 
         $rows = array_slice($this->catalog->prices($site->organization_id, $data['currency'] ?? 'PEN', $requested), 0, self::MAX_TLDS);
         $out = [];

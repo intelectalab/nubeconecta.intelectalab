@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
@@ -15,10 +16,12 @@ use Throwable;
  * Nunca lanza excepción: si una dependencia no responde se informa como
  * "down" y la respuesta es 503, útil para healthchecks de Docker o del
  * balanceador. El detalle del error solo se muestra con APP_DEBUG=true.
+ * El entorno y la versión del framework solo se revelan a staff autenticado
+ * (no se filtran a monitores anónimos).
  */
 class HealthController extends Controller
 {
-    public function __invoke(): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         $checks = [
             'database' => $this->check(function (): array {
@@ -36,14 +39,17 @@ class HealthController extends Controller
 
         $healthy = collect($checks)->every(fn (array $c) => $c['status'] === 'up');
 
+        $app = ['status' => 'up', 'name' => config('app.name')];
+        // Entorno y versión solo para staff autenticado: no divulgar a monitores anónimos.
+        $actor = $request->user();
+        if ($actor !== null && ($actor->type ?? null) === 'staff') {
+            $app['env'] = app()->environment();
+            $app['laravel'] = app()->version();
+        }
+
         return response()->json([
             'status' => $healthy ? 'ok' : 'degraded',
-            'app' => [
-                'status' => 'up',
-                'name' => config('app.name'),
-                'env' => app()->environment(),
-                'laravel' => app()->version(),
-            ],
+            'app' => $app,
             'checks' => $checks,
             'time' => now()->toIso8601String(),
         ], $healthy ? 200 : 503);
