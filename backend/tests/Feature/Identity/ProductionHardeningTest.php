@@ -67,27 +67,28 @@ final class ProductionHardeningTest extends IdentityTestCase
         $this->assertSame(0, DB::table('personal_access_tokens')->count());
     }
 
-    public function test_admin_role_keeps_minimum_permissions_and_an_active_user(): void
+    public function test_superadmin_role_keeps_minimum_permissions_and_an_active_user(): void
     {
-        $a = $this->makeUser(['admin'], mfa: true);
-        $b = $this->makeUser(['admin'], mfa: true);
+        // El rol protegido contra lockout es superadmin (break-glass); gestionar roles/usuarios es superadmin-only.
+        $a = $this->makeUser(['superadmin'], mfa: true);
+        $b = $this->makeUser(['superadmin'], mfa: true);
         $this->actAs($a);
-        $admin = Role::query()->where('code', 'admin')->firstOrFail();
-        $codes = $admin->permissions()->pluck('permissions.code')->all();
+        $superadmin = Role::query()->where('code', 'superadmin')->firstOrFail();
+        $codes = $superadmin->permissions()->pluck('permissions.code')->all();
 
-        $this->assertProblem($this->putJson("/api/v1/admin/roles/{$admin->id}/permissions", ['version' => $admin->version, 'permissions' => array_values(array_diff($codes, ['identity.role.update']))]), 409, 'admin_role_protected');
-        $this->putJson("/api/v1/admin/roles/{$admin->id}/permissions", ['version' => $admin->version, 'permissions' => array_values(array_diff($codes, ['customers.customer.export']))])->assertOk();
+        $this->assertProblem($this->putJson("/api/v1/admin/roles/{$superadmin->id}/permissions", ['version' => $superadmin->version, 'permissions' => array_values(array_diff($codes, ['identity.role.update']))]), 409, 'admin_role_protected');
+        $this->putJson("/api/v1/admin/roles/{$superadmin->id}/permissions", ['version' => $superadmin->version, 'permissions' => array_values(array_diff($codes, ['customers.customer.export']))])->assertOk();
 
-        // Con otro admin activo se puede desactivar a B; luego A no puede quitarse el rol ni B ser borrado si A se va.
+        // Con otro superadmin activo se puede desactivar a B; luego A no puede quitarse el rol ni B ser borrado si A se va.
         $this->postJson("/api/v1/admin/users/{$b->id}/disable")->assertOk();
         $this->assertProblem($this->putJson("/api/v1/admin/users/{$a->id}/roles", ['roles' => []]), 409, 'admin_role_protected');
-        $this->assertTrue($a->refresh()->roles()->where('code', 'admin')->exists());
+        $this->assertTrue($a->refresh()->roles()->where('code', 'superadmin')->exists());
 
         $this->postJson("/api/v1/admin/users/{$b->id}/enable")->assertOk();
         $this->actAs($b->refresh());
-        $this->putJson("/api/v1/admin/users/{$a->id}/roles", ['roles' => [['id' => $admin->id, 'expires_at' => now()->addDay()->toIso8601String()]]])->assertOk();
+        $this->putJson("/api/v1/admin/users/{$a->id}/roles", ['roles' => [['id' => $superadmin->id, 'expires_at' => now()->addDay()->toIso8601String()]]])->assertOk();
         $this->deleteJson("/api/v1/admin/users/{$a->id}")->assertNoContent();
         $this->assertProblem($this->putJson("/api/v1/admin/users/{$b->id}/roles", ['roles' => []]), 409, 'admin_role_protected');
-        $this->assertSame(1, DB::table('user_roles')->where('role_id', $admin->id)->where('user_id', $b->id)->count());
+        $this->assertSame(1, DB::table('user_roles')->where('role_id', $superadmin->id)->where('user_id', $b->id)->count());
     }
 }

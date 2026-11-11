@@ -20,7 +20,7 @@ return [
     // Organización operadora única (docs/00 §19). Si hay varias filas se usa esta.
     'organization' => [
         'id' => env('HUB_ORGANIZATION_ID'),
-        // Solo se usan al crear la primera organización (seeder / hub:create-admin).
+        // Solo se usan al crear la primera organización (seeder / hub:create-superadmin).
         'name' => env('HUB_ORGANIZATION_NAME', 'Hub'),
         'slug' => env('HUB_ORGANIZATION_SLUG', 'hub'),
     ],

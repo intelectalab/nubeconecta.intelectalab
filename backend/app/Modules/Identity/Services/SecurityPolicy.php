@@ -45,6 +45,10 @@ final class SecurityPolicy
     public function mfaRequiredFor(User $user): bool
     {
         $roles = $user->activeRoleCodes();
+        if (in_array('superadmin', $roles, true)) {
+            // El superadmin (break-glass, acceso total) siempre lleva 2FA, sin opción de desactivarlo.
+            return true;
+        }
         if (in_array('admin', $roles, true)) {
             // Por defecto el admin siempre lleva 2FA; el ajuste permite desactivarlo (baja la seguridad de todos los admin).
             return $this->settings->bool('security.mfa.required_for_admin', true);

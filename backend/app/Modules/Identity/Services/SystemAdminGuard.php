@@ -9,16 +9,18 @@ use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Protege el rol `admin` del sistema contra el bloqueo de la organización:
+ * Protege el rol `superadmin` del sistema contra el bloqueo de la organización:
  * no puede perder los permisos mínimos de administración de accesos
  * (config hub.identity.admin_minimum_permissions) y siempre debe quedar al
  * menos un usuario del personal activo con el rol vigente. Se llama dentro de
  * la transacción de cada cambio (postcondición); bloquea la fila del rol para
  * serializar cambios concurrentes. Responde 409 `admin_role_protected`.
+ * (El rol `admin` es operativo y ya no está protegido: superadmin es la cuenta
+ * break-glass que nunca debe quedar sin acceso de gobernanza.)
  */
 final class SystemAdminGuard
 {
-    public const ROLE = 'admin';
+    public const ROLE = 'superadmin';
 
     /** @param list<string> $permissions conjunto final de permisos del rol */
     public function assertKeepsMinimumPermissions(Role $role, array $permissions): void
@@ -28,11 +30,11 @@ final class SystemAdminGuard
         }
         $missing = array_values(array_diff((array) config('hub.identity.admin_minimum_permissions', []), $permissions));
         if ($missing !== []) {
-            throw new ProblemException(409, 'admin_role_protected', 'El rol de administrador del sistema no puede perder los permisos mínimos: '.implode(', ', $missing).'.', ['missing_permissions' => $missing]);
+            throw new ProblemException(409, 'admin_role_protected', 'El rol de superadministrador del sistema no puede perder los permisos mínimos: '.implode(', ', $missing).'.', ['missing_permissions' => $missing]);
         }
     }
 
-    /** Postcondición: queda al menos un usuario activo con el rol admin vigente. */
+    /** Postcondición: queda al menos un usuario activo con el rol superadmin vigente. */
     public function assertActiveAdminRemains(): void
     {
         $role = Role::query()->where('code', self::ROLE)->lockForUpdate()->first();
@@ -45,7 +47,7 @@ final class SystemAdminGuard
             ->where('u.type', 'staff')->where('u.status', 'active')->whereNull('u.deleted_at')
             ->exists();
         if (! $active) {
-            throw new ProblemException(409, 'admin_role_protected', 'Debe quedar al menos un usuario activo con el rol de administrador.');
+            throw new ProblemException(409, 'admin_role_protected', 'Debe quedar al menos un usuario activo con el rol de superadministrador.');
         }
     }
 }

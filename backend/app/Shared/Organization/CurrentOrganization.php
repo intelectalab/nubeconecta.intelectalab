@@ -25,7 +25,7 @@ final class CurrentOrganization
     public function id(): string
     {
         return $this->idOrNull()
-            ?? throw new RuntimeException('No hay organización operadora. Ejecute el seeder o php artisan hub:create-admin.');
+            ?? throw new RuntimeException('No hay organización operadora. Ejecute el seeder o php artisan hub:create-superadmin.');
     }
 
     public function idOrNull(): ?string

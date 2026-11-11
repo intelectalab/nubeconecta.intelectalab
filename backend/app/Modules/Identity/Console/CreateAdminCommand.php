@@ -18,20 +18,20 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
- * Crea el administrador inicial. No hay contraseña fija: se pide por consola
- * (oculta, dos veces), se lee de la variable indicada en --password-env, o se
- * genera con --generate y se muestra una sola vez. Siempre queda
- * must_change_password = true y el admin deberá enrolar MFA al entrar.
+ * Crea el superadministrador inicial (cuenta break-glass, acceso total). No hay
+ * contraseña fija: se pide por consola (oculta, dos veces), se lee de la variable
+ * indicada en --password-env, o se genera con --generate y se muestra una sola vez.
+ * Siempre queda must_change_password = true y deberá enrolar MFA al entrar.
  */
 final class CreateAdminCommand extends Command
 {
-    protected $signature = 'hub:create-admin
-        {email : Correo del administrador}
+    protected $signature = 'hub:create-superadmin
+        {email : Correo del superadministrador}
         {--name= : Nombre visible (por defecto la parte local del correo)}
         {--password-env= : Nombre de una variable de entorno con la contraseña}
         {--generate : Genera una contraseña aleatoria y la muestra una vez}';
 
-    protected $description = 'Crea el usuario administrador inicial (rol admin) sin contraseñas fijas';
+    protected $description = 'Crea el usuario superadministrador inicial (rol superadmin) sin contraseñas fijas';
 
     public function handle(SecurityPolicy $policy, AuditLogger $audit, CurrentOrganization $current): int
     {
@@ -42,7 +42,7 @@ final class CreateAdminCommand extends Command
             return self::FAILURE;
         }
 
-        if (! Role::withoutGlobalScopes()->where('code', 'admin')->exists()) {
+        if (! Role::withoutGlobalScopes()->where('code', 'superadmin')->exists()) {
             $this->info('Cargando roles y permisos (IdentitySeeder)...');
             $this->callSilently('db:seed', ['--class' => IdentitySeeder::class, '--force' => true]);
         }
@@ -70,15 +70,15 @@ final class CreateAdminCommand extends Command
                 'must_change_password' => true,
             ])->save();
 
-            $role = Role::query()->where('code', 'admin')->firstOrFail();
+            $role = Role::query()->where('code', 'superadmin')->firstOrFail();
             $user->roles()->attach($role->id, ['organization_id' => $organization->id]);
 
-            $audit->record('user.created', 'user', $user->id, null, ['email' => $email, 'roles' => ['admin']], ['source' => 'hub:create-admin'], actor: ['type' => 'system', 'id' => null]);
+            $audit->record('user.created', 'user', $user->id, null, ['email' => $email, 'roles' => ['superadmin']], ['source' => 'hub:create-superadmin'], actor: ['type' => 'system', 'id' => null]);
 
             return $user;
         });
 
-        $this->info("Administrador creado: {$user->email} ({$user->id}). Deberá cambiar la contraseña y activar MFA al entrar.");
+        $this->info("Superadministrador creado: {$user->email} ({$user->id}). Deberá cambiar la contraseña y activar MFA al entrar.");
 
         return self::SUCCESS;
     }

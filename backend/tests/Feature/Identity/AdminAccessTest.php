@@ -89,6 +89,8 @@ final class AdminAccessTest extends IdentityTestCase
         $this->patchJson("/api/v1/admin/users/{$id}", ['version' => 1, 'name' => 'Nombre Nuevo'])->assertOk()->assertJsonPath('data.version', 2);
         $this->assertProblem($this->patchJson("/api/v1/admin/users/{$id}", ['version' => 1, 'name' => 'Otro']), 409, 'version_conflict');
 
+        // El guard anti-lockout exige ≥1 superadmin activo para desactivar/eliminar usuarios.
+        $this->makeUser(['superadmin'], mfa: true);
         $this->postJson("/api/v1/admin/users/{$id}/disable")->assertOk()->assertJsonPath('data.status', 'disabled');
         $this->assertProblem($this->getJson('/api/v1/admin/users/no-es-uuid'), 404, 'not_found');
 
@@ -99,7 +101,8 @@ final class AdminAccessTest extends IdentityTestCase
 
     public function test_roles_rules_system_protection_audience_and_copy(): void
     {
-        $this->actingAs($this->makeUser(['admin'], mfa: true));
+        // La gestión de roles (identity.role.*) es superadmin-only.
+        $this->actingAs($this->makeUser(['superadmin'], mfa: true));
         $support = Role::query()->where('code', 'support')->firstOrFail();
 
         $this->assertProblem($this->deleteJson("/api/v1/admin/roles/{$support->id}"), 409, 'system_role_protected');
@@ -142,23 +145,41 @@ final class AdminAccessTest extends IdentityTestCase
         $after = [DB::table('permissions')->count(), DB::table('roles')->count(), DB::table('role_permissions')->count()];
 
         $this->assertSame($before, $after);
-        $this->assertSame(9, $after[1]);
+        $this->assertSame(10, $after[1]);
         $this->assertTrue((bool) DB::table('permissions')->where('code', 'vault.secret.reveal')->value('is_sensitive'));
 
+        $nonPortal = DB::table('permissions')->where('code', 'not like', 'portal.%')->count();
+        // superadmin conserva todos los permisos del personal (comodín '*').
+        $superadmin = Role::query()->where('code', 'superadmin')->firstOrFail();
+        $this->assertSame($nonPortal, $superadmin->permissions()->count());
+        // admin operativo = todos menos los crown jewels reservados a superadmin.
+        $reserved = ['identity.role.view', 'identity.role.create', 'identity.role.update', 'identity.role.delete', 'identity.permission.view', 'identity.security_policy.view', 'identity.security_policy.update', 'customers.customer.impersonate'];
         $admin = Role::query()->where('code', 'admin')->firstOrFail();
-        $this->assertSame(DB::table('permissions')->where('code', 'not like', 'portal.%')->count(), $admin->permissions()->count());
+        $this->assertSame($nonPortal - count($reserved), $admin->permissions()->count());
+        $this->assertSame(0, $admin->permissions()->whereIn('code', $reserved)->count());
         $customer = Role::query()->where('code', 'customer_user')->firstOrFail();
         $this->assertSame(0, $customer->permissions()->where('code', 'not like', 'portal.%')->count());
     }
 
-    public function test_create_admin_command_without_fixed_password(): void
+    public function test_create_superadmin_command_without_fixed_password(): void
     {
-        $this->artisan('hub:create-admin', ['email' => 'root@example.com', '--generate' => true])->assertSuccessful();
-        $this->artisan('hub:create-admin', ['email' => 'root@example.com', '--generate' => true])->assertFailed();
+        $this->artisan('hub:create-superadmin', ['email' => 'root@example.com', '--generate' => true])->assertSuccessful();
+        $this->artisan('hub:create-superadmin', ['email' => 'root@example.com', '--generate' => true])->assertFailed();
 
         $user = User::query()->where('email', 'root@example.com')->firstOrFail();
         $this->assertTrue($user->must_change_password);
-        $this->assertSame(['admin'], $user->activeRoleCodes());
+        $this->assertSame(['superadmin'], $user->activeRoleCodes());
         $this->assertStringStartsWith('$argon2id$', $user->password_hash);
+    }
+
+    public function test_admin_cannot_manage_roles_or_permissions_superadmin_only(): void
+    {
+        // El admin operativo perdió la gestión de roles/permisos: es superadmin-only (anti-escalada).
+        $this->actingAs($this->makeUser(['admin'], mfa: true));
+        $support = Role::query()->where('code', 'support')->firstOrFail();
+
+        $this->assertProblem($this->putJson("/api/v1/admin/roles/{$support->id}/permissions", ['version' => $support->version, 'permissions' => ['identity.user.view']]), 403, 'forbidden');
+        $this->assertProblem($this->postJson("/api/v1/admin/roles/{$support->id}/copy", ['code' => 'copia', 'name' => 'Copia']), 403, 'forbidden');
+        $this->getJson('/api/v1/admin/permissions/matrix')->assertForbidden();
     }
 }

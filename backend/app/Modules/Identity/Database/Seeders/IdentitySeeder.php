@@ -87,7 +87,8 @@ final class IdentitySeeder extends Seeder
             $role->save();
         }
 
-        $granted = self::expand($definition['permissions'], array_keys($catalog), $definition['code'], $definition['code'] === 'admin');
+        $allowGlobal = in_array($definition['code'], ['admin', 'superadmin'], true);
+        $granted = self::expand($definition['permissions'], array_keys($catalog), $definition['code'], $allowGlobal);
         $denied = self::expand($definition['deny'] ?? [], array_keys($catalog), $definition['code'], false);
         $codes = array_diff($granted, $denied);
 
@@ -110,7 +111,7 @@ final class IdentitySeeder extends Seeder
         $out = [];
         foreach ($patterns as $pattern) {
             if ($pattern === '*' && ! $allowGlobal) {
-                throw new RuntimeException("El comodín global '*' solo se permite en admin (rol {$role}).");
+                throw new RuntimeException("El comodín global '*' solo se permite en admin/superadmin (rol {$role}).");
             }
             $parts = $pattern === '*' ? ['*', '*', '*'] : explode('.', $pattern);
             if (count($parts) === 2 && $parts[1] === '*') {

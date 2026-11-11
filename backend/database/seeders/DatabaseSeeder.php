@@ -12,7 +12,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Seeders idempotentes de los módulos. No crea usuarios: el administrador
- * inicial se crea con `php artisan hub:create-admin <correo>`.
+ * inicial (superadmin) se crea con `php artisan hub:create-superadmin <correo>`.
  */
 class DatabaseSeeder extends Seeder
 {

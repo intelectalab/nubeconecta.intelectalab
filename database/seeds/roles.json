@@ -5,7 +5,7 @@
   "pattern_rules": {
     "segment_wildcard": "'*' reemplaza exactamente un segmento: 'customers.*.view' = ver toda entidad del módulo customers",
     "module_wildcard": "'<module_key>.*' equivale a '<module_key>.*.*' (todas las entidades y acciones del módulo)",
-    "global_wildcard": "'*' solo se permite en el rol admin",
+    "global_wildcard": "'*' solo se permite en los roles admin y superadmin",
     "resolution": "Se expanden los patrones contra permissions.json (generado desde OpenAPI). 'deny' se aplica después de 'permissions' y siempre gana. Un patrón que no coincide con ningún permiso existente hace fallar el seeder.",
     "scope_values": {
       "organization": "Todos los registros de la organización operadora (organization_id)",
@@ -28,6 +28,19 @@
   },
   "roles": [
     {
+      "code": "superadmin",
+      "name": { "es": "Superadministrador", "en": "Super administrator" },
+      "type": "staff",
+      "system": true,
+      "deletable": false,
+      "scope": "organization",
+      "permissions": ["*"],
+      "deny": [],
+      "restrictions": [
+        { "code": "break_glass_privileged", "description": "Acceso total (comodín '*'); cuenta break-glass de uso excepcional. Sus acciones se auditan igual que las demás y se marcan como privilegiadas (actor_privileged); su registro de auditoría es visible solo para superadmin. Único rol con gestión de roles y permisos (identity.role.*, identity.permission.*), política de seguridad (identity.security_policy.*) y suplantación de clientes (customers.customer.impersonate)." }
+      ]
+    },
+    {
       "code": "admin",
       "name": { "es": "Administrador", "en": "Administrator" },
       "type": "staff",
@@ -35,7 +48,12 @@
       "deletable": false,
       "scope": "organization",
       "permissions": ["*"],
-      "deny": [],
+      "deny": [
+        "identity.role.*",
+        "identity.permission.*",
+        "identity.security_policy.*",
+        "customers.customer.impersonate"
+      ],
       "restrictions": [
         { "code": "no_self_validation", "description": "No valida un pago (billing.payment.validate) que registró él mismo; si es el único usuario disponible, la validación queda en auditoría con motivo obligatorio." },
         { "code": "approves_suspensions_refunds_exemptions", "description": "Único rol que aprueba suspensiones manuales, reembolsos (billing.refund.authorize), exenciones de suspensión y terminación tras suspensión." },
