@@ -145,11 +145,15 @@ final class FileService
     public function temporaryUrl(File $file, int $minutes = 5): string
     {
         $storage = Storage::disk((string) $file->disk);
-        if ((string) $file->disk === 's3') {
-            return $storage->temporaryUrl($file->path, now()->addMinutes($minutes));
-        }
 
-        return $storage->url($file->path);
+        // s3 y el disco local (serve=true) firman la URL; la ruta de servido exige esa
+        // firma, así que `url()` sin firmar daba 403. Solo un disco público (sin URLs
+        // temporales) cae al enlace directo, que no necesita firma.
+        try {
+            return $storage->temporaryUrl($file->path, now()->addMinutes($minutes));
+        } catch (\RuntimeException) {
+            return $storage->url($file->path);
+        }
     }
 
     public function delete(File $file, int $version): void
