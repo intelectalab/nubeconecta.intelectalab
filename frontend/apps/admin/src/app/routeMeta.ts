@@ -10,7 +10,7 @@ export type RouteId =
   | 'tickets' | 'reclamos' | 'ayuda'
   | 'infra' | 'monitoreo' | 'proveedores' | 'cloud' | 'correo' | 'boveda'
   | 'wp'
-  | 'ajustes' | 'apariencia' | 'plantillas' | 'seguridad' | 'roles';
+  | 'ajustes' | 'apariencia' | 'acceso-portal' | 'plantillas' | 'seguridad' | 'roles';
 
 export type GroupName = 'Operación' | 'Comercial' | 'Finanzas' | 'Soporte' | 'Infraestructura' | 'Web' | 'Configuración';
 
@@ -59,6 +59,7 @@ export const ROUTE_META: Record<RouteId, RouteMeta> = {
   wp: { t: 'WordPress y shortcodes', g: 'Web', ic: 'browser' },
   ajustes: { t: 'Cobranza y SLA', g: 'Configuración', ic: 'sliders' },
   apariencia: { t: 'Apariencia', g: 'Configuración', ic: 'palette' },
+  'acceso-portal': { t: 'Acceso del portal', g: 'Configuración', ic: 'lock' },
   plantillas: { t: 'Plantillas de correo', g: 'Configuración', ic: 'mail' },
   seguridad: { t: 'Seguridad', g: 'Configuración', ic: 'lock' },
   roles: { t: 'Usuarios y roles', g: 'Configuración', ic: 'users' },

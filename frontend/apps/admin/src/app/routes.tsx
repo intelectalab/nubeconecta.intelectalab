@@ -35,6 +35,7 @@ const BovedaView = lazy(() => import('../views/pages/BovedaView'));
 const WpView = lazy(() => import('../views/pages/WpView'));
 const AjustesView = lazy(() => import('../views/pages/AjustesView'));
 const AparienciaView = lazy(() => import('../views/pages/AparienciaView'));
+const AccesoPortalView = lazy(() => import('../views/pages/AccesoPortalView'));
 const PlantillasView = lazy(() => import('../views/pages/PlantillasView'));
 const SeguridadView = lazy(() => import('../views/pages/SeguridadView'));
 const RolesView = lazy(() => import('../views/pages/RolesView'));
@@ -86,6 +87,7 @@ export const VIEWS: Record<RouteId, LazyExoticComponent<ComponentType<ViewProps>
   wp: WpView,
   ajustes: AjustesView,
   apariencia: AparienciaView,
+  'acceso-portal': AccesoPortalView,
   plantillas: PlantillasView,
   seguridad: SeguridadView,
   roles: RolesView,

@@ -1,10 +1,48 @@
-import type { FC, ReactNode } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { Icon } from '@hub/ui';
 
+type LoginBranding = {
+  brand_name: string; logo_url: string | null; hero_title: string; hero_subtitle: string;
+  bullets: { icon: string; title: string; text: string }[];
+  footer_line1: string; footer_line2: string;
+  colors: { bg_from: string | null; bg_mid: string | null; bg_to: string | null; accent: string | null };
+};
+const FALLBACK: LoginBranding = {
+  brand_name: 'NubeConecta', logo_url: null,
+  hero_title: 'Tu infraestructura en la nube, dominios y finanzas bajo control',
+  hero_subtitle: 'Portal seguro para clientes corporativos de NubeConecta. Supervisa tus servidores, renueva dominios, paga facturas con comprobantes SUNAT y contacta a la guardia técnica 24/7.',
+  bullets: [
+    { icon: 'shield', title: 'Doble factor (TOTP)', text: 'Recomendado: compatible con Google y Microsoft Authenticator.' },
+    { icon: 'card', title: 'Pasarela de Pagos Cifrada', text: 'Cancela en soles (PEN) o dólares (USD) con tarjeta, PayPal o transferencia BCP/BBVA.' },
+    { icon: 'restore', title: 'Respaldos Diarios Automatizados', text: 'Historial de 14 a 30 días con restauración asistida sin recargo adicional.' },
+  ],
+  footer_line1: 'NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117',
+  footer_line2: 'Soporte NOC: guardia@alojamientoplus.pe',
+  colors: { bg_from: null, bg_mid: null, bg_to: null, accent: null },
+};
+let brandingCache: LoginBranding | null = null;
+let brandingRequest: Promise<LoginBranding> | null = null;
+function useLoginBranding() {
+  const [branding, setBranding] = useState<LoginBranding>(brandingCache ?? FALLBACK);
+  useEffect(() => {
+    if (brandingCache) { setBranding(brandingCache); return; }
+    let active = true;
+    brandingRequest ??= fetch('/api/v1/public/login-branding').then((response) => {
+      if (!response.ok) throw new Error('No se pudo cargar el branding');
+      return response.json() as Promise<{ data: LoginBranding }>;
+    }).then(({ data }) => { brandingCache = data; return data; }).catch((error: unknown) => { brandingRequest = null; throw error; });
+    void brandingRequest.then((data) => { if (active) setBranding(data); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  return branding;
+}
+
 /** Marca del portal (logo + nombre). */
-export const AuthLogo: FC = () => (
-  <span className="auth-logo">
-    <svg viewBox="0 0 48 36" aria-hidden="true">
+export const AuthLogo: FC = () => {
+  const brand = useLoginBranding();
+  const [first, ...rest] = brand.brand_name.split(/\s+/);
+  return <span className="auth-logo">
+    {brand.logo_url ? <img src={brand.logo_url} alt={brand.brand_name} style={{ height: 34 }} /> : <svg viewBox="0 0 48 36" aria-hidden="true">
       <path
         d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z"
         fill="none"
@@ -19,20 +57,26 @@ export const AuthLogo: FC = () => (
         strokeWidth="1"
         strokeLinejoin="round"
       />
-    </svg>
+    </svg>}
     <b>
-      Nube<span>Conecta</span>
+      {rest.length ? <>{first}<span style={brand.colors.accent ? { color: brand.colors.accent } : undefined}>{` ${rest.join(' ')}`}</span></> : brand.brand_name}
     </b>
-  </span>
-);
+  </span>;
+};
 
 /** Panel de marca del acceso al portal (compartido por acceso, activación y restablecimiento). */
-export const AuthArt: FC = () => (
+export const AuthArt: FC = () => {
+  const brand = useLoginBranding();
+  const [first, ...rest] = brand.brand_name.split(/\s+/);
+  const colors = brand.colors ?? FALLBACK.colors;
+  const background = `radial-gradient(ellipse at 20% 0%, ${colors.bg_from ?? '#17326b'} 0%, ${colors.bg_mid ?? '#0c1833'} 60%, ${colors.bg_to ?? '#060b18'} 100%)`;
+  return (
   <>
     {/* Panel Ilustrado / Branding Oficial */}
-    <div className="auth-art">
+    <div className="auth-art" style={{ background }}>
       <div>
         <span className="auth-logo" style={{ color: '#fff' }}>
+          {brand.logo_url ? <img src={brand.logo_url} alt={brand.brand_name} style={{ height: 34 }} /> :
           <svg viewBox="0 0 48 36" aria-hidden="true" style={{ width: 44, height: 34 }}>
             <path
               d="M37.5 31H12.5a9 9 0 0 1-1.6-17.86A12 12 0 0 1 34 10.4a8.6 8.6 0 0 1 3.5 20.6z"
@@ -48,51 +92,33 @@ export const AuthArt: FC = () => (
               strokeWidth="1"
               strokeLinejoin="round"
             />
-          </svg>
+          </svg>}
           <b>
-            Nube<span style={{ color: '#c9d8ff' }}>Conecta</span>
+            {rest.length ? <>{first}<span style={{ color: colors.accent ?? '#c9d8ff' }}>{` ${rest.join(' ')}`}</span></> : brand.brand_name}
           </b>
         </span>
       </div>
 
       <div style={{ display: 'grid', gap: 14 }}>
-        <h2>Tu infraestructura en la nube, dominios y finanzas bajo control</h2>
-        <p>
-          Portal seguro para clientes corporativos de NubeConecta. Supervisa tus servidores, renueva dominios, paga facturas con comprobantes SUNAT y contacta a la guardia técnica 24/7.
-        </p>
+        <h2>{brand.hero_title}</h2>
+        <p>{brand.hero_subtitle}</p>
 
         <ul>
-          <li>
-            <div className="ico"><Icon name="shield" /></div>
-            <div>
-              <b>Doble factor (TOTP)</b>
-              <small>Recomendado: compatible con Google y Microsoft Authenticator.</small>
-            </div>
-          </li>
-          <li>
-            <div className="ico"><Icon name="card" /></div>
-            <div>
-              <b>Pasarela de Pagos Cifrada</b>
-              <small>Cancela en soles (PEN) o dólares (USD) con tarjeta, PayPal o transferencia BCP/BBVA.</small>
-            </div>
-          </li>
-          <li>
-            <div className="ico"><Icon name="restore" /></div>
-            <div>
-              <b>Respaldos Diarios Automatizados</b>
-              <small>Historial de 14 a 30 días con restauración asistida sin recargo adicional.</small>
-            </div>
-          </li>
+          {brand.bullets.map((bullet, index) => <li key={`${bullet.icon}-${index}`}>
+            <div className="ico"><Icon name={bullet.icon} /></div>
+            <div><b>{bullet.title}</b><small>{bullet.text}</small></div>
+          </li>)}
         </ul>
       </div>
 
       <div className="auth-art-foot">
-        <span>NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117</span>
-        <span>Soporte NOC: guardia@alojamientoplus.pe</span>
+        <span>{brand.footer_line1}</span>
+        <span>{brand.footer_line2}</span>
       </div>
     </div>
   </>
-);
+  );
+};
 
 /** Pantalla completa del acceso: panel de marca + tarjeta a la derecha. */
 export const AuthShell: FC<{ children: ReactNode }> = ({ children }) => (
