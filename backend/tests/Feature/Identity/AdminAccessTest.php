@@ -146,6 +146,8 @@ final class AdminAccessTest extends IdentityTestCase
 
         $this->assertSame($before, $after);
         $this->assertSame(10, $after[1]);
+        // temp_technician queda deshabilitado (sin permisos) hasta implementar el alcance 'assigned'.
+        $this->assertSame(0, Role::query()->where('code', 'temp_technician')->firstOrFail()->permissions()->count());
         $this->assertTrue((bool) DB::table('permissions')->where('code', 'vault.secret.reveal')->value('is_sensitive'));
 
         $nonPortal = DB::table('permissions')->where('code', 'not like', 'portal.%')->count();

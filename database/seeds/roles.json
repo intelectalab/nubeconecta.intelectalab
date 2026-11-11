@@ -320,38 +320,10 @@
       "system": true,
       "deletable": false,
       "scope": "assigned",
-      "permissions": [
-        "service_map.*.view",
-        "inventory.*.view",
-        "inventory.server.execute",
-        "cloud.*.view",
-        "domains.domain.view",
-        "mail.*.view",
-        "saas.*.view",
-        "monitoring.*.view",
-        "helpdesk.ticket.view",
-        "helpdesk.ticket.update",
-        "work.task.view",
-        "work.task.update",
-        "work.time_entry.create",
-        "vault.secret.view",
-        "vault.secret.reveal"
-      ],
-      "deny": [
-        "billing.*",
-        "finance.*",
-        "customers.*",
-        "sales.*",
-        "settings.*",
-        "vault.one_time_link.*",
-        "*.*.delete",
-        "*.*.export"
-      ],
+      "permissions": [],
+      "deny": [],
       "restrictions": [
-        { "code": "assigned_only", "description": "Todas las consultas filtran por lo asignado (tareas, tickets o recursos) y vigente." },
-        { "code": "user_expiry_required", "description": "El usuario se crea con fecha de vencimiento obligatoria; al vencer se desactiva solo." },
-        { "code": "vault_grants_expiring", "description": "Las concesiones de bóveda son temporales (expires_at obligatorio) y caducan solas." },
-        { "code": "rotate_on_exit", "description": "Al darlo de baja se genera la lista de accesos que vio para rotarlos." }
+        { "code": "disabled_pending_scope", "description": "Rol deshabilitado (sin permisos) hasta implementar en el código el alcance 'assigned'. Hoy ese filtro NO existe: con permisos, un técnico externo vería/alteraría toda la organización en vez de solo lo asignado. No reactivar sus permisos sin forzar where assignee_id en tareas/tickets/recursos." }
       ]
     },
     {
