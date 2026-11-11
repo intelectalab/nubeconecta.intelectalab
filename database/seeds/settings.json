@@ -1771,6 +1771,36 @@
       ]
     },
     {
+      "key": "portal.login_branding",
+      "group": "Panel del cliente",
+      "description": "Branding del panel izquierdo del login de clientes (un solo login global): logo, textos, beneficios y colores. Los campos vacíos usan el valor por defecto; se sanea antes de servirse en el endpoint público.",
+      "type": "json",
+      "default": {
+        "brand_name": "NubeConecta",
+        "logo_url": null,
+        "hero_title": "Tu infraestructura en la nube, dominios y finanzas bajo control",
+        "hero_subtitle": "Portal seguro para clientes corporativos de NubeConecta. Supervisa tus servidores, renueva dominios, paga facturas con comprobantes SUNAT y contacta a la guardia técnica 24/7.",
+        "bullets": [
+          { "icon": "shield", "title": "Doble factor (TOTP)", "text": "Recomendado: compatible con Google y Microsoft Authenticator." },
+          { "icon": "card", "title": "Pasarela de Pagos Cifrada", "text": "Cancela en soles (PEN) o dólares (USD) con tarjeta, PayPal o transferencia BCP/BBVA." },
+          { "icon": "restore", "title": "Respaldos Diarios Automatizados", "text": "Historial de 14 a 30 días con restauración asistida sin recargo adicional." }
+        ],
+        "footer_line1": "NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117",
+        "footer_line2": "Soporte NOC: guardia@alojamientoplus.pe",
+        "colors": { "bg_from": null, "bg_mid": null, "bg_to": null, "accent": null }
+      },
+      "requires_definition": false,
+      "levels": [
+        "global"
+      ],
+      "edit_roles": [
+        "admin"
+      ],
+      "edit_permission": "settings.setting.update",
+      "origin": "§15, §23",
+      "notes": "Un solo login global; lo consume el endpoint público GET /api/v1/public/login-branding, saneado por LoginBrandingSanitizer (texto sin HTML, color #rrggbb, logo solo http(s))."
+    },
+    {
       "key": "portal.show_provider_name",
       "group": "Panel del cliente",
       "description": "Mostrar al cliente el nombre real del proveedor en lugar de solo la marca propia.",

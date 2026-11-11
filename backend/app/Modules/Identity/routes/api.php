@@ -8,6 +8,7 @@ use App\Modules\Identity\Http\Controllers\Admin\UserController;
 use App\Modules\Identity\Http\Controllers\AuthController;
 use App\Modules\Identity\Http\Controllers\MfaController;
 use App\Modules\Identity\Http\Controllers\PortalCredentialController;
+use App\Modules\Identity\Http\Controllers\PublicBrandingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +30,11 @@ Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::delete('mfa/totp', [MfaController::class, 'disableTotp'])->middleware('mfa.recent')->name('mfa.totp.disable');
         Route::post('mfa/step-up', [MfaController::class, 'stepUp'])->middleware(['throttle:identity-login', 'throttle:identity-mfa'])->name('mfa.step-up');
     });
+});
+
+// Branding del login (un solo login global), anónimo pre-login: lo consume el portal.
+Route::prefix('public')->name('public.')->group(function (): void {
+    Route::get('login-branding', [PublicBrandingController::class, 'loginBranding'])->middleware('throttle:public-branding')->name('login-branding');
 });
 
 // Públicas del portal: activar la cuenta con invitación y recuperar la contraseña.

@@ -46,6 +46,8 @@ final class IdentityServiceProvider extends ServiceProvider
 
         // Enlaces del portal: comprobar/usar un token por IP; "olvidé mi contraseña" por IP y por correo (el 429 es igual exista o no la cuenta).
         RateLimiter::for('identity-token-check', fn (Request $request) => Limit::perMinute(30)->by('identity-token-check:'.$request->ip()));
+        // Branding del login: lectura pública anónima, cacheable; límite holgado por IP.
+        RateLimiter::for('public-branding', fn (Request $request) => Limit::perMinute(60)->by('public-branding:'.$request->ip()));
         RateLimiter::for('identity-token-use', fn (Request $request) => Limit::perMinute(10)->by('identity-token-use:'.$request->ip()));
         RateLimiter::for('identity-forgot', fn (Request $request) => [
             Limit::perMinute((int) config('hub.auth.forgot_per_minute_ip'))->by('identity-forgot-ip:'.$request->ip()),
