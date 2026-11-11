@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Audit;
 
+use App\Models\User;
 use App\Shared\Organization\CurrentOrganization;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +42,10 @@ final class AuditLogger
         $user = Auth::user();
         $actorType = $actor['type'] ?? ($user instanceof Authenticatable ? 'user' : 'system');
         $actorId = array_key_exists('id', $actor ?? []) ? $actor['id'] : ($actorType === 'user' ? $user?->getAuthIdentifier() : null);
+        if ($actorType === 'user' && $user instanceof User && in_array('superadmin', $user->activeRoleCodes(), true)
+            && ! array_key_exists('actor_privileged', $metadata)) {
+            $metadata['actor_privileged'] = true;
+        }
         $id = (string) Str::uuid7();
         $fromHttp = ! app()->runningInConsole() || app()->runningUnitTests();
         $request = request();

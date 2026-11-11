@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Customers\Http\Controllers\Admin;
 
+use App\Models\User;
 use App\Modules\Customers\Contracts\TaxIdLookup;
 use App\Modules\Customers\Http\Resources\CustomerResource;
 use App\Modules\Customers\Models\AuditEntry;
@@ -173,6 +174,10 @@ final class CustomerController
         $query = AuditEntry::query()->whereIn('customer_id', $ids);
         if ($action = $request->input('filter.action')) {
             $query->where('action', $action);
+        }
+        $viewer = $request->user();
+        if (! $viewer instanceof User || ! in_array('superadmin', $viewer->activeRoleCodes(), true)) {
+            $query->whereRaw("coalesce(metadata->>'actor_privileged','false') <> 'true'");
         }
 
         return CursorPagination::respond($query, $request, ['occurred_at', 'chain_seq'], ModelResource::class, '-occurred_at');
