@@ -45,10 +45,13 @@ final class DashboardController extends Controller
 
         $data = [];
         if ($access->allows($user, 'services.service.view')) {
-            $data['mrr'] = $this->mrr($brandId);
             $data['services_due_30'] = $this->servicesDue30($brandId);
         }
+        // El MRR es dato financiero (ingreso recurrente de la empresa): se gobierna
+        // con billing.invoice.view, igual que `receivable`. Así solo lo ve el personal
+        // de facturación/cobranza, el admin y el superadmin; no la operación.
         if ($access->allows($user, 'billing.invoice.view')) {
+            $data['mrr'] = $this->mrr($brandId);
             $data['receivable'] = $this->receivable($collections);
         }
         if ($access->allows($user, 'helpdesk.ticket.view')) {

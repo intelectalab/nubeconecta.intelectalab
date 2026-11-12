@@ -144,18 +144,21 @@ final class DashboardTest extends IdentityTestCase
     {
         $this->seedData();
 
-        // Soporte ve servicios y tickets, pero no billing.invoice.view.
+        // Soporte ve servicios y tickets, pero no billing.invoice.view: por eso no ve
+        // ni receivable ni MRR (el MRR es dato financiero, gateado por facturación).
         $this->actAs($this->makeUser(['support'], mfa: true));
         $data = $this->getJson('/api/v1/admin/dashboard')->assertOk()->json('data');
 
         $this->assertArrayNotHasKey('receivable', $data);
-        $this->assertArrayHasKey('mrr', $data);
+        $this->assertArrayNotHasKey('mrr', $data);
         $this->assertArrayHasKey('services_due_30', $data);
         $this->assertArrayHasKey('tickets', $data);
 
-        // Documentación no tiene billing ni (según su rol) nada de esto además de lectura: nunca expone receivable.
+        // Documentación no tiene billing: nunca expone receivable ni MRR.
         $this->actAs($this->makeUser(['documentation'], mfa: true));
-        $this->assertArrayNotHasKey('receivable', $this->getJson('/api/v1/admin/dashboard')->assertOk()->json('data'));
+        $doc = $this->getJson('/api/v1/admin/dashboard')->assertOk()->json('data');
+        $this->assertArrayNotHasKey('receivable', $doc);
+        $this->assertArrayNotHasKey('mrr', $doc);
     }
 
     public function test_dashboard_requires_authentication(): void
@@ -163,6 +166,16 @@ final class DashboardTest extends IdentityTestCase
         $this->flushSession();
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/admin/dashboard')->assertUnauthorized();
+    }
+
+    public function test_dashboard_is_rate_limited(): void
+    {
+        // 60/min por usuario: la petición 61 es rechazada con 429 (tope de seguridad
+        // contra bucles; el endpoint hace agregados pesados).
+        for ($i = 0; $i < 60; $i++) {
+            $this->getJson('/api/v1/admin/dashboard')->assertOk();
+        }
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(429);
     }
 
     public function test_dashboard_enforces_mfa_and_password_gates_like_the_rest_of_admin(): void

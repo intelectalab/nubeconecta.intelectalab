@@ -11,5 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('health', HealthController::class)->middleware('throttle:60,1')->name('health');
-    Route::middleware(['hub.auth', 'user.type:staff'])->get('admin/dashboard', DashboardController::class)->name('admin.dashboard');
+    // throttle: tope de seguridad por usuario (el endpoint hace 4 agregados pesados);
+    // 60/min sobra para el uso real (una carga por vista) y frena bucles accidentales.
+    Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/dashboard', DashboardController::class)->name('admin.dashboard');
 });
