@@ -51,6 +51,9 @@ services:
     environment: &php-env
       APP_ENV: production
       APP_DEBUG: "false"
+      # Errores a stderr → visibles en `docker logs` (ProblemRenderer no deja rastro
+      # propio; solo los 5xx se reportan, ver ProblemException::report()).
+      LOG_CHANNEL: stderr
       APP_URL: ${HUB_API_URL:?Set HUB_API_URL}
       APP_KEY_FILE: /run/secrets/laravel_app_key
       DB_CONNECTION: pgsql
