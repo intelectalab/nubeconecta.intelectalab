@@ -23,6 +23,17 @@ class ProblemException extends RuntimeException
         parent::__construct($detail ?? '');
     }
 
+    /**
+     * Reporte selectivo (lo invoca el handler de Laravel): los errores de negocio
+     * 4xx (403, 404, 409, 422…) son esperados y NO se registran, para no ahogar el
+     * log con ruido normal. Los 5xx sí caen al logger por defecto (devolver false
+     * deja que el handler haga el reporte estándar).
+     */
+    public function report(): bool
+    {
+        return $this->status < 500;
+    }
+
     public static function forbidden(?string $detail = null): self
     {
         return new self(403, 'forbidden', $detail);
