@@ -5,19 +5,21 @@
  * Respeta el filtro global de marca y la moneda de visualización.
  */
 import { useMemo, useState, type ReactNode } from 'react';
+import { api, type DashboardSummary } from '@hub/api';
 import { useApp, useMoney } from '../../app/context';
 import { useActions } from '../../app/actions';
 import type { RouteId } from '../../app/routeMeta';
 import type { ViewProps } from '../../app/routes';
 import { Icon, SevIcon } from '../../components/Icon';
 import { DualMoney } from '../../components/Money';
-import { CapBar, ClientLink, DayChip, EmptyState, KpiCard, Legend, PageHead } from '../../components/ui';
+import { CapBar, ClientLink, DayChip, EmptyState, KpiCard, Legend, Note, PageHead } from '../../components/ui';
 import {
   BILLED, BR, BRAND_SHARE, CBY, COLL, MES, MESL, MONTHS, NF0, NODES, SEV, TC, TODAY,
-  compact, diffD, fD, fDL, fDom, fInv, fLeads, fSvc, fTk, inBrand, money, moneyRaw, mrrOf, plural, saldo, slaLeft, sumBy, vouchers,
+  compact, diffD, fD, fDL, fDom, fInv, fLeads, fSvc, fTk, inBrand, money, moneyRaw, slaLeft, sumBy, vouchers,
 } from '../../data';
-import type { Sev } from '../../data';
+import type { MoneyPair, Sev } from '../../data';
 import { useWidth } from './operacion-kpi/charts';
+import { errorText, useLoad } from './clientes/shared';
 
 interface Att {
   sev: Sev;
@@ -31,25 +33,27 @@ export default function InicioView(_props: ViewProps) {
   const { brand, cur, navigate, dataVersion } = useApp();
   const m = useMoney();
   const act = useActions();
+  // TODO: filtrar por marca cuando el selector use brand_id reales
+  const summary = useLoad<DashboardSummary>(() => api.dashboard.summary(), [dataVersion]);
 
   const D = useMemo(() => {
-    const svc = fSvc(brand);
-    const inv = fInv(brand);
-    const mrr = sumBy(svc.filter((s) => s.st === 'Activo'), (s) => [mrrOf(s), s.cur]);
-    const open = inv.filter((v) => v.status === 'Pendiente' || v.status === 'Vencida');
-    const porCobrar = sumBy(open, (v) => [saldo(v), v.cur]);
-    const vencido = sumBy(open.filter((v) => v.status === 'Vencida'), (v) => [saldo(v), v.cur]);
-    const due30 = svc.filter((s) => s.st === 'Activo' && diffD(s.due, TODAY) >= 0 && diffD(s.due, TODAY) <= 30);
-    const dom30 = fDom(brand).filter((d) => {
-      const x = diffD(d.real, TODAY);
-      return x >= 0 && x <= 30;
-    });
-    const tk = fTk(brand).filter((t) => t.status !== 'Resuelto');
-    const out = tk.filter((t) => slaLeft(t) < 0);
     const avg = Math.round(NODES.reduce((a, n) => a + n.p, 0) / NODES.length);
     const hot = NODES.filter((n) => n.p >= 85).length;
-    return { mrr, porCobrar, vencido, due30, dom30, tk, out, avg, hot };
-  }, [brand, dataVersion]);
+    return { avg, hot };
+  }, []);
+
+  const mrr = summary.data?.mrr?.reduce<MoneyPair>((pair, item) => {
+    pair[item.currency] = item.amount_minor / 100;
+    return pair;
+  }, { PEN: 0, USD: 0 });
+  const receivable = summary.data?.receivable?.reduce<MoneyPair>((pair, item) => {
+    pair[item.currency] = item.total_minor / 100;
+    return pair;
+  }, { PEN: 0, USD: 0 });
+  const overdue = summary.data?.receivable?.reduce<MoneyPair>((pair, item) => {
+    pair[item.currency] = item.overdue_minor / 100;
+    return pair;
+  }, { PEN: 0, USD: 0 });
 
   const att = useMemo<Att[]>(() => {
     const a: Att[] = [];
@@ -105,7 +109,7 @@ export default function InicioView(_props: ViewProps) {
   }, [brand, cur, dataVersion]);
 
   const fdl = fDL(TODAY);
-  const vencPen = cur === 'orig' ? `${moneyRaw(D.vencido.PEN, 'PEN', 1)} + ${moneyRaw(D.vencido.USD, 'USD', 1)}` : m.dual(D.vencido, true);
+  const vencidoMeta = overdue ? m.dual(overdue, true) : '—';
 
   return (
     <>
@@ -126,27 +130,28 @@ export default function InicioView(_props: ViewProps) {
           </>
         }
       />
+      {summary.error ? <Note kind="warn" role="alert" style={{ marginBottom: 12 }}>No se pudieron cargar las KPI: {errorText(summary.error)} <button type="button" className="btn sm" onClick={summary.reload}>Reintentar</button></Note> : null}
       <section className="grid g-kpi" aria-label="Indicadores clave">
-        <KpiCard label="Ingresos recurrentes (MRR)" icon="activity" value={<DualMoney r={D.mrr} int twin />} meta={<><span className="delta-up">▲ 3.2 %</span> vs. setiembre</>} to="clientes" />
-        <KpiCard label="Por cobrar" icon="wallet" value={<DualMoney r={D.porCobrar} int twin />} meta={<span className="delta-dn">Vencido: {vencPen}</span>} to="cobranza" />
+        <KpiCard label="Ingresos recurrentes (MRR)" icon="activity" value={mrr ? <DualMoney r={mrr} int twin /> : '—'} meta="Ingreso recurrente mensual" to="clientes" />
+        <KpiCard label="Por cobrar" icon="wallet" value={receivable ? <DualMoney r={receivable} int twin /> : '—'} meta={<span className="delta-dn">Vencido: {vencidoMeta}</span>} to="cobranza" />
         <KpiCard
           label="Vencen en 30 días"
           icon="cal"
           value={
             <>
-              {NF0.format(D.due30.length + D.dom30.length)} <small>servicios</small>
+              {summary.data?.services_due_30 !== undefined ? NF0.format(summary.data.services_due_30) : '—'} <small>servicios</small>
             </>
           }
-          meta={`${plural(D.dom30.length, 'dominio', 'dominios')} · ${plural(D.due30.length, 'suscripción', 'suscripciones')}`}
+          meta="Suscripciones"
           to="dominios"
         />
         <KpiCard
           label="Tickets abiertos"
           icon="msg"
-          value={`${D.tk.length}`}
+          value={summary.data?.tickets ? `${summary.data.tickets.open}` : '—'}
           meta={
             <>
-              {D.out.length ? <span className="delta-dn">{D.out.length} fuera de SLA</span> : 'Todos dentro de SLA'} · {D.tk.filter((t) => t.status === 'Nuevo').length} sin asignar
+              {summary.data?.tickets ? <>{summary.data.tickets.overdue_sla ? <span className="delta-dn">{summary.data.tickets.overdue_sla} fuera de SLA</span> : 'Todos dentro de SLA'} · {summary.data.tickets.unassigned} sin asignar</> : '—'}
             </>
           }
           to="tickets"
@@ -161,12 +166,13 @@ export default function InicioView(_props: ViewProps) {
           }
           meta={
             <>
-              {D.hot ? <span className="delta-dn">{D.hot} nodos sobre 85 %</span> : 'Sin nodos críticos'} · {NODES.length} nodos
+              {D.hot ? <span className="delta-dn">{D.hot} nodos sobre 85 %</span> : 'Sin nodos críticos'} · {NODES.length} nodos · datos de ejemplo
             </>
           }
           to="infra"
         />
       </section>
+      <Note icon="info" style={{ marginTop: 16 }}>Las secciones de abajo usan datos de ejemplo; se conectarán cuando exista su backend.</Note>
       <div style={{ height: 16 }} />
       <div className="grid g-2">
         <section className="card" aria-labelledby="hChart">
