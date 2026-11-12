@@ -14,6 +14,7 @@ import { Modal } from '../../../components/Modal';
 import { Chip, Crumbs, EmptyState, Kv, Note, PageHead, PageSkeleton, Tabs } from '../../../components/ui';
 import { CustomerForm } from './CustomerForm';
 import ServiceList from '../servicios/ServiceList';
+import DomainList from '../dominios/DomainList';
 import InvoiceList from '../facturas/InvoiceList';
 import { invoicesApi } from '../facturas/shared';
 import { contractsApi, CONTRACT_CHIP } from '../contratos/shared';
@@ -25,7 +26,7 @@ import { ACTOR_LABELS, auditActionLabel, countryName, customersApi, displayName,
 export type MockTabId = 'mapa' | 'servicios' | 'dominios' | 'facturas' | 'tickets' | 'contratos';
 type TabId = 'resumen' | 'contactos' | 'notas' | 'historial' | MockTabId;
 /** Pestañas ya conectadas a su módulo (el resto de MOCK_TABS sigue con datos de ejemplo). */
-const LIVE_TABS: Partial<Record<MockTabId, string>> = { servicios: 'services.service.view', facturas: 'billing.invoice.view', tickets: 'helpdesk.ticket.view', contratos: 'contracts.contract.view', mapa: 'services.service.view' };
+const LIVE_TABS: Partial<Record<MockTabId, string>> = { servicios: 'services.service.view', facturas: 'billing.invoice.view', tickets: 'helpdesk.ticket.view', contratos: 'contracts.contract.view', mapa: 'services.service.view', dominios: 'domains.domain.view' };
 
 const MOCK_TABS: { id: MockTabId; label: string; count: string }[] = [
   { id: 'servicios', label: 'Servicios', count: 'services' },
@@ -97,7 +98,6 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
     { id: 'resumen', label: 'Resumen' },
     ...(can('customers.contact.view') ? [{ id: 'contactos' as TabId, label: 'Contactos', count: ov.counts.contacts }] : []),
     ...(can('customers.customer_note.view') ? [{ id: 'notas' as TabId, label: 'Notas', count: ov.counts.customer_notes }] : []),
-    // Dominios permanece con datos de ejemplo mientras no exista backend.
     ...MOCK_TABS.filter((t) => !LIVE_TABS[t.id] || can(LIVE_TABS[t.id] as string)).map((t) => ({ id: t.id as TabId, label: t.label, count: t.count ? ov.counts[t.count] : undefined })),
     { id: 'historial', label: 'Historial' },
   ];
@@ -112,6 +112,7 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
   else if (tab === 'tickets') body = <CustomerTickets customerId={c.id} />;
   else if (tab === 'contratos') body = <CustomerContracts customerId={c.id} />;
   else if (tab === 'mapa') body = <CustomerServiceMap customerId={c.id} />;
+  else if (tab === 'dominios') body = <CustomerDomains customerId={c.id} />;
   else
     body = (
       <>
@@ -226,6 +227,11 @@ function CustomerTickets({ customerId }: { customerId: string }) {
       )}
     </section>
   );
+}
+
+/* ---------- Dominios del cliente (DOM) ---------- */
+function CustomerDomains({ customerId }: { customerId: string }) {
+  return <DomainList customerId={customerId} />;
 }
 
 /* ---------- Contratos del cliente (CON) ---------- */

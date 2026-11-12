@@ -10,12 +10,18 @@ import { Icon } from '../../components/Icon';
 import { EmptyState, PageHead, Pager, SearchBox, Select, StatLine, Toolbar } from '../../components/ui';
 import { addD, CBY, diffD, domains, fD, fDom, findClient, NF0, norm, plural, TODAY } from '../../data';
 import type { Domain } from '../../data';
-import { DomTable } from './operacion/DomTable';
+import { MockDomTable as DomTable } from './operacion/DomTable';
+import { LIVE } from './clientes/shared';
+import DomainList from './dominios/DomainList';
 
 const PER = 25;
 const REGS = ['Namecheap', 'NameSilo', 'PoloDomains'];
 
-export default function DominiosView({ param }: ViewProps) {
+export default function DominiosView(props: ViewProps) {
+  return LIVE ? <DomainList param={props.param} /> : <DominiosDemoView {...props} />;
+}
+
+function DominiosDemoView({ param }: ViewProps) {
   const { brand, dataVersion, dialogs, toast, refresh } = useApp();
   const [q, setQ] = useViewState('dom.q', '');
   const [reg, setReg] = useViewState('dom.reg', '');

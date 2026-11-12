@@ -17,7 +17,7 @@ import { DualMoney } from '../../components/Money';
 import { BrandTag, Chip, Crumbs, DayChip, EmptyState, Kv, Note, PageHead, PrioChip, Seg, SlaBar, StatusChip, SunatChip, Switch, Tabs } from '../../components/ui';
 import { CBY, diffD, fD, fDs, fT, NOW, saldo, sumBy, TODAY } from '../../data';
 import type { Client, Service, Ticket } from '../../data';
-import { DomTable } from './operacion/DomTable';
+import { MockDomTable as DomTable } from './operacion/DomTable';
 import { MapSvg, nodeTitle, projectsOf } from './operacion/clientMap';
 
 type TabId = 'resumen' | 'mapa' | 'servicios' | 'dominios' | 'facturas' | 'tickets' | 'contratos' | 'actividad';
