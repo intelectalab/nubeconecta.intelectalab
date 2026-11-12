@@ -164,4 +164,17 @@ final class DashboardTest extends IdentityTestCase
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/admin/dashboard')->assertUnauthorized();
     }
+
+    public function test_dashboard_enforces_mfa_and_password_gates_like_the_rest_of_admin(): void
+    {
+        // Staff que aún no enroló MFA (el admin siempre lo exige): no debe ver KPIs.
+        $this->actAs($this->makeUser(['admin']));
+        $this->assertProblem($this->getJson('/api/v1/admin/dashboard'), 403, 'mfa_required');
+
+        // Staff con contraseña pendiente de cambio: tampoco.
+        $pending = $this->makeUser(['admin'], mfa: true);
+        DB::table('users')->where('id', $pending->id)->update(['must_change_password' => true]);
+        $this->actAs($pending->refresh());
+        $this->assertProblem($this->getJson('/api/v1/admin/dashboard'), 403, 'password_change_required');
+    }
 }

@@ -11,6 +11,7 @@ use App\Modules\Services\Models\Subscription;
 use App\Modules\Services\Support\Cycle;
 use App\Modules\Support\Models\Ticket;
 use App\Shared\Contracts\AccessControl;
+use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -29,6 +30,16 @@ final class DashboardController extends Controller
     public function __invoke(Request $request, AccessControl $access, CollectionsService $collections): JsonResponse
     {
         $user = $request->user();
+        // Mismos gates previos que PermissionGate: quien debe cambiar contraseña o
+        // enrolar MFA no accede a datos del panel (aquí también, aunque no usemos el
+        // middleware `permission:`), para no filtrar KPIs financieros en ese estado.
+        if ($access->mustChangePassword($user)) {
+            throw new ProblemException(403, 'password_change_required');
+        }
+        if ($access->mustEnrollMfa($user)) {
+            throw ProblemException::mfaRequired();
+        }
+
         $brand = $request->query('brand_id');
         $brandId = is_string($brand) && Str::isUuid($brand) ? $brand : null;
 
