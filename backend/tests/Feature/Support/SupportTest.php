@@ -39,6 +39,24 @@ final class SupportTest extends IdentityTestCase
         $this->getJson('/api/v1/admin/tickets/'.Str::uuid())->assertNotFound();
     }
 
+    public function test_tickets_index_filters_by_customer(): void
+    {
+        $customer = $this->postJson('/api/v1/admin/customers', [
+            'type' => 'company', 'legal_name' => 'Cliente Uno SAC', 'tax_id_type' => 'ruc', 'tax_id' => '20100070970',
+            'country' => 'PE', 'currency' => 'PEN', 'origin_brand_id' => $this->brand,
+        ])->assertCreated()->json('data.id');
+
+        $mine = $this->postJson('/api/v1/admin/tickets', ['brand_id' => $this->brand, 'customer_id' => $customer, 'channel' => 'portal', 'subject' => 'Del cliente'])->assertCreated()->json('data.id');
+        $this->postJson('/api/v1/admin/tickets', ['brand_id' => $this->brand, 'channel' => 'portal', 'subject' => 'Sin cliente'])->assertCreated();
+
+        // El índice filtrado por cliente devuelve solo los tickets de ese cliente (lo usa la ficha).
+        $res = $this->getJson("/api/v1/admin/tickets?customer_id={$customer}")->assertOk();
+        $this->assertSame([$mine], array_column($res->json('data'), 'id'));
+
+        // Un customer_id malformado no debe reventar la consulta (guard de uuid): se ignora el filtro.
+        $this->getJson('/api/v1/admin/tickets?customer_id=no-es-uuid')->assertOk();
+    }
+
     public function test_ticket_show_includes_uploaded_attachments(): void
     {
         Storage::fake('local');

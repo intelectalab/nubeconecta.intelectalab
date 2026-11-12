@@ -30,7 +30,7 @@ export interface TicketInput {
 export interface TicketMessageInput {
   author_type?: 'staff'; channel: TicketMessageChannel; body: string; is_internal?: boolean; in_reply_to?: string | null;
 }
-export interface TicketFilters { status?: TicketStatus | ''; priority?: TicketPriority | ''; assignee_id?: string; }
+export interface TicketFilters { status?: TicketStatus | ''; priority?: TicketPriority | ''; assignee_id?: string; customer_id?: string; brand_id?: string; }
 
 /** Representación segura para el cliente del portal. */
 export type PortalTicketType = 'incident' | 'request' | 'question' | 'billing';
@@ -171,7 +171,7 @@ function crud<T, I>(http: HttpClient) {
   return {
     list: (params: ListParams & { filter?: TicketFilters } = {}) => {
       const f = params.filter;
-      return http.get<CursorPage<T>>(`${base}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, status: f?.status || undefined, priority: f?.priority || undefined, assignee_id: f?.assignee_id })}`);
+      return http.get<CursorPage<T>>(`${base}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, status: f?.status || undefined, priority: f?.priority || undefined, assignee_id: f?.assignee_id, customer_id: f?.customer_id || undefined, brand_id: f?.brand_id || undefined })}`);
     },
     get: (id: string) => http.get<Envelope<T>>(`${base}/${enc(id)}`).then(unwrap),
     create: (input: I, idempotencyKey = newIdempotencyKey()) => http.post<Envelope<T>>(base, input, { idempotencyKey }).then(unwrap),

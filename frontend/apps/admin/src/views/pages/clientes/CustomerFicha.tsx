@@ -7,7 +7,7 @@
  * pinta la vista con datos de ejemplo (`mockTab`).
  */
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AGING_LABELS, isProblem, newIdempotencyKey, CONTACT_ROLES, type AgingBucket, type AuditEvent, type Contact, type ContactInput, type ContactRole, type Customer, type CustomerNote, type PortalRole } from '@hub/api';
+import { AGING_LABELS, SERVICE_STATUS_LABELS, isProblem, newIdempotencyKey, CONTACT_ROLES, type AgingBucket, type AuditEvent, type Contact, type ContactInput, type ContactRole, type Contract, type ContractStatus, type Customer, type CustomerNote, type PortalRole, type Service, type TicketPriority, type TicketStatus, type TicketType } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
@@ -16,12 +16,16 @@ import { CustomerForm } from './CustomerForm';
 import ServiceList from '../servicios/ServiceList';
 import InvoiceList from '../facturas/InvoiceList';
 import { invoicesApi } from '../facturas/shared';
+import { contractsApi, CONTRACT_CHIP } from '../contratos/shared';
+import { servicesApi, SERVICE_CHIP } from '../servicios/shared';
+import { supportApi } from '../soporte/api';
+import { href } from '../../../app/routeMeta';
 import { ACTOR_LABELS, auditActionLabel, countryName, customersApi, displayName, docOf, errorText, fDate, fDateTime, fieldErrors, moneyMinor, ROLE_LABEL, STATUS_LABEL, TAX_LABEL, TYPE_LABEL, useCan, useLoad, useLookups } from './shared';
 
 export type MockTabId = 'mapa' | 'servicios' | 'dominios' | 'facturas' | 'tickets' | 'contratos';
 type TabId = 'resumen' | 'contactos' | 'notas' | 'historial' | MockTabId;
 /** Pestañas ya conectadas a su módulo (el resto de MOCK_TABS sigue con datos de ejemplo). */
-const LIVE_TABS: Partial<Record<MockTabId, string>> = { servicios: 'services.service.view', facturas: 'billing.invoice.view' };
+const LIVE_TABS: Partial<Record<MockTabId, string>> = { servicios: 'services.service.view', facturas: 'billing.invoice.view', tickets: 'helpdesk.ticket.view', contratos: 'contracts.contract.view', mapa: 'services.service.view' };
 
 const MOCK_TABS: { id: MockTabId; label: string; count: string }[] = [
   { id: 'servicios', label: 'Servicios', count: 'services' },
@@ -93,7 +97,7 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
     { id: 'resumen', label: 'Resumen' },
     ...(can('customers.contact.view') ? [{ id: 'contactos' as TabId, label: 'Contactos', count: ov.counts.contacts }] : []),
     ...(can('customers.customer_note.view') ? [{ id: 'notas' as TabId, label: 'Notas', count: ov.counts.customer_notes }] : []),
-    // TODO(modulo): mapa, dominios, tickets y contratos usan datos de ejemplo hasta que existan SMP, DOM, HLP y CON.
+    // Dominios permanece con datos de ejemplo mientras no exista backend.
     ...MOCK_TABS.filter((t) => !LIVE_TABS[t.id] || can(LIVE_TABS[t.id] as string)).map((t) => ({ id: t.id as TabId, label: t.label, count: t.count ? ov.counts[t.count] : undefined })),
     { id: 'historial', label: 'Historial' },
   ];
@@ -105,6 +109,9 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
   else if (tab === 'historial') body = <Historial customerId={c.id} />;
   else if (tab === 'servicios') body = <ServiceList customerId={c.id} />;
   else if (tab === 'facturas') body = <InvoiceList customerId={c.id} />;
+  else if (tab === 'tickets') body = <CustomerTickets customerId={c.id} />;
+  else if (tab === 'contratos') body = <CustomerContracts customerId={c.id} />;
+  else if (tab === 'mapa') body = <CustomerServiceMap customerId={c.id} />;
   else
     body = (
       <>
@@ -191,6 +198,77 @@ function Ficha({ ov, reload, mockTab }: { ov: Awaited<ReturnType<typeof customer
         />
       ) : null}
     </>
+  );
+}
+
+/* ---------- Tickets del cliente (HLP) ---------- */
+const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
+  new: 'Nuevo', open: 'Abierto', in_progress: 'En curso', waiting_customer: 'Espera cliente', waiting_provider: 'Espera proveedor',
+  escalated: 'Escalado', resolved: 'Resuelto', closed: 'Cerrado', reopened: 'Reabierto',
+};
+const TICKET_TYPE_LABEL: Record<TicketType, string> = {
+  incident: 'Incidente', request: 'Solicitud', question: 'Consulta', billing: 'Facturación', complaint: 'Reclamo', security: 'Seguridad',
+};
+const TICKET_PRIORITY_LABEL: Record<TicketPriority, string> = { critical: 'Crítica', high: 'Alta', medium: 'Media', low: 'Baja' };
+const ticketStatusKind = (status: TicketStatus) => status === 'resolved' || status === 'closed' ? 'ok' : status === 'escalated' ? 'danger' : status === 'waiting_customer' || status === 'waiting_provider' ? 'warn' : 'info';
+const ticketPriorityKind = (priority: TicketPriority) => priority === 'critical' ? 'danger' : priority === 'high' ? 'warn' : priority === 'medium' ? 'info' : 'neutral';
+
+function CustomerTickets({ customerId }: { customerId: string }) {
+  const res = useLoad(() => supportApi.tickets.list({ filter: { customer_id: customerId }, size: 50 }), [customerId]);
+  const rows = res.data?.data ?? [];
+  return (
+    <section className="card">
+      <div className="card-h"><h2 className="sec">Tickets</h2></div>
+      {res.error ? <div className="card-b"><Note kind="warn" icon="tri" role="alert">{errorText(res.error)}{' '}<button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : res.loading ? <div className="card-b">Cargando tickets…</div> : !rows.length ? <EmptyState title="Sin tickets" text="No hay tickets registrados para este cliente." /> : (
+        <div className="tw"><table className="t"><thead><tr><th>Número</th><th>Asunto</th><th>Tipo</th><th>Estado</th><th>Prioridad</th><th>Fecha</th></tr></thead><tbody>
+          {rows.map((ticket) => <tr key={ticket.id}><td className="nw"><a className="rowlink mono" href={href('tickets', ticket.id)}>{ticket.number}</a></td><td>{ticket.subject}</td><td>{TICKET_TYPE_LABEL[ticket.type]}</td><td><Chip kind={ticketStatusKind(ticket.status)}>{TICKET_STATUS_LABEL[ticket.status]}</Chip></td><td><Chip kind={ticketPriorityKind(ticket.priority)}>{TICKET_PRIORITY_LABEL[ticket.priority]}</Chip></td><td className="nw">{fDateTime(ticket.created_at)}</td></tr>)}
+        </tbody></table></div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Contratos del cliente (CON) ---------- */
+const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = { draft: 'Borrador', in_review: 'En revisión', approved: 'Aprobado', sent: 'Enviado', signed_active: 'Vigente firmado', expired: 'Vencido', terminated: 'Terminado' };
+
+function CustomerContracts({ customerId }: { customerId: string }) {
+  const res = useLoad(() => contractsApi.list({ filter: { customer_id: customerId }, size: 50 }), [customerId]);
+  const rows: Contract[] = res.data?.data ?? [];
+  return (
+    <section className="card">
+      <div className="card-h"><h2 className="sec">Contratos</h2></div>
+      {res.error ? <div className="card-b"><Note kind="warn" icon="tri" role="alert">{errorText(res.error)}{' '}<button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : res.loading ? <div className="card-b">Cargando contratos…</div> : !rows.length ? <EmptyState title="Sin contratos" text="No hay contratos registrados para este cliente." /> : (
+        <div className="tw"><table className="t"><thead><tr><th>Código / título</th><th>Estado</th><th>Vigencia</th><th>Versión</th></tr></thead><tbody>
+          {rows.map((contract) => <tr key={contract.id}><td><a className="rowlink mono" href={href('contratos', contract.id)}>{contract.number}</a><div className="sub">{contract.kind === 'terms' ? 'Términos y condiciones' : 'Contrato'}</div></td><td><Chip kind={CONTRACT_CHIP[contract.status]}>{CONTRACT_STATUS_LABEL[contract.status]}</Chip></td><td className="nw">{fDate(contract.starts_on)} – {fDate(contract.ends_on)}</td><td>v{contract.current_version}</td></tr>)}
+        </tbody></table></div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Mapa visual de servicios del cliente (M-SRV) ---------- */
+function CustomerServiceMap({ customerId }: { customerId: string }) {
+  const res = useLoad(() => servicesApi.list({ filter: { customer_id: customerId }, size: 100 }), [customerId]);
+  const rows: Service[] = res.data?.data ?? [];
+  const groups = rows.reduce<Partial<Record<Service['status'], Service[]>>>((result, service) => {
+    (result[service.status] ??= []).push(service);
+    return result;
+  }, {});
+  const orderedStatuses: Service['status'][] = ['active', 'pending', 'suspended', 'handed_over', 'terminated', 'cancelled'];
+  return (
+    <section className="card">
+      <div className="card-h"><h2 className="sec">Mapa de servicios</h2></div>
+      {res.error ? <div className="card-b"><Note kind="warn" icon="tri" role="alert">{errorText(res.error)}{' '}<button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : res.loading ? <div className="card-b">Cargando servicios…</div> : !rows.length ? <EmptyState title="Sin servicios" text="Este cliente aún no tiene servicios registrados." /> : (
+        <div className="card-b" style={{ display: 'grid', gap: 16 }}>
+          {orderedStatuses.filter((status) => groups[status]?.length).map((status) => <div key={status}>
+            <h3 className="sec" style={{ margin: '0 0 8px' }}>{SERVICE_STATUS_LABELS[status]}</h3>
+            <div className="grid g-3">{(groups[status] ?? []).map((service) => <article className="card" key={service.id}>
+              <div className="card-b" style={{ display: 'grid', gap: 6 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}><b>{service.label}</b><Chip kind={SERVICE_CHIP[service.status]}>{SERVICE_STATUS_LABELS[service.status]}</Chip></div><div className="sub">{service.plan?.name ?? service.product?.name ?? service.code}</div><div className="sub">Próximo vencimiento: {fDate(service.commercial_due_date ?? service.subscription?.next_invoice_date)}</div></div>
+            </article>)}</div>
+          </div>)}
+        </div>
+      )}
+    </section>
   );
 }
 

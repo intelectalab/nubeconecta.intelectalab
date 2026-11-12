@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 final class TicketController
@@ -37,6 +38,11 @@ final class TicketController
         $query = Ticket::query()->whereNull('deleted_at');
         foreach (['status', 'priority', 'assignee_id'] as $field) {
             if ($request->query($field) !== null && $request->query($field) !== '') $query->where($field, $request->query($field));
+        }
+        // Filtros por entidad (uuid): se validan para no reventar la consulta con un id malformado.
+        foreach (['customer_id', 'brand_id'] as $field) {
+            $value = $request->query($field);
+            if (is_string($value) && Str::isUuid($value)) $query->where($field, $value);
         }
         return CursorPagination::respond($query, $request, ['number', 'created_at', 'updated_at'], TicketResource::class, '-created_at');
     }
