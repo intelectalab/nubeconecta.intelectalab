@@ -2903,6 +2903,16 @@
       "operations": 2
     },
     {
+      "code": "identity.file.delete",
+      "module_key": "identity",
+      "module": "IDN",
+      "entity": "file",
+      "action": "delete",
+      "description": "Eliminar archivos",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
       "code": "identity.organization.update",
       "module_key": "identity",
       "module": "IDN",
