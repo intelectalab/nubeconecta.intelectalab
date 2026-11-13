@@ -1,21 +1,10 @@
 /** Selectores compartidos por los formularios de alta y edición de dominios. */
 import type { ReactNode } from 'react';
-import { customersApi, displayName, useLoad } from '../clientes/shared';
+import { CustomerSearch } from '../clientes/CustomerSearch';
 import type { useRegistrarAccounts } from './shared';
 
 export function CustomerField({ value, onChange, disabled, error }: { value: string; onChange: (v: string) => void; disabled?: boolean; error?: ReactNode }) {
-  const customers = useLoad(() => customersApi.list({ size: 100, sort: 'legal_name' }).then((p) => p.data), []);
-  const list = customers.data ?? [];
-  return (
-    <label className="field">Cliente
-      <select className="select" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{customers.loading ? 'Cargando…' : 'Sin cliente'}</option>
-        {value && !list.some((c) => c.id === value) && !customers.loading ? <option value={value}>(cliente actual)</option> : null}
-        {list.map((c) => <option key={c.id} value={c.id}>{displayName(c)} · {c.code}</option>)}
-      </select>
-      {error}
-    </label>
-  );
+  return <CustomerSearch value={value} onChange={(id) => onChange(id ?? '')} disabled={disabled} error={error} />;
 }
 
 export function RegistrarField({ value, onChange, registrars, error }: { value: string; onChange: (v: string) => void; registrars: ReturnType<typeof useRegistrarAccounts>; error?: ReactNode }) {

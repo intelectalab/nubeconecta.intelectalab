@@ -10,7 +10,8 @@ import { currentPrice, cycleLabel, isProblem, newIdempotencyKey, type Currency, 
 import { Modal } from '../../../components/Modal';
 import { Icon } from '../../../components/Icon';
 import { Note } from '../../../components/ui';
-import { customersApi, displayName, docOf, errorText, fieldErrors, moneyMinor, useLoad } from '../clientes/shared';
+import { CustomerSearch } from '../clientes/CustomerSearch';
+import { errorText, fieldErrors, moneyMinor, useLoad } from '../clientes/shared';
 import { catalogApi } from '../catalogo/shared';
 import { ordersApi } from './shared';
 
@@ -22,8 +23,6 @@ interface Line {
 
 export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order }: { onClose: () => void; onSaved: (o: Order) => void; onConflict?: () => void; initialCustomer?: Customer; order?: Order }) {
   const [customer, setCustomer] = useState<Customer | null>(initialCustomer ?? null);
-  const [cq, setCq] = useState('');
-  const [cqDeb, setCqDeb] = useState('');
   const [currency, setCurrency] = useState<Currency>(order?.currency ?? initialCustomer?.currency ?? 'PEN');
   const [notes, setNotes] = useState(order?.notes ?? '');
   const [lines, setLines] = useState<Line[]>(() => order ? order.items.filter((i) => i.config?.kind !== 'setup_fee' && i.plan_id).map((i, n) => ({ key: n + 1, plan_id: i.plan_id!, quantity: String(i.quantity) })) : [{ key: 1, plan_id: '', quantity: '1' }]);
@@ -36,23 +35,6 @@ export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order
   const idem = useRef(newIdempotencyKey());
   const seq = useRef(2);
   const previewSeq = useRef(0);
-
-  useEffect(() => {
-    if (order && !initialCustomer) {
-      let active = true;
-      void customersApi.get(order.customer_id).then((c) => { if (active) setCustomer(c); }).catch(() => {
-        if (active) setErrs((e) => ({ ...e, customer_id: 'No se pudo cargar el cliente del pedido.' }));
-      });
-      return () => { active = false; };
-    }
-  }, [order, initialCustomer]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setCqDeb(cq.trim()), 300);
-    return () => clearTimeout(t);
-  }, [cq]);
-
-  const found = useLoad(() => (customer || !cqDeb ? Promise.resolve([] as Customer[]) : customersApi.list({ q: cqDeb, filter: { status: 'active' }, size: 8 }).then((r) => r.data)), [cqDeb, customer]);
 
   // Productos activos vendibles en la marca del cliente (incluye los de todas las marcas).
   const brandId = customer?.origin_brand_id ?? '';
@@ -162,53 +144,20 @@ export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order
       <form onSubmit={(e) => void submit(e)} noValidate style={{ display: 'contents' }}>
         <div className="modal-b">
           <div className="form-grid">
-            <div className="field full">
-              Cliente *
-              {customer ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <b>{displayName(customer)}</b>
-                  <span className="sub">
-                    {customer.code} · {docOf(customer)} · {customer.tax_treatment === 'export' ? 'Exportación' : 'Gravado'}
-                  </span>
-                  {!order ? <button
-                    type="button"
-                    className="btn sm"
-                    onClick={() => {
-                      setCustomer(null);
-                      setLines([{ key: seq.current++, plan_id: '', quantity: '1' }]);
-                    }}
-                  >
-                    Cambiar
-                  </button> : null}
-                </div>
-              ) : (
-                <>
-                  <input className="input" type="search" value={cq} placeholder="Buscar por nombre, documento o código…" aria-label="Buscar cliente" onChange={(e) => setCq(e.target.value)} />
-                  {found.data?.length ? (
-                    <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'grid', gap: 4 }}>
-                      {found.data.map((c) => (
-                        <li key={c.id}>
-                          <button
-                            type="button"
-                            className="btn sm"
-                            style={{ width: '100%', justifyContent: 'flex-start' }}
-                            onClick={() => {
-                              setCustomer(c);
-                              setCurrency(c.currency);
-                            }}
-                          >
-                            {displayName(c)} · <span className="mono">{c.code}</span> · {docOf(c)}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : cqDeb && !found.loading ? (
-                    <small className="hint">Sin clientes activos que coincidan.</small>
-                  ) : null}
-                </>
-              )}
-              {err('customer_id')}
-            </div>
+            <CustomerSearch
+              label="Cliente *"
+              value={customer?.id ?? order?.customer_id ?? ''}
+              activeOnly
+              disabled={!!order}
+              onChange={() => undefined}
+              onSelect={(c) => {
+                if (c && c.id === customer?.id) return;
+                setCustomer(c);
+                if (c && !order) setCurrency(c.currency);
+                if (!c) setLines([{ key: seq.current++, plan_id: '', quantity: '1' }]);
+              }}
+              error={err('customer_id')}
+            />
             <label className="field" htmlFor="of-cur">
               Moneda *
               <select className="select" id="of-cur" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>

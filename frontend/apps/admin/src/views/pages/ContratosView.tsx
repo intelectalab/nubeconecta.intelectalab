@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { isProblem, type Contract, type ContractFilters, type ContractInput, type ContractStatus, type ContractUpdateInput, type Currency } from '@hub/api';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
@@ -6,7 +6,8 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
-import { customersApi, displayName, errorText, fDate, useCan, useLoad, useLookups } from './clientes/shared';
+import { CustomerSearch } from './clientes/CustomerSearch';
+import { errorText, fDate, useCan, useLoad, useLookups } from './clientes/shared';
 import { CONTRACT_CHIP, contractsApi } from './contratos/shared';
 
 const STATUS: Record<ContractStatus, string> = { draft: 'Borrador', in_review: 'En revisión', approved: 'Aprobado', sent: 'Enviado', signed_active: 'Vigente firmado', expired: 'Vencido', terminated: 'Terminado' };
@@ -126,7 +127,6 @@ function ContractDetail({ id, onBack }: { id: string; onBack: () => void }) {
 function ContractForm({ contract, onClose, onSaved, onConflict }: { contract?: Contract; onClose: () => void; onSaved: (c: Contract) => void; onConflict?: () => void }) {
   const { toast } = useApp();
   const { brands } = useLookups();
-  const [customers, setCustomers] = useState<{ id: string; label: string }[]>([]);
   const [customer, setCustomer] = useState(contract?.customer_id ?? '');
   const [brand, setBrand] = useState(contract?.brand_id ?? '');
   const [currency, setCurrency] = useState<Currency>(contract?.currency ?? 'PEN');
@@ -139,7 +139,6 @@ function ContractForm({ contract, onClose, onSaved, onConflict }: { contract?: C
   const [summary, setSummary] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void customersApi.list({ size: 100, sort: 'legal_name' }).then((p) => setCustomers(p.data.map((x) => ({ id: x.id, label: `${displayName(x)} · ${x.code}` })))).catch(() => undefined); }, []);
   const submit = async (ev: FormEvent) => {
     ev.preventDefault(); setMessage('');
     if (!customer || !brand || !body.trim()) { setMessage('Seleccione cliente y marca, y complete el cuerpo del contrato.'); return; }
@@ -156,7 +155,7 @@ function ContractForm({ contract, onClose, onSaved, onConflict }: { contract?: C
   };
   return <Modal open wide onClose={onClose} title={contract ? `Editar ${contract.number}` : 'Nuevo contrato'} sub="El cuerpo se guarda directamente en el contrato." bare>
     <form className="modal-b" onSubmit={(e) => void submit(e)}><div className="form-grid">
-      <label className="field">Cliente<select className="select" value={customer} onChange={(e) => setCustomer(e.target.value)}><option value="">Seleccione…</option>{customers.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+      <CustomerSearch value={customer} onChange={(id) => setCustomer(id ?? '')} />
       <label className="field">Marca<select className="select" value={brand} onChange={(e) => setBrand(e.target.value)}><option value="">Seleccione…</option>{brands.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
       <label className="field">Moneda<select className="select" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}><option value="PEN">PEN · Soles</option><option value="USD">USD · Dólares</option></select></label>
       <label className="field">Inicio<input className="input" type="date" value={starts} onChange={(e) => setStarts(e.target.value)} /></label>

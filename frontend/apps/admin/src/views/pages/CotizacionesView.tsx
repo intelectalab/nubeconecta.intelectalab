@@ -6,7 +6,8 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
-import { displayName, errorText, fDate, fDateTime, moneyMinor, useCan, useLoad, useLookups, customersApi } from './clientes/shared';
+import { CustomerSearch } from './clientes/CustomerSearch';
+import { errorText, fDate, fDateTime, moneyMinor, useCan, useLoad, useLookups } from './clientes/shared';
 import { quotesApi, QUOTE_CHIP } from './cotizaciones/shared';
 import { hub } from '../../auth/client';
 
@@ -120,7 +121,6 @@ function QuoteDetail({ id, onBack }: { id: string; onBack: () => void }) {
 function QuoteForm({ quote, onClose, onSaved }: { quote?: Quote; onClose: () => void; onSaved: (q: Quote) => void }) {
   const { toast } = useApp();
   const { brands } = useLookups();
-  const [customers, setCustomers] = useState<{ id: string; label: string }[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [brand, setBrand] = useState(quote?.brand_id ?? '');
   const [partyType, setPartyType] = useState(quote?.customer_id ? 'customer' : 'lead');
@@ -133,7 +133,6 @@ function QuoteForm({ quote, onClose, onSaved }: { quote?: Quote; onClose: () => 
   const [message, setMessage] = useState('');
   const initialItems = quote?.current_version_data?.items;
   const [items, setItems] = useState<QuoteItemInput[]>(initialItems?.map((i) => ({ description: i.description, charge_type: i.charge_type, cycle: i.cycle, quantity: Number(i.quantity), unit_price_minor: i.unit_price_minor, discount_minor: i.discount_minor })) ?? [{ description: '', charge_type: 'one_time', quantity: 1, unit_price_minor: 0, discount_minor: 0 }]);
-  useEffect(() => { customersApi.list({ size: 100, sort: 'legal_name' }).then((page) => setCustomers(page.data.map((c) => ({ id: c.id, label: `${displayName(c)} · ${c.code}` })))).catch(() => undefined); }, []);
   useEffect(() => { hub.sales.leads.list({ size: 100, sort: '-created_at' }).then((page) => setLeads(page.data)).catch(() => undefined); }, []);
   const updateItem = (idx: number, patch: Partial<QuoteItemInput>) => setItems((prev) => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
   const submit = async (event: FormEvent) => {
@@ -150,7 +149,7 @@ function QuoteForm({ quote, onClose, onSaved }: { quote?: Quote; onClose: () => 
       <label className="field">Marca<select className="select" value={brand} onChange={(e) => setBrand(e.target.value)}><option value="">Seleccione…</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <label className="field">Moneda<select className="select" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}><option value="PEN">PEN · Soles</option><option value="USD">USD · Dólares</option></select></label>
       <label className="field">Tipo de contacto<select className="select" value={partyType} onChange={(e) => { setPartyType(e.target.value); setParty(''); }}><option value="customer">Cliente</option><option value="lead">Prospecto</option></select></label>
-      <label className="field">{partyType === 'customer' ? 'Cliente' : 'Prospecto'}<select className="select" value={party} onChange={(e) => setParty(e.target.value)}><option value="">Seleccione…</option>{partyType === 'customer' ? customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>) : leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+      {partyType === 'customer' ? <CustomerSearch value={party} onChange={(id) => setParty(id ?? '')} /> : <label className="field">Prospecto<select className="select" value={party} onChange={(e) => setParty(e.target.value)}><option value="">Seleccione…</option>{leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>}
       <label className="field">Válida hasta<input className="input" type="date" value={validUntil?.slice(0, 10) ?? ''} onChange={(e) => setValidUntil(e.target.value || '')} /></label>
       {quote ? <label className="field">Nota del cambio<input className="input" value={changeNote} onChange={(e) => setChangeNote(e.target.value)} /></label> : null}
     </div>

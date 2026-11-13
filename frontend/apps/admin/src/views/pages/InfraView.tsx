@@ -14,6 +14,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Tabs, Toolbar, type TabDef } from '../../components/ui';
+import { CustomerSearch } from './clientes/CustomerSearch';
 import { errorText, fDate, useCan, useLoad, type Loadable } from './clientes/shared';
 import {
   ACCOUNT_STATUS_CHIP, ACCOUNT_STATUS_EDIT, ACCOUNT_STATUS_LABEL, inventoryApi, NODE_STATUS_CHIP, NODE_STATUS_LABEL,
@@ -359,7 +360,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: HostingAccount; 
           <label className="field">Dominio principal*<input required className="input" value={domain} onChange={(e) => setDomain(e.target.value)} /></label>
           <label className="field">Estado<select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>{ACCOUNT_STATUS_EDIT.map((s) => <option key={s} value={s}>{ACCOUNT_STATUS_LABEL[s]}</option>)}</select></label>
           <label className="field">Servicio (UUID)<input className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)} /></label>
-          <label className="field">Cliente (UUID)<input className="input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} /></label>
+          <CustomerSearch value={customerId} onChange={(v) => setCustomerId(v ?? '')} />
         </div>
         <div className="err" role="alert">{msg}</div>
         <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Guardar</button></div>
