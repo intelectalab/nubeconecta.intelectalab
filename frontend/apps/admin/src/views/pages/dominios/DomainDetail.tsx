@@ -3,20 +3,75 @@
  * (registrant / admin / tech / billing) contra la API real de M-DOM.
  */
 import { useState, type FormEvent } from 'react';
-import { DOMAIN_CONTACT_ROLES, isProblem, type Domain, type DomainContact, type DomainContactInput, type DomainContactRole } from '@hub/api';
+import { DOMAIN_CONTACT_ROLES, isProblem, type Domain, type DomainContact, type DomainContactInput, type DomainContactRole, type DomainHolder, type DomainStatus, type DomainUpdateInput } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Modal, Sheet } from '../../../components/Modal';
 import { Chip, Kv, Note } from '../../../components/ui';
 import { COUNTRY_OPTIONS, errorText, fDateTime, fieldErrors, useCan, useLoad } from '../clientes/shared';
-import { CONTACT_ROLE_LABEL, DOMAIN_STATUS_LABEL, domainsApi, fDay, HOLDER_LABEL } from './shared';
+import { CustomerField, RegistrarField } from './DomainFields';
+import { CONTACT_ROLE_LABEL, DOMAIN_STATUS_LABEL, domainsApi, fDay, HOLDER_LABEL, useRegistrarAccounts } from './shared';
 
 const yn = (b: boolean) => (b ? 'Sí' : 'No');
 
+const MAX_NS = 13;
+const STATUSES = Object.keys(DOMAIN_STATUS_LABEL) as DomainStatus[];
+
 export function DomainDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
   const res = useLoad(() => domainsApi.get(id), [id]);
+  const { dialogs, toast } = useApp();
+  const can = useCan();
+  const [editing, setEditing] = useState(false);
   const d = res.data;
+  const canUpdate = can('domains.domain.update');
+  const canDelete = can('domains.domain.delete');
+
+  const remove = (dom: Domain) =>
+    dialogs.confirm({
+      title: 'Eliminar dominio',
+      body: (
+        <p style={{ margin: 0 }}>
+          ¿Eliminar el dominio <b>{dom.name}</b>? Esta acción no se puede deshacer.
+        </p>
+      ),
+      okLabel: 'Eliminar',
+      danger: true,
+      onOk: () => {
+        domainsApi.remove(dom.id).then(
+          () => {
+            toast('Dominio eliminado', dom.name);
+            onChanged();
+            onClose();
+          },
+          (e: unknown) => toast('No se pudo eliminar el dominio', errorText(e), 'err'),
+        );
+      },
+    });
+
+  const footer =
+    d && (canUpdate || canDelete) ? (
+      <>
+        {canDelete ? <button type="button" className="btn" onClick={() => remove(d)}>Eliminar</button> : null}
+        {canUpdate ? <button type="button" className="btn primary" onClick={() => setEditing(true)}>Editar</button> : null}
+      </>
+    ) : undefined;
+
   return (
-    <Sheet open onClose={onClose} title={d?.name ?? 'Dominio'} sub={d ? `${DOMAIN_STATUS_LABEL[d.status]} · Titular: ${HOLDER_LABEL[d.holder]}` : undefined}>
+    <Sheet open onClose={onClose} title={d?.name ?? 'Dominio'} sub={d ? `${DOMAIN_STATUS_LABEL[d.status]} · Titular: ${HOLDER_LABEL[d.holder]}` : undefined} footer={footer}>
+      {d && editing ? (
+        <DomainEditForm
+          domain={d}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            res.reload();
+            onChanged();
+          }}
+          onConflict={() => {
+            res.reload();
+            onChanged();
+          }}
+        />
+      ) : null}
       {res.error ? (
         <Note kind="warn" icon="tri" role="alert">
           No se pudo cargar el dominio: {errorText(res.error)}{' '}
@@ -56,6 +111,108 @@ export function DomainDetail({ id, onClose, onChanged }: { id: string; onClose: 
         </>
       )}
     </Sheet>
+  );
+}
+
+function DomainEditForm({ domain, onClose, onSaved, onConflict }: { domain: Domain; onClose: () => void; onSaved: () => void; onConflict: () => void }) {
+  const { toast } = useApp();
+  const registrars = useRegistrarAccounts();
+  const [holder, setHolder] = useState<DomainHolder>(domain.holder);
+  const [customer, setCustomer] = useState(domain.customer_id ?? '');
+  const [account, setAccount] = useState(domain.provider_account_id ?? '');
+  const [registered, setRegistered] = useState(domain.registered_at?.slice(0, 10) ?? '');
+  const [expires, setExpires] = useState(domain.registry_expires_at?.slice(0, 10) ?? '');
+  const [auto, setAuto] = useState(domain.auto_renew);
+  const [lock, setLock] = useState(domain.lock);
+  const [dnssec, setDnssec] = useState(domain.dnssec);
+  const [privacy, setPrivacy] = useState(domain.privacy);
+  const [ns, setNs] = useState(domain.nameservers.join('\n'));
+  const [status, setStatus] = useState<DomainStatus>(domain.status);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [errs, setErrs] = useState<Record<string, string>>({});
+
+  const submit = async (ev: FormEvent) => {
+    ev.preventDefault();
+    setMessage('');
+    setErrs({});
+    const nameservers = ns.split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (nameservers.length > MAX_NS) {
+      setErrs({ nameservers: `Máximo ${MAX_NS} nameservers.` });
+      return;
+    }
+    const input: DomainUpdateInput = {
+      holder,
+      customer_id: customer || null,
+      provider_account_id: account || null,
+      registered_at: registered || null,
+      registry_expires_at: expires || null,
+      auto_renew: auto,
+      lock,
+      dnssec,
+      privacy,
+      nameservers,
+      status,
+    };
+    setBusy(true);
+    try {
+      await domainsApi.update(domain.id, domain.version, input);
+      toast('Dominio actualizado', domain.name);
+      onSaved();
+    } catch (e) {
+      if (isProblem(e) && e.code === 'version_conflict') {
+        toast('Dominio modificado por otra persona', 'Se recargó el detalle; vuelva a intentarlo.', 'info');
+        onConflict();
+        onClose();
+      } else {
+        setErrs(fieldErrors(e));
+        setMessage(isProblem(e) && e.status === 422 ? 'Revise los campos marcados.' : errorText(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const err = (k: string) => (errs[k] ? <span className="err" role="alert">{errs[k]}</span> : null);
+  return (
+    <Modal open wide onClose={onClose} title="Editar dominio" sub={domain.name} bare>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <div className="form-grid">
+          <label className="field">Titular
+            <select className="select" value={holder} onChange={(e) => setHolder(e.target.value as DomainHolder)}>
+              <option value="customer">Cliente</option>
+              <option value="company">Empresa</option>
+            </select>
+            {err('holder')}
+          </label>
+          <label className="field">Estado
+            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as DomainStatus)}>
+              {STATUSES.map((s) => <option key={s} value={s}>{DOMAIN_STATUS_LABEL[s]}</option>)}
+            </select>
+            {err('status')}
+          </label>
+          <CustomerField value={customer} onChange={setCustomer} error={err('customer_id')} />
+          <RegistrarField value={account} onChange={setAccount} registrars={registrars} error={err('provider_account_id')} />
+          <label className="field">Registrado<input className="input" type="date" value={registered} onChange={(e) => setRegistered(e.target.value)} />{err('registered_at')}</label>
+          <label className="field">Vence (real)<input className="input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />{err('registry_expires_at')}</label>
+          <label className="field full">Nameservers (uno por línea, máx. {MAX_NS})
+            <textarea className="input mono" rows={4} value={ns} onChange={(e) => setNs(e.target.value)} />
+            {err('nameservers')}
+          </label>
+          <div className="field full" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <label className="check"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Renovación automática</label>
+            <label className="check"><input type="checkbox" checked={lock} onChange={(e) => setLock(e.target.checked)} /> Bloqueo de transferencia</label>
+            <label className="check"><input type="checkbox" checked={dnssec} onChange={(e) => setDnssec(e.target.checked)} /> DNSSEC</label>
+            <label className="check"><input type="checkbox" checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} /> Privacidad WHOIS</label>
+          </div>
+        </div>
+        <div className="err" role="alert">{message}</div>
+        <div className="modal-f">
+          <button type="button" className="btn" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

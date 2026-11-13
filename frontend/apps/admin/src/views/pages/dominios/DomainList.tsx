@@ -10,9 +10,10 @@ import { useViewState } from '../../../app/storage';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
 import { EmptyState, Note, PageHead, SearchBox, Select, StatLine, Toolbar } from '../../../components/ui';
-import { customersApi, displayName, errorText, fieldErrors, isUuid, useCan, useLoad } from '../clientes/shared';
+import { errorText, fieldErrors, isUuid, useCan, useLoad } from '../clientes/shared';
 import { DomTable } from '../operacion/DomTable';
 import { DomainDetail } from './DomainDetail';
+import { CustomerField, RegistrarField } from './DomainFields';
 import { domainsApi, useRegistrarAccounts } from './shared';
 
 const PER = 25;
@@ -173,7 +174,6 @@ export default function DomainList({ param, customerId }: { param?: string | nul
 
 function NewDomainDialog({ customerId, registrars, onClose, onCreated }: { customerId?: string; registrars: ReturnType<typeof useRegistrarAccounts>; onClose: () => void; onCreated: (d: Domain) => void }) {
   const { toast } = useApp();
-  const customers = useLoad(() => customersApi.list({ size: 100, sort: 'legal_name' }).then((p) => p.data), []);
   const [name, setName] = useState('');
   const [customer, setCustomer] = useState(customerId ?? '');
   const [account, setAccount] = useState('');
@@ -220,20 +220,8 @@ function NewDomainDialog({ customerId, registrars, onClose, onCreated }: { custo
       <form className="modal-b" onSubmit={(e) => void submit(e)}>
         <div className="form-grid">
           <label className="field full">Dominio*<input className="input mono" required placeholder="ejemplo.pe" value={name} onChange={(e) => setName(e.target.value)} />{err('name')}</label>
-          <label className="field">Cliente
-            <select className="select" value={customer} disabled={!!customerId} onChange={(e) => setCustomer(e.target.value)}>
-              <option value="">{customers.loading ? 'Cargando…' : 'Sin cliente'}</option>
-              {(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{displayName(c)} · {c.code}</option>)}
-            </select>
-            {err('customer_id')}
-          </label>
-          <label className="field">Registrador
-            <select className="select" value={account} disabled={registrars.denied} onChange={(e) => setAccount(e.target.value)}>
-              <option value="">{registrars.loading ? 'Cargando…' : registrars.denied ? 'No disponible (sin permiso)' : 'Sin registrador'}</option>
-              {registrars.options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select>
-            {err('provider_account_id')}
-          </label>
+          <CustomerField value={customer} disabled={!!customerId} onChange={setCustomer} error={err('customer_id')} />
+          <RegistrarField value={account} onChange={setAccount} registrars={registrars} error={err('provider_account_id')} />
           <label className="field">Titular
             <select className="select" value={holder} onChange={(e) => setHolder(e.target.value as DomainHolder)}>
               <option value="customer">Cliente</option>
