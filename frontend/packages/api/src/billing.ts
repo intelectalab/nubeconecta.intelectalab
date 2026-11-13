@@ -275,6 +275,27 @@ export interface PortalSummary {
   as_of: string;
 }
 
+/** Flujo de caja del panel de inicio (GET /api/v1/admin/billing/cashflow). */
+export interface CashflowSeries {
+  currency: string;
+  /** Exactamente 12 puntos, alineados con `months`. */
+  points: { month: string; amount_minor: number }[];
+}
+export interface CashflowMethod {
+  kind: 'bank_transfer' | 'paypal' | 'global66' | 'card_gateway' | 'other';
+  name: string;
+  currency: string;
+  amount_minor: number;
+}
+export interface Cashflow {
+  /** 12 'YYYY-MM' cronológicos; el mes actual va al final. */
+  months: string[];
+  billed: CashflowSeries[];
+  collected: CashflowSeries[];
+  /** Pagos validados del mes actual, una fila por método y moneda. */
+  methods: CashflowMethod[];
+}
+
 interface Envelope<T> {
   data: T;
 }
@@ -290,6 +311,7 @@ export function createBillingApi(http: HttpClient) {
   const admin = '/api/v1/admin/invoices';
   const portal = '/api/v1/portal/invoices';
   return {
+    cashflow: () => http.get<Envelope<Cashflow>>('/api/v1/admin/billing/cashflow').then(unwrap),
     list: list(admin),
     get: (id: string) => http.get<Envelope<Invoice>>(`${admin}/${enc(id)}`).then(unwrap),
     issue: (id: string, version?: number, idempotencyKey = newIdempotencyKey()) =>

@@ -24,6 +24,15 @@ export interface DashboardSummary {
   tickets?: DashboardTickets;
 }
 
+/** Contadores de "Atención hoy" (GET /api/v1/admin/attention); cada clave se omite sin el permiso. */
+export interface Attention {
+  payments_to_validate?: number;
+  invoices_due_today?: number;
+  domains_expiring_7d?: number;
+  tickets_overdue_sla?: number;
+  sales_followups_today?: number;
+}
+
 interface Envelope<T> {
   data: T;
 }
@@ -33,5 +42,6 @@ export function createDashboardApi(http: HttpClient) {
     /** `brandId` opcional acota mrr, services_due_30 y tickets (receivable es de toda la organización). */
     summary: (brandId?: string) =>
       http.get<Envelope<DashboardSummary>>(`/api/v1/admin/dashboard${toQuery({ brand_id: brandId || undefined })}`).then((r) => r.data),
+    attention: () => http.get<Envelope<Attention>>('/api/v1/admin/attention').then((r) => r.data),
   };
 }
