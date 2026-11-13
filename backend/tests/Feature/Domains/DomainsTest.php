@@ -142,10 +142,26 @@ final class DomainsTest extends IdentityTestCase
         $this->postJson('/api/v1/admin/domains', ['name' => 'otro.com'])->assertStatus(422)->assertJsonValidationErrors('holder');
         $this->postJson('/api/v1/admin/domains', ['name' => 'otro.com', 'holder' => 'company', 'customer_id' => 'no-uuid'])->assertStatus(422)->assertJsonValidationErrors('customer_id');
         $this->postJson('/api/v1/admin/domains', ['name' => 'otro.com', 'holder' => 'company', 'status' => 'raro'])->assertStatus(422)->assertJsonValidationErrors('status');
+        // El titular cliente exige un cliente vinculado.
+        $this->postJson('/api/v1/admin/domains', ['name' => 'sincliente.com', 'holder' => 'customer'])->assertStatus(422)->assertJsonValidationErrors('customer_id');
         $this->assertSame('com.pe', $this->make('empresa.com.pe')['tld']);
         // Un servicio de otro cliente no puede vincularse.
         $svc = $this->service($this->customer2);
         $this->postJson('/api/v1/admin/domains', ['name' => 'cruce.com', 'holder' => 'customer', 'customer_id' => $this->customer, 'service_id' => $svc])->assertStatus(422);
+    }
+
+    public function test_customer_owned_registrar_must_match_the_domain_customer(): void
+    {
+        $provider = (string) Str::uuid();
+        $acct = (string) Str::uuid();
+        DB::table('providers')->insert(['id' => $provider, 'organization_id' => $this->org, 'code' => 'reg-cli', 'name' => 'RegCli', 'type' => 'registrar']);
+        DB::table('provider_accounts')->insert(['id' => $acct, 'organization_id' => $this->org, 'provider_id' => $provider, 'label' => 'cuenta-cli', 'owner' => 'customer', 'customer_id' => $this->customer2]);
+
+        // Cuenta de registrador propiedad del cliente2: no puede ir en un dominio del cliente1.
+        $this->postJson('/api/v1/admin/domains', ['name' => 'cuentaajena.com', 'holder' => 'customer', 'customer_id' => $this->customer, 'provider_account_id' => $acct])
+            ->assertStatus(422)->assertJsonValidationErrors('provider_account_id');
+        // Con el cliente correcto, pasa.
+        $this->postJson('/api/v1/admin/domains', ['name' => 'cuentaok.com', 'holder' => 'customer', 'customer_id' => $this->customer2, 'provider_account_id' => $acct])->assertCreated();
     }
 
     public function test_renew_extends_the_registry_date_by_exact_years(): void

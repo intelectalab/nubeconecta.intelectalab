@@ -33,7 +33,7 @@ final class DomainService
         $required = $domain === null ? 'required' : 'sometimes';
         $org = $this->organization->id();
         return [
-            'name' => [$required, 'string', 'max:253', 'regex:/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/i',
+            'name' => [$required, 'string', 'max:253', 'regex:/\A([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}\z/i',
                 Rule::unique('domains', 'name')->where('organization_id', $org)->whereNull('deleted_at')->ignore($domain?->id)],
             'tld' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^\.?[a-z0-9.-]+$/i'],
             'provider_account_id' => ['sometimes', 'nullable', 'uuid'],
@@ -45,7 +45,7 @@ final class DomainService
             'auto_renew' => ['sometimes', 'boolean'], 'lock' => ['sometimes', 'boolean'],
             'dnssec' => ['sometimes', 'boolean'], 'privacy' => ['sometimes', 'boolean'],
             'nameservers' => ['sometimes', 'array', 'max:13'],
-            'nameservers.*' => ['string', 'max:253', 'regex:/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i'],
+            'nameservers.*' => ['string', 'max:253', 'regex:/\A[a-z0-9]([a-z0-9.-]*[a-z0-9])?\z/i'],
             'transfer_locked_until' => ['sometimes', 'nullable', 'date'],
             'status' => ['sometimes', Rule::in(Domain::STATUSES)],
         ] + ($domain === null ? [] : ['version' => ['required', 'integer', 'min:1']]);
@@ -194,13 +194,26 @@ final class DomainService
     private function checkLinks(array $data, ?Domain $current): void
     {
         if (! empty($data['customer_id'])) { Customer::query()->findOrFail($data['customer_id']); }
-        if (! empty($data['provider_account_id'])) { ProviderAccount::query()->findOrFail($data['provider_account_id']); }
+        $providerAccount = ! empty($data['provider_account_id']) ? ProviderAccount::query()->findOrFail($data['provider_account_id']) : null;
         if (! empty($data['service_id'])) { Service::query()->findOrFail($data['service_id']); }
+
         $customerId = array_key_exists('customer_id', $data) ? $data['customer_id'] : $current?->customer_id;
         $serviceId = array_key_exists('service_id', $data) ? $data['service_id'] : $current?->service_id;
+        $holder = array_key_exists('holder', $data) ? $data['holder'] : $current?->holder;
+
+        // El titular 'cliente' exige un cliente vinculado.
+        if ($holder === 'customer' && $customerId === null) {
+            throw ProblemException::validation(['customer_id' => ['El titular cliente exige un cliente vinculado.']]);
+        }
+        // El servicio vinculado debe pertenecer al mismo cliente del dominio.
         if ($customerId !== null && $serviceId !== null && (array_key_exists('service_id', $data) || array_key_exists('customer_id', $data))
             && (string) Service::query()->findOrFail($serviceId)->customer_id !== (string) $customerId) {
             throw ProblemException::validation(['service_id' => ['El servicio no pertenece al cliente del dominio.']]);
+        }
+        // Una cuenta de registrador propiedad de un cliente no puede vincularse a un dominio de otro.
+        if ($providerAccount !== null && $providerAccount->owner === 'customer' && $providerAccount->customer_id !== null
+            && (string) $providerAccount->customer_id !== (string) $customerId) {
+            throw ProblemException::validation(['provider_account_id' => ['La cuenta de registrador pertenece a otro cliente.']]);
         }
     }
 }
