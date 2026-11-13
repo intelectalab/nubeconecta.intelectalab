@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Billing\Http\Controllers\CashflowController;
 use App\Modules\Billing\Http\Controllers\CollectionsController;
 use App\Modules\Billing\Http\Controllers\InvoiceController;
 use App\Modules\Billing\Http\Controllers\MercadoPagoWebhookController;
@@ -34,6 +35,9 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('payments/{id}/validate', [PaymentController::class, 'validatePayment'])->whereUuid('id')->middleware(['permission:billing.payment.validate', 'idempotency'])->name('payments.validate');
     Route::post('payments/{id}/reject', [PaymentController::class, 'reject'])->whereUuid('id')->middleware(['permission:billing.payment.validate', 'idempotency'])->name('payments.reject');
     Route::post('payments/{id}/void', [PaymentController::class, 'void'])->whereUuid('id')->middleware(['permission:billing.payment.validate', 'idempotency'])->name('payments.void');
+
+    // Flujo facturado vs. cobrado (gráfico de Inicio); org-wide.
+    Route::get('billing/cashflow', CashflowController::class)->middleware(['permission:billing.invoice.view', 'throttle:60,1'])->name('billing.cashflow');
 
     // Cobranza (P-BIL-01/12).
     Route::get('collections/aging', [CollectionsController::class, 'aging'])->middleware('permission:billing.invoice.view')->name('collections.aging');

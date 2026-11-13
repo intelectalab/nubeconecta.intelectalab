@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttentionController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\HealthController;
 use Illuminate\Support\Facades\Route;
@@ -14,4 +15,5 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     // throttle: tope de seguridad por usuario (el endpoint hace 4 agregados pesados);
     // 60/min sobra para el uso real (una carga por vista) y frena bucles accidentales.
     Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/dashboard', DashboardController::class)->name('admin.dashboard');
+    Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/attention', AttentionController::class)->name('admin.attention');
 });
