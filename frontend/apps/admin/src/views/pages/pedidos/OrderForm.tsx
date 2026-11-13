@@ -65,6 +65,18 @@ export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order
     return out;
   }, [prods.data]);
   const byId = (id: string) => plans.find((x) => x.plan.id === id);
+  // Agrupa los planes por sector (categoría del producto) para que el selector no
+  // sea una lista plana inentendible. Sectores en orden alfabético.
+  const plansBySector = useMemo(() => {
+    const map = new Map<string, { plan: Plan; product: Product }[]>();
+    for (const x of plans) {
+      const sector = x.product.category?.name ?? 'Otros';
+      const bucket = map.get(sector) ?? [];
+      bucket.push(x);
+      map.set(sector, bucket);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'es'));
+  }, [plans]);
 
   const estimate = lines.reduce((a, l) => {
     const x = byId(l.plan_id);
@@ -225,14 +237,18 @@ export function OrderForm({ onClose, onSaved, onConflict, initialCustomer, order
                     Plan {i + 1}
                     <select className="select" id={`of-pl-${l.key}`} value={l.plan_id} disabled={!customer} aria-invalid={!!errs[`line.${l.key}.plan_id`]} onChange={(e) => setLine(l.key, { plan_id: e.target.value })}>
                       <option value="">{customer ? 'Elija un plan…' : 'Primero elija el cliente'}</option>
-                      {plans.map(({ plan, product }) => {
-                        const p = currentPrice(plan, currency);
-                        return (
-                          <option key={plan.id} value={plan.id} disabled={!p}>
-                            {product.name} · {plan.name} ({cycleLabel(plan)}) — {p ? moneyMinor(p.price_minor, currency) : `sin precio en ${currency}`}
-                          </option>
-                        );
-                      })}
+                      {plansBySector.map(([sector, items]) => (
+                        <optgroup key={sector} label={sector}>
+                          {items.map(({ plan, product }) => {
+                            const p = currentPrice(plan, currency);
+                            return (
+                              <option key={plan.id} value={plan.id} disabled={!p}>
+                                {product.name} · {plan.name} ({cycleLabel(plan)}) — {p ? moneyMinor(p.price_minor, currency) : `sin precio en ${currency}`}
+                              </option>
+                            );
+                          })}
+                        </optgroup>
+                      ))}
                     </select>
                     {price?.setup_fee_minor ? <small className="hint">+ instalación {moneyMinor(price.setup_fee_minor, currency)}</small> : null}
                     {err(`line.${l.key}.plan_id`)}
