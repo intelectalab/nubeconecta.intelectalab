@@ -1569,6 +1569,8 @@ CREATE INDEX ON domains (organization_id, registry_expires_at) WHERE deleted_at 
 CREATE INDEX ON domains (organization_id, customer_id) WHERE deleted_at IS NULL;
 CREATE INDEX ON domains (organization_id, holder) WHERE deleted_at IS NULL;
 CREATE INDEX ON domains (organization_id, tld);
+CREATE INDEX domains_org_status_idx ON domains (organization_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX domains_org_provider_account_idx ON domains (organization_id, provider_account_id) WHERE deleted_at IS NULL;
 COMMENT ON TABLE domains IS 'Dominios con dos fechas distintas: registry_expires_at (registrador) y la fecha comercial de su servicio; titular empresa o cliente.';
 
 CREATE TABLE domain_contacts (
@@ -2705,6 +2707,7 @@ CREATE TABLE payments (
 );
 CREATE INDEX ON payments (organization_id, status, created_at DESC);
 CREATE INDEX ON payments (organization_id, customer_id, created_at DESC);
+CREATE INDEX payments_org_received_validated_idx ON payments (organization_id, received_at) WHERE status = 'validated';
 COMMENT ON TABLE payments IS 'Pagos y vouchers. Un voucher crea un pago "reported"; solo finanzas lo valida. PayPal y la pasarela de tarjetas se validan con su webhook firmado e importe coincidente. Un contracargo lo deja en "charged_back".';
 
 CREATE TABLE payment_allocations (

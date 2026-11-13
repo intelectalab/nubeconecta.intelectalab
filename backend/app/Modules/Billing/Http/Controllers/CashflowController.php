@@ -38,6 +38,11 @@ final class CashflowController extends Controller
             throw ProblemException::mfaRequired();
         }
 
+        // Lo cobrado (pagos) es dato de pagos, no de facturas: se incluye solo si el
+        // usuario tiene billing.payment.view (defensa en profundidad; hoy todo rol con
+        // invoice.view también tiene payment.view, pero esto protege roles a medida).
+        $canPayments = $access->allows($user, 'billing.payment.view');
+
         $now = now()->utc();
         $start = $now->copy()->startOfMonth()->subMonths(self::MONTHS - 1);
         $months = [];
@@ -53,41 +58,43 @@ final class CashflowController extends Controller
             ->groupByRaw("to_char(issue_date, 'YYYY-MM'), currency")
             ->get();
 
-        $collectedRows = Payment::query()
+        $collectedRows = $canPayments ? Payment::query()
             ->where('status', 'validated')
             ->whereNotNull('received_at')
             ->where('received_at', '>=', $start)
             ->selectRaw("to_char(received_at AT TIME ZONE 'UTC', 'YYYY-MM') as month, currency, SUM(amount_minor) as amount")
             ->groupByRaw("to_char(received_at AT TIME ZONE 'UTC', 'YYYY-MM'), currency")
-            ->get();
+            ->get() : collect();
 
         $currencies = $billedRows->pluck('currency')->merge($collectedRows->pluck('currency'))
             ->map(fn ($c) => trim((string) $c))->unique()->sort()->values()->all();
 
-        $methodRows = Payment::query()
-            ->where('status', 'validated')
-            ->where('received_at', '>=', $now->copy()->startOfMonth())
-            ->where('received_at', '<', $now->copy()->startOfMonth()->addMonth())
-            ->selectRaw('payment_method_id, currency, SUM(amount_minor) as amount')
-            ->groupBy('payment_method_id', 'currency')
-            ->get();
-        $methodModels = PaymentMethod::query()->whereIn('id', $methodRows->pluck('payment_method_id')->all())->get()->keyBy('id');
         $methods = [];
-        foreach ($methodRows as $row) {
-            $m = $methodModels->get($row->payment_method_id);
-            $methods[] = [
-                'kind' => $m?->kind ?? 'other',
-                'name' => $m?->name ?? '',
-                'currency' => trim((string) $row->currency),
-                'amount_minor' => (int) $row->amount,
-            ];
+        if ($canPayments) {
+            $methodRows = Payment::query()
+                ->where('status', 'validated')
+                ->where('received_at', '>=', $now->copy()->startOfMonth())
+                ->where('received_at', '<', $now->copy()->startOfMonth()->addMonth())
+                ->selectRaw('payment_method_id, currency, SUM(amount_minor) as amount')
+                ->groupBy('payment_method_id', 'currency')
+                ->get();
+            $methodModels = PaymentMethod::query()->whereIn('id', $methodRows->pluck('payment_method_id')->all())->get()->keyBy('id');
+            foreach ($methodRows as $row) {
+                $m = $methodModels->get($row->payment_method_id);
+                $methods[] = [
+                    'kind' => $m?->kind ?? 'other',
+                    'name' => $m?->name ?? '',
+                    'currency' => trim((string) $row->currency),
+                    'amount_minor' => (int) $row->amount,
+                ];
+            }
+            usort($methods, fn ($a, $b) => [$a['currency'], -$a['amount_minor'], $a['name']] <=> [$b['currency'], -$b['amount_minor'], $b['name']]);
         }
-        usort($methods, fn ($a, $b) => [$a['currency'], -$a['amount_minor'], $a['name']] <=> [$b['currency'], -$b['amount_minor'], $b['name']]);
 
         return response()->json(['data' => [
             'months' => $months,
             'billed' => $this->series($billedRows, $currencies, $months),
-            'collected' => $this->series($collectedRows, $currencies, $months),
+            'collected' => $canPayments ? $this->series($collectedRows, $currencies, $months) : [],
             'methods' => $methods,
         ]]);
     }

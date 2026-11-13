@@ -196,6 +196,22 @@ final class CashflowTest extends IdentityTestCase
         $this->getJson('/api/v1/admin/billing/cashflow')->assertUnauthorized();
     }
 
+    public function test_collected_and_methods_require_payment_view_permission(): void
+    {
+        $this->seedData();
+        // Rol a medida: ve facturas pero NO pagos (ningún rol sembrado tiene esa combinación).
+        $role = \App\Modules\Identity\Models\Role::create(['organization_id' => $this->org, 'code' => 'solo-facturas', 'name' => 'Solo facturas', 'audience' => 'staff', 'is_system' => false]);
+        $permId = (string) \App\Modules\Identity\Models\Permission::query()->where('code', 'billing.invoice.view')->value('id');
+        $role->syncPermissionIds([$permId]);
+        $this->actAs($this->makeUser(['solo-facturas'], mfa: true));
+
+        $data = $this->getJson('/api/v1/admin/billing/cashflow')->assertOk()->json('data');
+        // Ve lo facturado, pero cobrado y métodos quedan vacíos sin billing.payment.view.
+        $this->assertNotSame([], $data['billed']);
+        $this->assertSame([], $data['collected']);
+        $this->assertSame([], $data['methods']);
+    }
+
     public function test_enforces_mfa_and_password_gates(): void
     {
         $this->actAs($this->makeUser(['admin']));
