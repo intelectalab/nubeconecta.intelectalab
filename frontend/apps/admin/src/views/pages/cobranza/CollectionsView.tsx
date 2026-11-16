@@ -20,6 +20,8 @@ const DUNNING_STATUS_LABELS: Record<string, string> = { scheduled: 'Programado',
 type Tab = 'vouchers' | 'pagos' | 'antiguedad' | 'avisos';
 const TABS: Tab[] = ['vouchers', 'pagos', 'antiguedad', 'avisos'];
 const BUCKETS: AgingBucket[] = ['current', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'];
+/** Montos alineados con cifras tabulares. */
+const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
 
 export default function CollectionsView({ param }: { param?: string | null }) {
   const can = useCan();
@@ -104,12 +106,13 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
     { key: 'v', header: 'Reportado por', render: (p) => VIA_LABELS[p.reported_via] },
     { key: 'i', header: 'Comprobantes', render: (p) => (p.allocations.length ? p.allocations.map((a) => <div key={a.invoice_id} className="mono">{a.invoice_number ?? '—'} · {moneyMinor(a.amount_minor, p.currency)}</div>) : <span className="sub">Sin aplicar</span>) },
     { key: 's', header: 'Estado', render: (p) => <><Chip kind={paymentChip(p)}>{paymentStatusLabel(p)}</Chip>{p.rejection_reason ? <div className="sub">{p.rejection_reason}</div> : null}</> },
-    { key: 'a', header: 'Importe', align: 'r', className: 'nw strong', render: (p) => moneyMinor(p.amount_minor, p.currency) },
+    { key: 'a', header: 'Importe', align: 'r', className: 'nw strong', render: (p) => <span style={NUM}>{moneyMinor(p.amount_minor, p.currency)}</span> },
     {
       key: 'x',
       header: 'Acciones',
+      align: 'r',
       render: (p) => (
-        <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {p.has_proof ? (
             <button type="button" className="btn sm" onClick={() => void proof(p)} title="Descargar constancia">
               <Icon name="download" size="sm" />
@@ -139,6 +142,10 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
 
   return (
     <section className="card">
+      <div className="card-h">
+        <h2 style={{ margin: 0, fontSize: 15 }}>{fixedStatus ? 'Vouchers por validar' : 'Pagos registrados'}</h2>
+        <span className="sub">{fixedStatus ? 'Constancias subidas por los clientes desde el portal' : 'Historial de pagos y su estado de validación'}</span>
+      </div>
       <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
         {fixedStatus ? null : (
           <Select
@@ -211,6 +218,10 @@ function AgingTab() {
   const rows = res.data?.data ?? [];
   return (
     <section className="card">
+      <div className="card-h">
+        <h2 style={{ margin: 0, fontSize: 15 }}>Antigüedad de deuda</h2>
+        <span className="sub">Saldo pendiente por cliente según los días de atraso</span>
+      </div>
       <Toolbar count={res.data ? `Al ${fDate(res.data.meta.as_of)}` : 'Cargando…'}>
         <Select value={cur} onChange={setCur} label="Moneda" options={[['', 'Todas las monedas'], ['PEN', 'Soles'], ['USD', 'Dólares']]} />
       </Toolbar>
@@ -230,18 +241,19 @@ function AgingTab() {
           columns={[
             { key: 'c', header: 'Cliente', minWidth: 160, render: (r) => (r.customer ? <a className="rowlink" href={href('cliente', r.customer.id)}>{displayName(r.customer)}</a> : '—') },
             { key: 'm', header: 'Moneda', render: (r) => r.currency },
-            ...BUCKETS.map((b) => ({ key: b, header: AGING_LABELS[b], align: 'r' as const, className: 'nw', render: (r: (typeof rows)[number]) => (r.buckets[b] ? moneyMinor(r.buckets[b], r.currency) : '—') })),
-            { key: 't', header: 'Total', align: 'r', className: 'nw strong', render: (r) => moneyMinor(r.total_minor, r.currency) },
+            ...BUCKETS.map((b) => ({ key: b, header: AGING_LABELS[b], align: 'r' as const, className: 'nw', render: (r: (typeof rows)[number]) => (r.buckets[b] ? <span style={NUM}>{moneyMinor(r.buckets[b], r.currency)}</span> : <span className="sub">—</span>) })),
+            { key: 't', header: 'Total', align: 'r', className: 'nw strong', render: (r) => <span style={NUM}>{moneyMinor(r.total_minor, r.currency)}</span> },
             { key: 'u', header: 'Último pago', className: 'nw', render: (r) => fDate(r.last_payment_at) },
           ]}
         />
       )}
       {res.data?.meta.totals.length ? (
-        <div className="card-b sub">
+        <div className="card-b" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
           {res.data.meta.totals.map((t) => (
-            <div key={t.currency}>
-              Total {t.currency}: {moneyMinor(t.total_minor, t.currency)} · vencido {moneyMinor(t.overdue_minor, t.currency)}
-            </div>
+            <span key={t.currency} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', ...NUM }}>
+              <Chip kind="info">Total {t.currency}: {moneyMinor(t.total_minor, t.currency)}</Chip>
+              <Chip kind={t.overdue_minor > 0 ? 'danger' : 'ok'}>Vencido: {moneyMinor(t.overdue_minor, t.currency)}</Chip>
+            </span>
           ))}
         </div>
       ) : null}
@@ -254,6 +266,10 @@ function NoticesTab() {
   const rows = res.data ?? [];
   return (
     <section className="card">
+      <div className="card-h">
+        <h2 style={{ margin: 0, fontSize: 15 }}>Avisos de cobranza</h2>
+        <span className="sub">Secuencia automática de recordatorios por comprobante</span>
+      </div>
       <div className="card-b">
         <Note icon="info">Avisos registrados por el job diario según la secuencia de cobranza. Mientras no exista el canal de correo quedan «pendientes de envío».</Note>
       </div>

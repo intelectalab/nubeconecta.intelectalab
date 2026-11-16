@@ -13,7 +13,7 @@ import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
 import { errorText, fDate, useCan, useLoad } from './clientes/shared';
 import { hub } from '../../auth/client';
 
@@ -70,7 +70,7 @@ function Costs() {
       <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
         <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos'], ...KINDS.map((k) => [k, KIND_LABEL[k]] as [string, string])]} />
         <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => { setPeriod(e.target.value); setCursor(null); }} />
-        <input className="input" aria-label="Buscar costos" placeholder="Buscar descripción…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        <SearchBox label="Buscar costos" placeholder="Buscar descripción…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
         {can('finance.cost.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo costo</button> : null}
       </Toolbar>
       {res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
