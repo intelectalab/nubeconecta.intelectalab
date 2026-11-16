@@ -116,7 +116,15 @@ export const LoginView: FC<LoginViewProps> = ({ onLoggedIn, notice, changeFor })
         finish(r.user);
       }
     } catch (err) {
-      fail(err, ['email', 'password']);
+      // Fallos de credenciales: un único mensaje, sin revelar si el correo existe ni qué campo falló.
+      const p = problemOf(err);
+      if (p && p.status !== 0 && p.status !== 429 && p.status < 500) {
+        setFieldErrors({});
+        setError('Credenciales incorrectas.');
+      } else {
+        setFieldErrors({});
+        setError(generalMessage(err));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +273,7 @@ export const LoginView: FC<LoginViewProps> = ({ onLoggedIn, notice, changeFor })
 
             <div>
               <h1>Ingresa a tu cuenta</h1>
-              <p className="s">Usa el correo y la contraseña de tu usuario del portal.</p>
+              <p className="s">Escribe tu correo y contraseña.</p>
             </div>
 
             {info && (
