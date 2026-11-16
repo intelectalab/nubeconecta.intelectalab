@@ -1,9 +1,77 @@
 import { useState } from 'react';
-import { isProblem, type SettingDefinition, type SettingValue } from '@hub/api';
+import { isProblem, type Role, type SettingDefinition, type SettingValue } from '@hub/api';
 import { useApp } from '../../app/context';
 import { Icon } from '../../components/Icon';
 import { Note, PageHead, Select, Skeleton, Switch } from '../../components/ui';
+import { identityApi } from './identidad/shared';
 import { errorText, settingsApi, useCan, useLoad } from './configuracion/shared';
+
+/** Etiquetas legibles para las clases de caracteres de la complejidad de contraseña. */
+const COMPLEXITY_LABELS: Record<string, string> = {
+  uppercase: 'Mayúsculas (A-Z)', lowercase: 'Minúsculas (a-z)', number: 'Números (0-9)', symbol: 'Símbolos (!@#…)',
+};
+
+/** Editor amable para `security.password.complexity`: un switch por clase de carácter, en vez de JSON crudo. */
+function ComplexityEditor({ value, disabled, onChange }: { value: SettingValue; disabled: boolean; onChange: (next: SettingValue) => void }) {
+  const map = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, boolean>;
+  const keys = Object.keys(COMPLEXITY_LABELS);
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {keys.map((k) => (
+        <Switch key={k} checked={map[k] === true} disabled={disabled} onChange={(next) => onChange({ ...map, [k]: next })}>
+          {COMPLEXITY_LABELS[k]}
+        </Switch>
+      ))}
+    </div>
+  );
+}
+
+/** Editor amable para `security.mfa.required_by_role`: un select por rol, en vez de JSON crudo. */
+function RoleMfaEditor({ value, roles, disabled, onChange }: { value: SettingValue; roles: Role[]; disabled: boolean; onChange: (next: SettingValue) => void }) {
+  const map = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, string>;
+  if (!roles.length) {
+    return <small className="sub">No se pudieron cargar los roles para configurar el MFA por rol.</small>;
+  }
+  const set = (code: string, next: string) => {
+    const copy = { ...map };
+    if (next === '') { delete copy[code]; } else { copy[code] = next; }
+    onChange(copy);
+  };
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {roles.map((role) => (
+        <label key={role.id} className="field" style={{ display: 'grid', gridTemplateColumns: '1fr 150px', alignItems: 'center', gap: 8 }}>
+          <span>{role.name}</span>
+          <Select
+            value={map[role.code] ?? ''}
+            onChange={(next) => set(role.code, next)}
+            disabled={disabled}
+            label={`MFA para ${role.name}`}
+            options={[['', 'Según global'], ['required', 'Obligatorio'], ['optional', 'Opcional']]}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/** Despacha los ajustes de tipo json a un editor legible según su clave (nunca JSON crudo al usuario). */
+function JsonSetting({ setting, value, roles, disabled, onChange }: {
+  setting: SettingDefinition; value: SettingValue; roles: Role[]; disabled: boolean; onChange: (next: SettingValue) => void;
+}) {
+  if (setting.key === 'security.password.complexity') {
+    return <ComplexityEditor value={value} disabled={disabled} onChange={onChange} />;
+  }
+  if (setting.key === 'security.mfa.required_by_role') {
+    return <RoleMfaEditor value={value} roles={roles} disabled={disabled} onChange={onChange} />;
+  }
+  // Respaldo para cualquier otro json no previsto: pares clave/valor simples, sin volcar JSON crudo.
+  const map = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, unknown>;
+  const entries = Object.entries(map);
+  return entries.length
+    ? <ul className="sub" style={{ margin: 0, paddingLeft: 16 }}>{entries.map(([k, v]) => <li key={k}>{k}: {String(v)}</li>)}</ul>
+    : <small className="sub">Sin valores configurados.</small>;
+}
 
 const SECTIONS = [
   { title: 'Contraseñas', icon: 'lock', keys: ['security.password.min_length', 'security.password.complexity', 'security.password.expiry_days', 'security.password.history_count'] },
@@ -22,10 +90,11 @@ function settingLabel(setting: LabeledSetting) {
   return setting.label || setting.key;
 }
 
-function SecuritySetting({ setting, canEdit, busy, save }: {
+function SecuritySetting({ setting, canEdit, busy, roles, save }: {
   setting: LabeledSetting;
   canEdit: boolean;
   busy: boolean;
+  roles: Role[];
   save: (setting: SettingDefinition, value: SettingValue) => void;
 }) {
   const value = setting.effective ?? setting.default;
@@ -68,20 +137,12 @@ function SecuritySetting({ setting, canEdit, busy, save }: {
           onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
         />
       ) : setting.type === 'json' ? (
-        <textarea
-          className="input"
-          rows={5}
-          value={JSON.stringify(value ?? {}, null, 2)}
-          aria-label={label}
+        <JsonSetting
+          setting={setting}
+          value={value}
+          roles={roles}
           disabled={disabled}
-          onBlur={(event) => {
-            try {
-              const next = JSON.parse(event.currentTarget.value) as SettingValue;
-              if (JSON.stringify(next) !== JSON.stringify(value)) save(setting, next);
-            } catch {
-              // JSON inválido: no se persiste.
-            }
-          }}
+          onChange={(next) => save(setting, next)}
         />
       ) : (
         <input
@@ -107,6 +168,9 @@ export default function SeguridadView() {
   );
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const definitions = (settings.data?.data ?? []).filter((setting) => setting.key.startsWith('security.'));
+  // Roles para el editor de "MFA por rol" (reemplaza el JSON crudo).
+  const roleList = useLoad(() => canView ? identityApi.roles.list() : Promise.resolve(null), [canView]);
+  const roles = roleList.data?.data ?? [];
 
   const saveSetting = async (setting: SettingDefinition, value: SettingValue) => {
     setSavingKey(setting.key);
@@ -157,6 +221,7 @@ export default function SeguridadView() {
                           setting={setting}
                           canEdit={can(setting.edit_permission)}
                           busy={savingKey === setting.key}
+                          roles={roles}
                           save={(definition, value) => void saveSetting(definition, value)}
                         />
                       ))}
