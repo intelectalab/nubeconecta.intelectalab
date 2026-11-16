@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useRef } from 'react';
-import { animate, stagger } from 'animejs';
+﻿import { animate, stagger } from 'animejs';
+  import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Edit2, Trash2, Box, Globe, Server, Shield } from 'lucide-react';
 
 const initialProducts = [
