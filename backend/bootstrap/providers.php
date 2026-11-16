@@ -19,6 +19,8 @@ return [
     App\Modules\Sales\SalesServiceProvider::class,
     App\Modules\Contracts\ContractsServiceProvider::class,
     App\Modules\Domains\DomainsServiceProvider::class,
+    App\Modules\Cloud\CloudServiceProvider::class,
+    App\Modules\Mail\MailServiceProvider::class,
     App\Modules\Billing\BillingServiceProvider::class,
     App\Modules\Work\WorkServiceProvider::class,
     App\Modules\Monitoring\MonitoringServiceProvider::class,
