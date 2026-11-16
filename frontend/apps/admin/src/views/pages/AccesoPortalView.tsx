@@ -24,18 +24,27 @@ const DEFAULT: Branding = {
     { icon: 'card', title: 'Pasarela de Pagos Cifrada', text: 'Cancela en soles (PEN) o dólares (USD) con tarjeta, PayPal o transferencia BCP/BBVA.' },
     { icon: 'restore', title: 'Respaldos Diarios Automatizados', text: 'Historial de 14 a 30 días con restauración asistida sin recargo adicional.' },
   ],
-  footer_line1: 'NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117', footer_line2: 'Soporte NOC: guardia@alojamientoplus.pe',
+  footer_line1: 'NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117', footer_line2: 'Soporte NOC: guardia@nubeconecta.pe',
   colors: { bg_from: null, bg_mid: null, bg_to: null, accent: null },
 };
 const isBranding = (value: unknown): value is Branding => !!value && typeof value === 'object' && !Array.isArray(value);
 const HEX = /^#[\da-f]{6}$/i;
 const COLOR_DEFAULTS: Record<keyof Branding['colors'], string> = { bg_from: '#17326b', bg_mid: '#0c1833', bg_to: '#060b18', accent: '#c9d8ff' };
 
+/** Divide el nombre para acentuar la 2.ª parte: por espacio, por mayúscula interna (NubeConecta) o, si no hay corte, todo el nombre. */
+function splitBrand(name: string): [string, string] {
+  const clean = name.trim();
+  const words = clean.split(/\s+/);
+  if (words.length > 1) return [words[0], ` ${words.slice(1).join(' ')}`];
+  const camel = clean.search(/(?<=[a-záéíóúñ])[A-ZÁÉÍÓÚÑ]/);
+  return camel > 0 ? [clean.slice(0, camel), clean.slice(camel)] : ['', clean];
+}
+
 function LoginPreview({ value }: { value: Branding }) {
-  const [first, ...rest] = value.brand_name.trim().split(/\s+/);
+  const [first, rest] = splitBrand(value.brand_name);
   const colors = value.colors;
   return <div style={{ background: `radial-gradient(ellipse at 20% 0%, ${colors.bg_from || '#17326b'} 0%, ${colors.bg_mid || '#0c1833'} 60%, ${colors.bg_to || '#060b18'} 100%)`, color: '#fff', padding: 28, borderRadius: 12, minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24 }}>
-    <div><div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 19, fontWeight: 800, marginBottom: 34 }}>{value.logo_url ? <img src={value.logo_url} alt={value.brand_name} style={{ height: 34, maxWidth: 150, objectFit: 'contain' }} /> : <span aria-hidden="true" style={{ fontSize: 32 }}>☁</span>}<span>{first}{rest.length ? <span style={{ color: colors.accent || '#c9d8ff' }}>{` ${rest.join(' ')}`}</span> : ''}</span></div>
+    <div><div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 19, fontWeight: 800, marginBottom: 34 }}>{value.logo_url ? <img src={value.logo_url} alt={value.brand_name} style={{ height: 34, maxWidth: 150, objectFit: 'contain' }} /> : <span aria-hidden="true" style={{ fontSize: 32 }}>☁</span>}<span>{first}{rest ? <span style={{ color: colors.accent || '#c9d8ff' }}>{rest}</span> : null}</span></div>
       <h2 style={{ fontSize: 25, lineHeight: 1.2, margin: '0 0 12px' }}>{value.hero_title}</h2><p style={{ color: '#9fb3d9', fontSize: 14, lineHeight: 1.55, margin: '0 0 20px' }}>{value.hero_subtitle}</p>
       <div style={{ display: 'grid', gap: 12 }}>{value.bullets.map((b, i) => <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}><span style={{ width: 34, height: 34, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.1)', flex: 'none' }}><Icon name={b.icon} /></span><div><b style={{ display: 'block', fontSize: 13 }}>{b.title}</b><small style={{ color: '#aabbd6' }}>{b.text}</small></div></div>)}</div>
     </div><div style={{ borderTop: '1px solid rgba(255,255,255,.15)', paddingTop: 12, color: '#9fb3d9', fontSize: 11, display: 'grid', gap: 4 }}><span>{value.footer_line1}</span><span>{value.footer_line2}</span></div>
@@ -90,16 +99,20 @@ export default function AccesoPortalView(_props: ViewProps) {
     {!canEdit ? <Note kind="warn" icon="lock">La edición requiere el permiso settings.setting.update.</Note> : null}
     {loading ? <Skeleton rows={6} /> : error ? <Note kind="warn" role="alert">No se pudo cargar la configuración: {error} <button className="btn sm" type="button" onClick={() => void load()}>Reintentar</button></Note> : <div className="grid g-2">
       <section className="card"><div className="card-b"><div className="form-grid">
+        <div className="field full"><b>Marca</b><p className="sub" style={{ margin: 0 }}>Se muestra en la esquina superior del login. En el nombre, la segunda palabra (o la segunda parte, p. ej. «Nube|Conecta») se resalta con el color de acento.</p></div>
         <label className="field">Nombre de marca<input className="input" maxLength={80} value={value.brand_name} disabled={!canEdit || busy} onChange={(e) => change('brand_name', e.target.value)} /></label>
         <label className="field">URL del logo (opcional)<input className="input" type="url" maxLength={2048} placeholder="https://…" value={value.logo_url ?? ''} disabled={!canEdit || busy} onChange={(e) => setValue((old) => ({ ...old, logo_url: e.target.value || null }))} /></label>
+        <div className="field full" style={{ marginTop: 8 }}><b>Mensaje de bienvenida</b><p className="sub" style={{ margin: 0 }}>Texto principal que ve el cliente antes de iniciar sesión.</p></div>
         <label className="field full">Título principal<input className="input" maxLength={180} value={value.hero_title} disabled={!canEdit || busy} onChange={(e) => change('hero_title', e.target.value)} /></label>
         <label className="field full">Subtítulo<textarea className="input" rows={3} maxLength={600} value={value.hero_subtitle} disabled={!canEdit || busy} onChange={(e) => change('hero_subtitle', e.target.value)} /></label>
-        <div className="field full"><b>Beneficios</b>{value.bullets.map((bullet, index) => <div key={index} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 1fr auto', gap: 8, alignItems: 'end', marginTop: 10 }}><label className="field">Ícono<select className="select" value={bullet.icon} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { icon: e.target.value as typeof ICONS[number] })}>{ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}</select></label><label className="field">Título<input className="input" maxLength={80} value={bullet.title} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { title: e.target.value })} /></label><label className="field">Texto<input className="input" maxLength={220} value={bullet.text} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { text: e.target.value })} /></label><button className="btn sm" type="button" disabled={!canEdit || busy || value.bullets.length <= 1} onClick={() => setValue((old) => ({ ...old, bullets: old.bullets.filter((_, i) => i !== index) }))}>Quitar</button></div>)}{value.bullets.length < 4 ? <button className="btn sm" type="button" disabled={!canEdit || busy} style={{ marginTop: 10 }} onClick={() => setValue((old) => ({ ...old, bullets: [...old.bullets, { icon: 'check', title: '', text: '' }] }))}>Agregar beneficio</button> : null}</div>
+        <div className="field full" style={{ marginTop: 8 }}><b>Beneficios</b><p className="sub" style={{ margin: 0 }}>De 1 a 4 puntos destacados con ícono, título y descripción corta.</p>{value.bullets.map((bullet, index) => <div key={index} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 1fr auto', gap: 8, alignItems: 'end', marginTop: 10 }}><label className="field">Ícono<select className="select" value={bullet.icon} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { icon: e.target.value as typeof ICONS[number] })}>{ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}</select></label><label className="field">Título<input className="input" maxLength={80} value={bullet.title} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { title: e.target.value })} /></label><label className="field">Texto<input className="input" maxLength={220} value={bullet.text} disabled={!canEdit || busy} onChange={(e) => updateBullet(index, { text: e.target.value })} /></label><button className="btn sm" type="button" disabled={!canEdit || busy || value.bullets.length <= 1} onClick={() => setValue((old) => ({ ...old, bullets: old.bullets.filter((_, i) => i !== index) }))}>Quitar</button></div>)}{value.bullets.length < 4 ? <button className="btn sm" type="button" disabled={!canEdit || busy} style={{ marginTop: 10 }} onClick={() => setValue((old) => ({ ...old, bullets: [...old.bullets, { icon: 'check', title: '', text: '' }] }))}>Agregar beneficio</button> : null}</div>
+        <div className="field full" style={{ marginTop: 8 }}><b>Pie de página</b><p className="sub" style={{ margin: 0 }}>Datos legales y de contacto al final del login.</p></div>
         <label className="field">Pie de página · línea 1<input className="input" maxLength={180} value={value.footer_line1} disabled={!canEdit || busy} onChange={(e) => change('footer_line1', e.target.value)} /></label>
         <label className="field">Pie de página · línea 2<input className="input" maxLength={180} value={value.footer_line2} disabled={!canEdit || busy} onChange={(e) => change('footer_line2', e.target.value)} /></label>
+        <div className="field full" style={{ marginTop: 8 }}><b>Colores</b><p className="sub" style={{ margin: 0 }}>Degradado del fondo (inicial, medio, final) y acento del nombre de marca. Vacío = color predeterminado.</p></div>
         {([['bg_from', 'Fondo inicial'], ['bg_mid', 'Fondo medio'], ['bg_to', 'Fondo final'], ['accent', 'Acento']] as const).map(([key, label]) => <label className="field" key={key}>{label}<div style={{ display: 'flex', gap: 8 }}><input type="color" aria-label={label} value={value.colors[key] ?? COLOR_DEFAULTS[key]} disabled={!canEdit || busy} onChange={(e) => setColor(key, e.target.value)} /><input className="input" placeholder="Predeterminado" value={value.colors[key] ?? ''} maxLength={7} disabled={!canEdit || busy} onChange={(e) => setColor(key, e.target.value || '')} /></div></label>)}
       </div></div></section>
-      <section><h2 className="sec" style={{ margin: '0 0 12px' }}>Vista previa</h2><LoginPreview value={value} /></section>
+      <section aria-label="Vista previa"><h2 className="sec" style={{ margin: '0 0 4px' }}>Vista previa</h2><p className="sub" style={{ margin: '0 0 12px' }}>Así se verá la pantalla de acceso de clientes; se actualiza mientras edita, pero solo se publica al pulsar Guardar.</p><LoginPreview value={value} /></section>
     </div>}
   </>;
 }

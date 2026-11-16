@@ -9,6 +9,8 @@ import type { BrandThemeVersion, BrandThemeSurface, ContrastPair } from '@hub/ap
 import { isProblem } from '@hub/api';
 import { errorText, fDateTime, useCan, useLoad } from './clientes/shared';
 import { MwBar, ScBox } from './web-config/shared';
+import { bestFg, mix } from '../../data/format';
+import { fontCss } from '../../data/web';
 
 type Tokens = Record<string, unknown>;
 const SURFACES: { id: BrandThemeSurface; label: string }[] = [
@@ -28,20 +30,36 @@ function leaves(node: unknown, path: string[] = []): { path: string[]; value: st
 const hexValue = (s: string) => /^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(s);
 const title = (s: string) => s.split('_').map((x) => x[0]?.toUpperCase() + x.slice(1)).join(' ');
 
-function Preview({ brand, tokens, surface }: { brand: string; tokens: Tokens; surface: BrandThemeSurface }) {
-  const colors = (tokens.colors as Record<string, Record<string, string>> | undefined)?.light ?? {};
-  const primary = colors.primary ?? '#0a3fc4';
-  const secondary = colors.secondary ?? '#324c75';
-  const accent = colors.accent ?? '#ef9c24';
-  const background = colors.background ?? '#ffffff';
-  const foreground = colors.text ?? '#202b3c';
+type Mode = 'light' | 'dark';
+const MODES: { id: Mode; label: string }[] = [{ id: 'light', label: 'Claro' }, { id: 'dark', label: 'Oscuro' }];
+const COLOR_HELP: Record<string, string> = { primary: 'Botones y elementos activos', secondary: 'Apoyo y detalles', accent: 'Resaltes y etiquetas', background: 'Fondo de pantallas', text: 'Color del texto' };
+const NAV: Record<'portal' | 'admin', string[]> = { portal: ['Inicio', 'Servicios', 'Facturas', 'Soporte'], admin: ['Panel', 'Clientes', 'Facturación', 'Ajustes'] };
+const full = (c: string, fallback: string) => {
+  if (/^#[\da-f]{6}$/i.test(c)) return c;
+  if (/^#[\da-f]{3}$/i.test(c)) return `#${c.slice(1).split('').map((x) => x + x).join('')}`;
+  return fallback;
+};
+
+function Preview({ brand, tokens, surface, mode }: { brand: string; tokens: Tokens; surface: BrandThemeSurface; mode: Mode }) {
+  const palette = (tokens.colors as Record<string, Record<string, string>> | undefined)?.[mode] ?? {};
+  const dark = mode === 'dark';
+  const primary = full(palette.primary ?? '', '#0a3fc4');
+  const secondary = full(palette.secondary ?? '', '#324c75');
+  const accent = full(palette.accent ?? '', '#ef9c24');
+  const background = full(palette.background ?? '', dark ? '#0f172a' : '#ffffff');
+  const foreground = full(palette.text ?? '', bestFg(background));
   const fonts = leaves(tokens).filter((x) => /(^|_)font(_family)?$/i.test(x.path[x.path.length - 1] ?? ''));
-  const font = fonts[0]?.value;
-  const style = { '--mw-primary': primary, '--mw-secondary': secondary, '--mw-accent': accent, '--mw-bg': background, '--mw-text': foreground, background, color: foreground, fontFamily: font } as React.CSSProperties;
+  const font = fonts[0]?.value ? fontCss(fonts[0].value) : undefined;
+  const style = { '--mw-p': primary, '--mw-pfg': bestFg(primary), '--mw-s': secondary, '--mw-a': accent, '--mw-bg': background, '--mw-fg': foreground, '--mw-soft': mix(background, primary, 0.08), '--mw-line': mix(background, foreground, 0.14), '--mw-mut': mix(foreground, background, 0.38), '--mw-r': '10px', ...(font ? { '--mw-fh': font, '--mw-fb': font } : {}) } as React.CSSProperties;
+  const nav = surface === 'email' ? null : NAV[surface];
+  const bar = surface === 'email' ? `Asunto: Tu factura vence pronto · ${brand}` : `${brand} · ${surface === 'admin' ? 'Panel interno' : 'Portal del cliente'}`;
   return <div className={`mw ${surface === 'email' ? 'mw-mail' : 'mw-portal'}`} style={style}>
-    <MwBar>{surface === 'email' ? `Asunto: Tu factura vence pronto · ${brand}` : `${brand} · Vista previa ${surface === 'admin' ? 'del panel' : 'del portal'}`}</MwBar>
-    {surface === 'portal' ? <aside><b style={{ color: primary }}>{brand}</b><span className="on">Inicio</span><span>Servicios</span><span>Facturas</span><span>Soporte</span></aside> : null}
-    <div className="mp-main"><h3 className="mw-h">Hola, Mariela</h3><p style={{ margin: 0 }}>Tu factura por <b>S/ 212.40</b> vence pronto.</p><span className="mw-btn" style={{ background: primary, borderColor: primary, color: '#fff', justifySelf: 'start' }}>Pagar ahora</span><p className="mw-mut" style={{ margin: 0 }}>Consulta tus servicios y comprobantes.</p><div className="mp-cards"><div><small className="mw-mut">Saldo pendiente</small><b>S/ 1,647.28</b></div><div><small className="mw-mut">Servicios activos</small><b>7</b></div></div><span style={{ color: secondary, borderColor: accent }}>Colores de tema activos</span></div>
+    <MwBar>{bar}</MwBar>
+    {nav ? <aside><b className="mw-logo" style={{ color: 'var(--mw-p)' }}>{brand}</b>{nav.map((n, i) => <span key={n} className={i === 0 ? 'on' : undefined}>{n}</span>)}</aside> : null}
+    <div className="mp-main">{surface === 'admin'
+      ? <><h3 className="mw-h">Resumen del día</h3><p style={{ margin: 0 }}>Tienes <b>3 tickets</b> por atender y <b>2 facturas</b> por vencer.</p><span className="mw-b" style={{ justifySelf: 'start' }}>Nuevo cliente</span><div className="mp-cards"><div><small className="mw-mut">Ingresos del mes</small><b>S/ 24,310</b></div><div><small className="mw-mut">Clientes activos</small><b>128</b></div></div></>
+      : <><h3 className="mw-h">Hola, Mariela</h3><p style={{ margin: 0 }}>Tu factura por <b>S/ 212.40</b> vence pronto.</p><span className="mw-b" style={{ justifySelf: 'start' }}>Pagar ahora</span><p className="mw-mut" style={{ margin: 0 }}>Consulta tus servicios y comprobantes.</p><div className="mp-cards"><div><small className="mw-mut">Saldo pendiente</small><b>S/ 1,647.28</b></div><div><small className="mw-mut">Servicios activos</small><b>7</b></div></div></>}
+      <span style={{ color: 'var(--mw-s)', borderColor: 'var(--mw-a)', borderBottom: '2px solid var(--mw-a)', justifySelf: 'start' }}>Color secundario y acento</span></div>
   </div>;
 }
 
@@ -79,7 +97,11 @@ export default function AparienciaView({ param }: ViewProps) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<ContrastPair[] | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [pvMode, setPvMode] = useState<Mode>('light');
+  const [pvSurface, setPvSurface] = useState<BrandThemeSurface>('portal');
   useEffect(() => { if (version) { setTokens(version.tokens ?? {}); setSurfaces(version.surfaces ?? []); setChangeNote(version.change_note ?? ''); setReport(version.contrast_report ?? null); setPreviewUrl(''); } }, [version?.id, version?.updated_at]);
+  const activeSurfaces = surfaces.length ? surfaces : (['portal'] as BrandThemeSurface[]);
+  const shownSurface = activeSurfaces.includes(pvSurface) ? pvSurface : activeSurfaces[0];
   const fields = useMemo(() => leaves(tokens), [tokens]);
   const colorFields = fields.filter(({ path, value }) => path[0] === 'colors' && hexValue(value));
   const fontFields = fields.filter(({ path, value }) => /(^|_)font(_family)?$/i.test(path[path.length - 1] ?? '') && !hexValue(value));
@@ -143,7 +165,7 @@ export default function AparienciaView({ param }: ViewProps) {
     {!canView ? <Note kind="warn">No tiene permiso para consultar temas de marca.</Note> : <>
       {brandsResult.error ? <Note kind="warn">No se pudieron cargar marcas: {errorText(brandsResult.error)} <button className="btn sm" onClick={brandsResult.reload}>Reintentar</button></Note> : null}
       <div className="card" style={{ marginBottom: 16 }}><div className="toolbar"><label className="field" style={{ minWidth: 240 }}>Marca<select className="select" value={brandId} onChange={(e) => { setBrandId(e.target.value); setVersionId(''); }}><option value="">Seleccione una marca</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.code})</option>)}</select></label>
-        <div className="field">Superficies<div className="seg" role="group" aria-label="Superficies del tema">{SURFACES.map((s) => <button key={s.id} type="button" disabled={version?.status !== 'draft' || !can('brands.theme.update')} aria-pressed={surfaces.includes(s.id)} onClick={() => setSurfaces((old) => old.includes(s.id) ? old.filter((x) => x !== s.id) : [...old, s.id])}>{s.label}</button>)}</div></div>
+        <div className="field">Superficies donde se aplica<div className="seg" role="group" aria-label="Superficies del tema">{SURFACES.map((s) => <button key={s.id} type="button" disabled={version?.status !== 'draft' || !can('brands.theme.update')} aria-pressed={surfaces.includes(s.id)} onClick={() => setSurfaces((old) => old.includes(s.id) ? old.filter((x) => x !== s.id) : [...old, s.id])}>{s.label}</button>)}</div></div>
         {version ? <Chip kind={version.status === 'published' ? 'ok' : version.status === 'draft' ? 'warn' : 'neutral'}>{version.status} · v{version.version_number}</Chip> : null}
       </div></div>
       {!can('brands.brand.view') ? <Note kind="warn">Falta el permiso brands.brand.view para cargar el selector.</Note> : null}
@@ -154,17 +176,21 @@ export default function AparienciaView({ param }: ViewProps) {
             {!versions.length && !version ? <section className="card card-b"><Note>El tema todavía no tiene versiones.</Note>{can('brands.theme.create') ? <button className="btn primary" disabled={busy} onClick={() => void newVersion()}>Crear primera versión</button> : null}</section> : null}
             {version ? <div className="grid g-2"><section className="card" aria-label="Editor de apariencia"><div className="card-b" style={{ paddingTop: 16 }}>
               <div className="form-grid">
-                {colorFields.map(({ path, value }) => <label className="field" key={path.join('.')}><span>{path.map(title).join(' · ')}</span><div className="colorf"><input type="color" value={value.length === 4 ? `#${value.slice(1).split('').map((x) => x+x).join('')}` : value} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} aria-label={path.join(' ')} /><input className="input mono" value={value} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} /></div></label>)}
-                {fontFields.map(({ path, value }) => <label className="field" key={path.join('.')}><span>{path.map(title).join(' · ')}</span><input className="input" value={value} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} /></label>)}
+                {(['light', 'dark'] as const).map((m) => { const group = colorFields.filter((f) => f.path[1] === m); const others = m === 'light' ? colorFields.filter((f) => f.path[1] !== 'light' && f.path[1] !== 'dark') : []; const all = [...group, ...others]; return all.length ? <div className="field full" key={m}><b>{others.length && m === 'light' ? 'Colores' : `Colores · modo ${m === 'light' ? 'claro' : 'oscuro'}`}</b><p className="sub" style={{ margin: '2px 0 8px' }}>{m === 'light' ? 'Paleta usada cuando el usuario ve la interfaz en modo claro.' : 'Paleta usada en modo oscuro.'}</p><div className="form-grid">{all.map(({ path, value }) => <label className="field" key={path.join('.')}><span>{title(path[path.length - 1])}{COLOR_HELP[path[path.length - 1]] ? <small className="sub"> · {COLOR_HELP[path[path.length - 1]]}</small> : null}</span><div className="colorf"><input type="color" value={full(value, '#000000')} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} aria-label={path.join(' ')} /><input className="input mono" value={value} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} /></div></label>)}</div></div> : null; })}
+                {fontFields.map(({ path, value }) => <label className="field" key={path.join('.')}><span>Tipografía · {path.map(title).join(' · ')}</span><input className="input" value={value} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setTokens(pathSet(tokens, path, e.target.value))} /></label>)}
                 {!colorFields.length && !fontFields.length ? <div className="field full"><Note>Esta versión no contiene tokens de color ni tipografía editables.</Note></div> : null}
-                <label className="field full">Nota del cambio<textarea className="input" rows={2} maxLength={2000} value={changeNote} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setChangeNote(e.target.value)} /></label>
-                <div className="field full"><b>Logo</b><p className="sub">El backend solo expone logo_file_id y no incluye una ruta de carga de archivos en BrandThemeController.</p>{version.logo_file_id ? <code>{version.logo_file_id}</code> : 'Sin logo asociado'}<div style={{ marginTop: 8 }}><b>Favicon</b><p className="sub">Identificador de archivo (solo lectura).</p>{version.favicon_file_id ? <code>{version.favicon_file_id}</code> : 'Sin favicon asociado'}</div></div>
+                <label className="field full">Nota del cambio (opcional, queda en el historial)<textarea className="input" rows={2} maxLength={2000} value={changeNote} disabled={version.status !== 'draft' || !can('brands.theme.update')} onChange={(e) => setChangeNote(e.target.value)} /></label>
+                <div className="field full"><b>Logo</b><p className="sub">Identificador de archivo (solo lectura): la carga de archivos aún no está disponible desde este editor.</p>{version.logo_file_id ? <code>{version.logo_file_id}</code> : 'Sin logo asociado'}<div style={{ marginTop: 8 }}><b>Favicon</b><p className="sub">Identificador de archivo (solo lectura).</p>{version.favicon_file_id ? <code>{version.favicon_file_id}</code> : 'Sin favicon asociado'}</div></div>
               </div></div>
               <div className="card-h"><h2 className="sec">Contraste WCAG</h2>{version.contrast_lowest_ratio != null ? <span className="sub">Mínimo {version.contrast_min_ratio}:1 · menor {version.contrast_lowest_ratio}:1 · {fDateTime(version.contrast_checked_at)}</span> : <span className="sub">Aún no verificado</span>}</div>
               <div className="card-b">{report ? badPairs.length ? <Note kind="warn">{badPairs.length} pares no alcanzan el umbral configurado.</Note> : <Note>Todos los pares evaluados cumplen el umbral configurado.</Note> : null}<ul className="checks">{(report ?? []).map((p, i) => <li key={`${p.mode}-${p.foreground}-${i}`} className={p.passes ? 'ok' : 'no'}><Icon name={p.passes ? 'check' : 'tri'} size="sm" /><span>{p.mode}: {p.foreground} sobre {p.background}<small>{p.ratio}:1 · {p.foreground_color} / {p.background_color}</small></span></li>)}</ul>
                 {previewUrl ? <div style={{ marginTop: 12 }}><Note>Enlace temporal válido hasta {fDateTime(version.preview_expires_at)}.</Note><ScBox code={previewUrl} label="Enlace de previsualización" /></div> : null}
               </div><div className="card-h"><h2 className="sec">Versiones anteriores</h2></div><ul className="rows">{versions.map((v) => <li key={v.id}><span className="swatch" style={{ background: ((v.tokens.colors as Record<string, Record<string, string>> | undefined)?.light?.primary) ?? '#999' }} /><div className="grow"><b>v{v.version_number} · {v.status}</b><small>{fDateTime(v.created_at)} · {v.change_note || 'Sin nota'}</small></div>{can('brands.theme.approve') && v.status === 'archived' ? <button className="btn sm" disabled={busy} onClick={() => revert(v)}>Revertir</button> : null}</li>)}</ul>
-            </section><section className="stack" aria-label="Vista previa"><div><h3 className="fs">Vista previa · {surfaces.map((x) => SURFACES.find((s) => s.id === x)?.label).join(', ') || 'sin superficies'}</h3><Preview brand={selectedBrand.name} tokens={tokens} surface={surfaces[0] ?? 'portal'} /></div></section></div> : null}
+            </section><section className="stack" aria-label="Vista previa"><div><h3 className="fs">Vista previa</h3><p className="sub" style={{ margin: '0 0 8px' }}>Ejemplo con datos ficticios; refleja los colores que está editando, aunque aún no se hayan guardado.</p>
+              <div className="toolbar" style={{ marginBottom: 8 }}>{activeSurfaces.length > 1 ? <div className="seg" role="group" aria-label="Superficie de la vista previa">{activeSurfaces.map((x) => <button key={x} type="button" aria-pressed={shownSurface === x} onClick={() => setPvSurface(x)}>{SURFACES.find((o) => o.id === x)?.label}</button>)}</div> : <Chip kind="neutral">{SURFACES.find((o) => o.id === shownSurface)?.label}</Chip>}
+                <div className="seg" role="group" aria-label="Modo de la vista previa">{MODES.map((m) => <button key={m.id} type="button" aria-pressed={pvMode === m.id} onClick={() => setPvMode(m.id)}>{m.label}</button>)}</div></div>
+              {!surfaces.length ? <p className="sub">Active al menos una superficie arriba para aplicar el tema.</p> : null}
+              <Preview brand={selectedBrand.name} tokens={tokens} surface={shownSurface} mode={pvMode} /></div></section></div> : null}
           </>}
     </>}
   </>;
