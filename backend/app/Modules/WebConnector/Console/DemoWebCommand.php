@@ -83,7 +83,7 @@ final class DemoWebCommand extends Command
             $doc = $this->upsert('legal_documents', ['brand_id' => $brand, 'kind' => $kind, 'locale' => 'es', 'product_category_id' => null, 'deleted_at' => null], ['title' => $title, 'slug' => $slug]);
             $body = '<p><strong>'.self::PENDING.'</strong></p>'
                 .'<p>Este es un texto de ejemplo para la demostración de la web. No tiene validez legal y será reemplazado por el texto que apruebe la asesoría legal (decisión D-27).</p>'
-                .'<h2>1. Titular</h2><p>GRUPO DE SOLUCIONES CREATIVAS, RUC 20607431117, marca AlojamientoPlus.</p>'
+                .'<h2>1. Titular</h2><p>GRUPO DE SOLUCIONES CREATIVAS, RUC 20607431117, marca NubeConecta.</p>'
                 .'<h2>2. Alcance</h2><p>'.self::PENDING.'</p>';
             $values = ['organization_id' => $this->org, 'legal_document_id' => $doc, 'version_label' => 'demo-2026-10', 'body' => $body,
                 'change_summary' => 'Texto de ejemplo (demo).'];

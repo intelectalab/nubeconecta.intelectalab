@@ -358,7 +358,7 @@ export default function App() {
                       </div>
                       <div className="card-b" style={{ padding: '12px 16px' }}>
                         <div className="qa" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                          <button type="button" onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
+                          <button type="button" onClick={() => window.open('https://cpanel23.nubeconecta.pe', '_blank')}>
                             <span className="ico"><Icon name="external" /></span>
                             <div className="txt">
                               <b>Abrir cPanel</b>
@@ -464,7 +464,7 @@ export default function App() {
                               <b className="num" style={{ fontSize: 14, display: 'block' }}>{money(s.price[0], s.price[1])} /{s.price[2]}</b>
                             </div>
                             <div style={{ display: 'flex', gap: 6 }}>
-                              {s.cpanel && <a href="https://cpanel23.alojamientoplus.pe" target="_blank" rel="noreferrer" className="btn sm">cPanel</a>}
+                              {s.cpanel && <a href="https://cpanel23.nubeconecta.pe" target="_blank" rel="noreferrer" className="btn sm">cPanel</a>}
                               <button className="btn sm primary" onClick={() => { setSelectedServiceId(s.id); setRoute('servicio-detalle'); }}>Detalles</button>
                             </div>
                           </div>
@@ -500,7 +500,7 @@ export default function App() {
                   </div>
                   <div className="acts">
                     {selectedService.cpanel && (
-                      <button className="btn primary" onClick={() => window.open('https://cpanel23.alojamientoplus.pe', '_blank')}>
+                      <button className="btn primary" onClick={() => window.open('https://cpanel23.nubeconecta.pe', '_blank')}>
                         <Icon name="external" className="sm" /> Abrir cPanel
                       </button>
                     )}

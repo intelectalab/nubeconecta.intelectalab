@@ -88,7 +88,7 @@ function DominiosDemoView({ param }: ViewProps) {
         const c = findClient(v.c);
         if (!c) return;
         const real = addD(TODAY, 365 * +v.y);
-        const d: Domain = { id: 'DM-' + (domains.length + 1), d: v.d.trim().toLowerCase(), cid: c.id, reg: v.reg, real, com: addD(real, -15), tit: v.tit as Domain['tit'], auto: v.auto === '1', ns: 'ns1/ns2.alojamientoplus.pe' };
+        const d: Domain = { id: 'DM-' + (domains.length + 1), d: v.d.trim().toLowerCase(), cid: c.id, reg: v.reg, real, com: addD(real, -15), tit: v.tit as Domain['tit'], auto: v.auto === '1', ns: 'ns1/ns2.nubeconecta.pe' };
         domains.unshift(d);
         c.domains.unshift(d);
         setQ(d.d);

@@ -57,7 +57,7 @@ final class PortalCredentialsTest extends IdentityTestCase
         Mail::assertQueued(PortalLinkMail::class, 1);
         $mail = new PortalLinkMail('invitation', 'Luis Delta', PortalLinkMail::link('invitation', $token), '72 horas');
         $html = $mail->render();
-        $this->assertStringContainsString('AlojamientoPlus', $html);
+        $this->assertStringContainsString('NubeConecta', $html);
         $this->assertStringContainsString('72 horas', $html);
         $this->assertStringNotContainsStringIgnoringCase('contraseña:', $html);
 

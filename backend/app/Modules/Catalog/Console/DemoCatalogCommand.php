@@ -8,7 +8,7 @@ use App\Shared\Organization\CurrentOrganization;
 
 /**
  * Catálogo de demostración (MVP): copia los datos del prototipo del panel a la marca
- * AlojamientoPlus. Idempotente (códigos `demo-*`); se niega en producción.
+ * NubeConecta. Idempotente (códigos `demo-*`); se niega en producción.
  * Precios en PEN tal cual del prototipo (y USD donde el prototipo los trae); sin costos.
  * Los datos viven en {@see AbstractCatalogLoader}.
  */

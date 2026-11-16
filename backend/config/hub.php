@@ -51,7 +51,7 @@ return [
     // Portal del cliente: URL base de los enlaces de los correos ({url}/#/activar?token=...).
     'portal' => [
         'url' => env('HUB_PORTAL_URL', 'http://localhost:3001'),
-        'brand' => env('HUB_PORTAL_BRAND', 'AlojamientoPlus'),
+        'brand' => env('HUB_PORTAL_BRAND', 'NubeConecta'),
     ],
 
     'files' => [

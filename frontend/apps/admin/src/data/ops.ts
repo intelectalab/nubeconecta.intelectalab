@@ -15,8 +15,8 @@ export const MONS: Monitor[] = (
     ['VPS-AP-02', 'Puerto 2087 (WHM)', '203.0.113.52:2087', 'Operativo', 99.95, 61],
     ['VPS-SC-01', 'Ping', '203.0.113.131', 'Operativo', 99.9, 149],
     ['Correo SMTP BH-RES-02', 'Puerto 465', 'mail.bh-res-02:465', 'Operativo', 99.96, 88],
-    ['Portal del cliente', 'HTTP', 'https://portal.alojamientoplus.com', 'Operativo', 99.99, 210],
-    ['DNS ns1.alojamientoplus.pe', 'DNS', 'ns1.alojamientoplus.pe', 'Operativo', 100, 12],
+    ['Portal del cliente', 'HTTP', 'https://portal.nubeconecta.pe', 'Operativo', 99.99, 210],
+    ['DNS ns1.nubeconecta.pe', 'DNS', 'ns1.nubeconecta.pe', 'Operativo', 100, 12],
     ['SSL andestravel.pe', 'SSL', 'vence en 12 días', 'Degradado', 100, 0],
     ['Tienda Textil Sumaq', 'HTTP', 'https://textilsumaq.pe', 'Caído', 97.4, 0],
   ] as [string, string, string, string, number, number][]

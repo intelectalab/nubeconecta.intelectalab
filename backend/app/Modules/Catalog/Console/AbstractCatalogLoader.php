@@ -335,14 +335,14 @@ abstract class AbstractCatalogLoader extends Command
     protected function resolveBrand(string $code): string
     {
         $id = DB::table('brands')->where('organization_id', $this->org)->whereNull('deleted_at')
-            ->where(fn ($q) => $q->where('code', $code)->orWhereRaw('lower(name) = ?', ['alojamientoplus']))->value('id');
+            ->where(fn ($q) => $q->where('code', $code)->orWhereRaw('lower(name) in (?, ?)', ['alojamientoplus', 'nubeconecta']))->value('id');
         if ($id !== null) {
             return (string) $id;
         }
         $entity = DB::table('legal_entities')->where('organization_id', $this->org)->orderBy('created_at')->value('id')
             ?? $this->upsert('legal_entities', ['tax_id' => '20607431117'], ['legal_name' => 'GRUPO DE SOLUCIONES CREATIVAS']);
 
-        return $this->upsert('brands', ['code' => $code], ['name' => 'AlojamientoPlus', 'default_legal_entity_id' => $entity]);
+        return $this->upsert('brands', ['code' => $code], ['name' => 'NubeConecta', 'default_legal_entity_id' => $entity]);
     }
 
     /** IGV 18 % para los totales de pedidos; lo administrará BIL (`tax_rates`). */

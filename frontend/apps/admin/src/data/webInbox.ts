@@ -16,7 +16,7 @@ const at = (daysAgo: number, h: number, m: number) => {
 };
 
 const FORMS = { contacto: 'Contacto', cotizacion: 'Solicitar cotización' } as const;
-const HOST: Record<BrandId, string> = { ap: 'www.alojamientoplus.pe', sc: 'www.servercreativo.pe', ha: 'www.hostandino.pe', ns: 'www.nubesur.cloud' };
+const HOST: Record<BrandId, string> = { ap: 'www.nubeconecta.pe', sc: 'www.servercreativo.pe', ha: 'www.hostandino.pe', ns: 'www.nubesur.cloud' };
 
 let seq = 0;
 function row(brand: BrandId, form: keyof typeof FORMS, when: string, status: WebSubmissionStatus, payload: WebSubmissionPayload, page: string, utm: Record<string, string> = {}): WebSubmission {

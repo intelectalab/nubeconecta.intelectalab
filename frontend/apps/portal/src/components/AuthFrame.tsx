@@ -17,7 +17,7 @@ const FALLBACK: LoginBranding = {
     { icon: 'restore', title: 'Respaldos Diarios Automatizados', text: 'Historial de 14 a 30 días con restauración asistida sin recargo adicional.' },
   ],
   footer_line1: 'NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117',
-  footer_line2: 'Soporte NOC: guardia@alojamientoplus.pe',
+  footer_line2: 'Soporte NOC: guardia@nubeconecta.pe',
   colors: { bg_from: null, bg_mid: null, bg_to: null, accent: null },
 };
 const STORAGE_KEY = 'nubeconecta.login_branding';

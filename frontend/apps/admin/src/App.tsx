@@ -23,7 +23,9 @@ import { ROLE_NAMES } from './data/config';
 import { AuthGate } from './auth/AuthGate';
 import { DEMO_MODE } from './auth/client';
 import { initials, useSession } from './auth/session';
-import { BRANDS, notifs } from './data/db';
+import { notifs } from './data/db';
+import { hub } from './auth/client';
+import { useCan, useLoad } from './views/pages/clientes/shared';
 import type { BrandFilter, CurView, RoleName } from './data/types';
 
 const isMobile = () => {
@@ -52,13 +54,13 @@ export default function App() {
   );
 }
 
-function BrandOptions() {
+function BrandOptions({ brands }: { brands: { id: string; name: string }[] }) {
   return (
     <>
       <option value="all">Todas las marcas</option>
-      {BRANDS.map((b) => (
+      {brands.map((b) => (
         <option key={b.id} value={b.id}>
-          {b.n}
+          {b.name}
         </option>
       ))}
     </>
@@ -80,6 +82,13 @@ function Shell() {
   const app = useApp();
   const session = useSession();
   const me = session.user;
+  const can = useCan();
+  const canBrands = can('brands.brand.view');
+  const brandsLoad = useLoad(
+    () => (canBrands ? hub.brands.list({ size: 100, sort: 'code' }).then((r) => r.data.map((b) => ({ id: b.id, name: b.name }))) : Promise.resolve([])),
+    [canBrands],
+  );
+  const brands = brandsLoad.data ?? [];
   const { route, param, navSeq, brand, setBrand, cur, setCur, role, setRole, allowed, theme, toggleTheme, navigate, toasts, dismissToast, dialogs, toast, dataVersion, refresh } = app;
 
   const [collapsed, setCollapsed] = useState(() => lsGet('ap.collapsed') === '1');
@@ -247,7 +256,7 @@ function Shell() {
           <div className="tb-select">
             <label htmlFor="selBrand">Marca</label>
             <select id="selBrand" aria-label="Filtrar por marca" value={brand} onChange={(e) => setBrand(e.target.value as BrandFilter)}>
-              <BrandOptions />
+              <BrandOptions brands={brands} />
             </select>
           </div>
           <div className="tb-select">
@@ -389,7 +398,7 @@ function Shell() {
             <label>
               Marca
               <select className="select" value={brand} onChange={(e) => setBrand(e.target.value as BrandFilter)}>
-                <BrandOptions />
+                <BrandOptions brands={brands} />
               </select>
             </label>
             <label>

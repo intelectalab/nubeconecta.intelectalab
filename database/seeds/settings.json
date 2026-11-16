@@ -1786,7 +1786,7 @@
           { "icon": "restore", "title": "Respaldos Diarios Automatizados", "text": "Historial de 14 a 30 días con restauración asistida sin recargo adicional." }
         ],
         "footer_line1": "NubeConecta · GRUPO DE SOLUCIONES CREATIVAS · RUC 20607431117",
-        "footer_line2": "Soporte NOC: guardia@alojamientoplus.pe",
+        "footer_line2": "Soporte NOC: guardia@nubeconecta.pe",
         "colors": { "bg_from": null, "bg_mid": null, "bg_to": null, "accent": null }
       },
       "requires_definition": false,
@@ -3073,7 +3073,7 @@
     {
       "key": "portal.central_identity",
       "group": "Panel del cliente",
-      "description": "Cómo se ve el sistema central para un cliente que llega desde la web de la marca: identidad de AlojamientoPlus con la marca de origen en el encabezado (central_brand) o identidad de su marca dentro del dominio central (origin_brand).",
+      "description": "Cómo se ve el sistema central para un cliente que llega desde la web de la marca: identidad de NubeConecta con la marca de origen en el encabezado (central_brand) o identidad de su marca dentro del dominio central (origin_brand).",
       "type": "enum",
       "default": "central_brand",
       "requires_definition": false,
@@ -3095,7 +3095,7 @@
     {
       "key": "system.central_domains",
       "group": "Sistema",
-      "description": "Subdominios del sistema central en alojamientoplus.com: portal y compra, panel interno y API.",
+      "description": "Subdominios del sistema central en nubeconecta.pe: portal y compra, panel interno y API.",
       "type": "json",
       "default": {
         "portal": null,
@@ -3111,7 +3111,7 @@
       ],
       "edit_permission": "settings.setting.update",
       "origin": "§25",
-      "notes": "Ejemplos de docs/00 §25: mi.alojamientoplus.com y admin.alojamientoplus.com; por confirmar."
+      "notes": "Ejemplos de docs/00 §25: mi.nubeconecta.pe y admin.nubeconecta.pe; por confirmar."
     },
     {
       "key": "web_connector.cache_ttl_seconds",

@@ -8,14 +8,14 @@ import { bestFg, mix } from './format';
 import type { Appearance, BrandContact, BrandId, WpSite } from './types';
 
 export const SITES: { id: BrandId; host: string; brand: BrandId; main?: boolean }[] = [
-  { id: 'ap', host: 'www.alojamientoplus.com', brand: 'ap', main: true },
+  { id: 'ap', host: 'www.nubeconecta.com', brand: 'ap', main: true },
   { id: 'sc', host: 'www.servercreativo.com', brand: 'sc' },
   { id: 'ha', host: 'www.hostandino.pe', brand: 'ha' },
   { id: 'ns', host: 'www.nubesur.cloud', brand: 'ns' },
 ];
 
 export const WPS: WpSite[] = [
-  { id: 'ap', host: 'alojamientoplus.com', brand: 'ap', ms: 'Multisite · sitio 1 (principal)', st: 'Conectado', tok: 'hub_ro_4f8Qz1Lk92Xa7Vb3', wh: 'https://alojamientoplus.com/wp-json/hub/v1/invalidar', inv: new Date(2026, 9, 8, 10, 12), plugin: '1.4.2', wp: '6.6.2', lat: 142 },
+  { id: 'ap', host: 'nubeconecta.com', brand: 'ap', ms: 'Multisite · sitio 1 (principal)', st: 'Conectado', tok: 'hub_ro_4f8Qz1Lk92Xa7Vb3', wh: 'https://nubeconecta.com/wp-json/hub/v1/invalidar', inv: new Date(2026, 9, 8, 10, 12), plugin: '1.4.2', wp: '6.6.2', lat: 142 },
   { id: 'sc', host: 'servercreativo.com', brand: 'sc', ms: 'Multisite · sitio 2', st: 'Conectado', tok: 'hub_ro_9Tq7Hn2Rw5Lm1Ka8', wh: 'https://servercreativo.com/wp-json/hub/v1/invalidar', inv: new Date(2026, 9, 8, 9, 40), plugin: '1.4.2', wp: '6.6.2', lat: 168 },
   { id: 'ha', host: 'hostandino.pe', brand: 'ha', ms: 'Multisite · sitio 3', st: 'Plugin desactualizado', tok: 'hub_ro_2Bv6Yc8Pd3Mx0Js5', wh: 'https://hostandino.pe/wp-json/hub/v1/invalidar', inv: new Date(2026, 9, 7, 18, 5), plugin: '1.3.0', wp: '6.6.1', lat: 211 },
   { id: 'ns', host: 'nubesur.cloud', brand: 'ns', ms: 'Multisite · sitio 4', st: 'Token revocado', tok: '', wh: 'https://nubesur.cloud/wp-json/hub/v1/invalidar', inv: new Date(2026, 9, 1, 8, 0), plugin: '1.4.2', wp: '6.6.2', lat: 0 },
@@ -62,7 +62,7 @@ export const SCUSE: [BrandId, string, string, string][] = [
 ];
 
 export const CONTACT: Record<BrandId, BrandContact> = {
-  ap: { tel: '(01) 640 2200', tel2: '(01) 640 2210', mail: 'ventas@alojamientoplus.com', mail2: 'soporte@alojamientoplus.com', wa: '+51 987 650 120', dir: 'Av. José Larco 1232, of. 504, Miraflores, Lima', hor: 'Lun–Vie 9:00–19:00 · Sáb 9:00–13:00 · Soporte 24/7' },
+  ap: { tel: '(01) 640 2200', tel2: '(01) 640 2210', mail: 'ventas@nubeconecta.com', mail2: 'soporte@nubeconecta.com', wa: '+51 987 650 120', dir: 'Av. José Larco 1232, of. 504, Miraflores, Lima', hor: 'Lun–Vie 9:00–19:00 · Sáb 9:00–13:00 · Soporte 24/7' },
   sc: { tel: '(01) 712 4400', tel2: '', mail: 'hola@servercreativo.com', mail2: 'soporte@servercreativo.com', wa: '+51 955 120 330', dir: 'Calle Las Begonias 415, San Isidro, Lima', hor: 'Lun–Vie 9:00–18:00' },
   ha: { tel: '(054) 28 1190', tel2: '', mail: 'ventas@hostandino.pe', mail2: 'ayuda@hostandino.pe', wa: '+51 944 330 118', dir: 'Calle Mercaderes 212, Cercado, Arequipa', hor: 'Lun–Sáb 9:00–18:00' },
   ns: { tel: '(01) 708 3300', tel2: '', mail: 'contacto@nubesur.cloud', mail2: 'soporte@nubesur.cloud', wa: '+51 912 440 770', dir: 'Av. Benavides 1555, Surco, Lima', hor: 'Lun–Vie 8:30–17:30' },

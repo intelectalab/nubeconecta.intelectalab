@@ -59,7 +59,7 @@ import type {
 
 /* ================= Marcas y catálogos de nombres ================= */
 export const BRANDS: Brand[] = [
-  { id: 'ap', n: 'AlojamientoPlus', c: 'var(--brand)' },
+  { id: 'ap', n: 'NubeConecta', c: 'var(--brand)' },
   { id: 'sc', n: 'ServerCreativo', c: 'var(--ok)' },
   { id: 'ha', n: 'HostAndino', c: 'var(--high)' },
   { id: 'ns', n: 'NubeSur Cloud', c: 'var(--faint)' },
@@ -221,7 +221,7 @@ clients.forEach((c, i) => {
     const real = addD(TODAY, wpick(opts));
     const tit = rnd() < 0.35 ? 'Empresa' : 'Cliente';
     const auto = rnd() < 0.62;
-    const ns = pick(['ns1/ns2.alojamientoplus.pe', 'Route 53', 'Bunny DNS', 'ns de cliente']);
+    const ns = pick(['ns1/ns2.nubeconecta.pe', 'Route 53', 'Bunny DNS', 'ns de cliente']);
     domains.push({ id: 'DM-' + did++, d, cid: c.id, reg, real, com: addD(real, -15), tit, auto, ns });
   }
 });
@@ -597,7 +597,7 @@ export function tkConv(t: Ticket): TicketMsg[] {
 ).forEach((x, k) => {
   const b: BrandId = k ? 'sc' : 'ap';
   RCOUNT[b]++;
-  RECL.push({ id: `${b.toUpperCase()}-2026-${String(RCOUNT[b]).padStart(6, '0')}`, brand: b, tipo: x[0], det: x[1], monto: 0, pedido: 'Sin pedido (registro de prueba)', date: addD(TODAY, -k - 1), st: 'Nuevo', nombre: k ? 'Diego Rojas (equipo)' : 'Ana Salazar (equipo)', dni: '00000000', dom: '—', tel: '—', mail: k ? 'diego.rojas@alojamientoplus.pe' : 'ana.salazar@alojamientoplus.pe', cid: null, resp: '', test: true });
+  RECL.push({ id: `${b.toUpperCase()}-2026-${String(RCOUNT[b]).padStart(6, '0')}`, brand: b, tipo: x[0], det: x[1], monto: 0, pedido: 'Sin pedido (registro de prueba)', date: addD(TODAY, -k - 1), st: 'Nuevo', nombre: k ? 'Diego Rojas (equipo)' : 'Ana Salazar (equipo)', dni: '00000000', dom: '—', tel: '—', mail: k ? 'diego.rojas@nubeconecta.pe' : 'ana.salazar@nubeconecta.pe', cid: null, resp: '', test: true });
 });
 
 /* ================= Proveedores: cuentas (l.2696) ================= */
@@ -607,7 +607,7 @@ export const PACC: ProviderAccount[] = (
     ['BanaHosting', 'Reseller 2 · BH-RES-02', 'Reseller', 'Tarjeta •••• 4021', 63, new Date(2026, 10, 2), null, 'Activa'],
     ['BanaHosting', 'Reseller 3 · BH-RES-03', 'Reseller', 'Tarjeta •••• 4021', 63, new Date(2026, 9, 21), null, 'Activa'],
     ['Contabo', 'Cuenta principal (5 VPS)', 'VPS', 'Tarjeta •••• 7710', 142.6, new Date(2026, 9, 12), null, 'Activa'],
-    ['DigitalOcean', 'Equipo AlojamientoPlus', 'VPS', 'Tarjeta •••• 7710', 118, new Date(2026, 10, 1), null, 'Activa'],
+    ['DigitalOcean', 'Equipo NubeConecta', 'VPS', 'Tarjeta •••• 7710', 118, new Date(2026, 10, 1), null, 'Activa'],
     ['AWS', 'Organización (3 cuentas)', 'Cloud', 'Tarjeta •••• 7710', 96.4, new Date(2026, 10, 1), null, 'Activa'],
     ['Azure', 'Suscripción CSP', 'Cloud', 'Factura mensual', 61.2, new Date(2026, 10, 1), null, 'Activa'],
     ['Google Cloud', 'Facturación GSC', 'Cloud', 'Tarjeta •••• 7710', 44.9, new Date(2026, 10, 1), null, 'Activa'],
@@ -740,7 +740,7 @@ clients.slice(0, 8).forEach((c, k) => {
   const sl = slug(c.name).slice(0, 8) || 'cliente';
   (
     [
-      ['cPanel', sl, `cpanel.${NODES[k % 6].id.toLowerCase()}.alojamientoplus.net`],
+      ['cPanel', sl, `cpanel.${NODES[k % 6].id.toLowerCase()}.nubeconecta.net`],
       ['WordPress (admin)', 'admin_' + sl, `${(c.domains[0] || { d: sl + '.pe' }).d}/wp-admin`],
       [k % 2 ? 'SSH' : 'FTP', sl + '_ftp', NODES[k % 6].ip],
     ] as [string, string, string][]

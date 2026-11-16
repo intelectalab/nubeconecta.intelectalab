@@ -74,7 +74,7 @@ export const CLIENT = {
   ruc: '20614587231',
   code: 'CLI-00873',
   since: '14/03/2019',
-  brand: 'AlojamientoPlus',
+  brand: 'NubeConecta',
   addr: 'Av. El Sol 845, oficina 302',
   dist: 'Cusco',
   prov: 'Cusco',
@@ -193,9 +193,9 @@ export const SRV: ServiceItem[] = [
 ];
 
 export const DOMS: DomainItem[] = [
-  { name: 'andestravel.pe', reg: '14/02/2019', exp: '14/02/2027', auto: true, holder: 'Andes Travel S.A.C.', lockUntil: null, st: 'activo', ns: 'ns1.alojamientoplus.pe / ns2.alojamientoplus.pe', priv: 'No aplica (.pe)', price: [95, 'PEN'] },
-  { name: 'andestravel.com', reg: '03/11/2019', exp: '03/11/2026', auto: false, holder: 'Andes Travel S.A.C.', lockUntil: null, st: 'activo', ns: 'ns1.alojamientoplus.pe / ns2.alojamientoplus.pe', priv: 'Activa', price: [18.9, 'USD'] },
-  { name: 'andes-travel.com.pe', reg: '01/09/2026', exp: '01/09/2027', auto: true, holder: 'Andes Travel S.A.C.', lockUntil: '31/10/2026', lockWhy: 'registro reciente (60 días)', st: 'activo', ns: 'ns1.alojamientoplus.pe / ns2.alojamientoplus.pe', priv: 'No aplica (.pe)', price: [95, 'PEN'] },
+  { name: 'andestravel.pe', reg: '14/02/2019', exp: '14/02/2027', auto: true, holder: 'Andes Travel S.A.C.', lockUntil: null, st: 'activo', ns: 'ns1.nubeconecta.pe / ns2.nubeconecta.pe', priv: 'No aplica (.pe)', price: [95, 'PEN'] },
+  { name: 'andestravel.com', reg: '03/11/2019', exp: '03/11/2026', auto: false, holder: 'Andes Travel S.A.C.', lockUntil: null, st: 'activo', ns: 'ns1.nubeconecta.pe / ns2.nubeconecta.pe', priv: 'Activa', price: [18.9, 'USD'] },
+  { name: 'andes-travel.com.pe', reg: '01/09/2026', exp: '01/09/2027', auto: true, holder: 'Andes Travel S.A.C.', lockUntil: '31/10/2026', lockWhy: 'registro reciente (60 días)', st: 'activo', ns: 'ns1.nubeconecta.pe / ns2.nubeconecta.pe', priv: 'No aplica (.pe)', price: [95, 'PEN'] },
 ];
 
 export const INV: InvoiceItem[] = [
@@ -218,9 +218,9 @@ export const TK: TicketItem[] = [
     upd: '08/10/2026 09:15',
     msgs: [
       { w: 'c', n: 'Lucía Quispe', t: '06/10/2026 17:42', x: 'Desde el lunes, entre las 5 y 8 p. m., la página de reservas tarda casi 10 segundos en cargar los paquetes. Los clientes se quejan por WhatsApp.', files: ['captura-reservas.png'] },
-      { w: 'a', n: 'Carla Vargas · Soporte AlojamientoPlus', t: '06/10/2026 18:05', x: 'Hola, Lucía. Gracias por avisar. Ya revisamos y vemos picos de uso del procesador en ese horario. Estamos analizando las consultas a la base de datos para optimizarlas.' },
+      { w: 'a', n: 'Carla Vargas · Soporte NubeConecta', t: '06/10/2026 18:05', x: 'Hola, Lucía. Gracias por avisar. Ya revisamos y vemos picos de uso del procesador en ese horario. Estamos analizando las consultas a la base de datos para optimizarlas.' },
       { w: 'c', n: 'Diego Ramos', t: '07/10/2026 10:20', x: '¿Les ayuda si les compartimos el detalle de la campaña que lanzamos el lunes? Puede que sea más tráfico de lo normal.' },
-      { w: 'a', n: 'Carla Vargas · Soporte AlojamientoPlus', t: '08/10/2026 09:15', x: 'Sí, gracias, Diego. Confirmamos que el tráfico subió 3 veces. Aplicamos una mejora en la caché del listado de paquetes. Te avisamos hoy en la tarde cómo se comporta en el horario punta.' },
+      { w: 'a', n: 'Carla Vargas · Soporte NubeConecta', t: '08/10/2026 09:15', x: 'Sí, gracias, Diego. Confirmamos que el tráfico subió 3 veces. Aplicamos una mejora en la caché del listado de paquetes. Te avisamos hoy en la tarde cómo se comporta en el horario punta.' },
     ],
   },
   {
@@ -233,7 +233,7 @@ export const TK: TicketItem[] = [
     upd: '04/10/2026 15:30',
     msgs: [
       { w: 'c', n: 'Lucía Quispe', t: '03/10/2026 11:02', x: 'Necesito agregar un registro TXT con valor "google-site-verification=abc123xyz" en el dominio andestravel.pe por favor.' },
-      { w: 'a', n: 'Carla Vargas · Soporte AlojamientoPlus', t: '04/10/2026 15:30', x: 'Registro TXT agregado correctamente con propagación de 300 segundos. ¿Podrías confirmarnos si Google ya te permite verificar la propiedad?' },
+      { w: 'a', n: 'Carla Vargas · Soporte NubeConecta', t: '04/10/2026 15:30', x: 'Registro TXT agregado correctamente con propagación de 300 segundos. ¿Podrías confirmarnos si Google ya te permite verificar la propiedad?' },
     ],
   },
 ];

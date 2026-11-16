@@ -396,7 +396,7 @@ export function ScPreview({ name, vals, brand }: { name: string; vals: ScVals; b
       <>
         <span className={v.estilo === 'contorno' ? 'mw-b o' : B}>{s(v.texto)}</span>{' '}
         <small className="mw-mut">
-          → portal.alojamientoplus.com/carrito?producto={s(v.id)}&amp;ciclo={s(v.ciclo)}
+          → portal.nubeconecta.pe/carrito?producto={s(v.id)}&amp;ciclo={s(v.ciclo)}
           {b !== 'ap' ? '&marca=' + b : ''}
         </small>
       </>

@@ -42,7 +42,7 @@ final class PublicLoginBrandingTest extends IdentityTestCase
             ->assertJsonPath('data.colors.bg_from', '#102030')
             ->assertJsonPath('data.colors.accent', '#5f9a32')
             // Un campo no provisto cae al valor por defecto, no desaparece.
-            ->assertJsonPath('data.footer_line2', 'Soporte NOC: guardia@alojamientoplus.pe');
+            ->assertJsonPath('data.footer_line2', 'Soporte NOC: guardia@nubeconecta.pe');
     }
 
     public function test_sanitizes_hostile_input(): void

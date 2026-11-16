@@ -74,7 +74,7 @@ export const html2txt = (h: string): string => {
 export const VARS: [string, string][] = [
   ['cliente.nombre', 'Andes Travel Experience S.A.C.'], ['cliente.contacto', 'Mariela Choque'], ['cliente.ruc', '20604418827'], ['factura.numero', 'F001-00018310'],
   ['factura.total', 'S/ 212.40'], ['factura.vence', '15/10/2026'], ['servicio.nombre', 'Hosting Pyme'], ['dominio', 'andestravel.pe'], ['ticket.numero', 'TK-26411'],
-  ['reclamo.numero', 'AP-2026-000045'], ['marca.nombre', 'AlojamientoPlus'], ['marca.telefono', '(01) 640 2200'], ['enlace.pago', 'https://portal.alojamientoplus.com/pagar'], ['agente.nombre', 'Renzo Vargas'],
+  ['reclamo.numero', 'AP-2026-000045'], ['marca.nombre', 'NubeConecta'], ['marca.telefono', '(01) 640 2200'], ['enlace.pago', 'https://portal.nubeconecta.pe/pagar'], ['agente.nombre', 'Renzo Vargas'],
 ];
 /** Sustituye {{variables}} por valores de ejemplo (o del mapa) resaltados. */
 export const fillVars = (h: string, map?: Record<string, string>): string =>

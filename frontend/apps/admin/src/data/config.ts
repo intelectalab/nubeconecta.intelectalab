@@ -87,19 +87,19 @@ permInit('Supervisor de soporte', RBASE.Soporte);
 });
 export const USERS: UserAccount[] = (
   [
-    ['Renzo Vargas', 'renzo.vargas@alojamientoplus.pe', 'Administrador', 'Activo', true, new Date(2026, 9, 8, 10, 24)],
-    ['Rosa Mendoza', 'rosa.mendoza@alojamientoplus.pe', 'Finanzas', 'Activo', true, new Date(2026, 9, 8, 9, 2)],
-    ['Lucía Paredes', 'lucia.paredes@alojamientoplus.pe', 'Ventas', 'Activo', false, new Date(2026, 9, 8, 9, 40)],
-    ['Jorge Quispe', 'jorge.quispe@alojamientoplus.pe', 'Ventas', 'Activo', true, new Date(2026, 9, 7, 18, 11)],
+    ['Renzo Vargas', 'renzo.vargas@nubeconecta.pe', 'Administrador', 'Activo', true, new Date(2026, 9, 8, 10, 24)],
+    ['Rosa Mendoza', 'rosa.mendoza@nubeconecta.pe', 'Finanzas', 'Activo', true, new Date(2026, 9, 8, 9, 2)],
+    ['Lucía Paredes', 'lucia.paredes@nubeconecta.pe', 'Ventas', 'Activo', false, new Date(2026, 9, 8, 9, 40)],
+    ['Jorge Quispe', 'jorge.quispe@nubeconecta.pe', 'Ventas', 'Activo', true, new Date(2026, 9, 7, 18, 11)],
     ['Valeria Ccori', 'valeria.ccori@servercreativo.com', 'Ventas', 'Activo', false, new Date(2026, 9, 6, 12, 5)],
-    ['Carla Huamán', 'carla.huaman@alojamientoplus.pe', 'Supervisor de soporte', 'Activo', true, new Date(2026, 9, 8, 8, 1)],
-    ['Diego Rojas', 'diego.rojas@alojamientoplus.pe', 'Soporte', 'Activo', true, new Date(2026, 9, 8, 7, 55)],
-    ['Ana Salazar', 'ana.salazar@alojamientoplus.pe', 'Soporte', 'Activo', true, new Date(2026, 9, 8, 10, 2)],
-    ['Miguel Torres', 'miguel.torres@alojamientoplus.pe', 'Soporte', 'Suspendido', false, new Date(2026, 8, 12, 16, 0)],
-    ['Paola Linares', 'paola.linares@alojamientoplus.pe', 'Finanzas', 'Invitado', false, null],
+    ['Carla Huamán', 'carla.huaman@nubeconecta.pe', 'Supervisor de soporte', 'Activo', true, new Date(2026, 9, 8, 8, 1)],
+    ['Diego Rojas', 'diego.rojas@nubeconecta.pe', 'Soporte', 'Activo', true, new Date(2026, 9, 8, 7, 55)],
+    ['Ana Salazar', 'ana.salazar@nubeconecta.pe', 'Soporte', 'Activo', true, new Date(2026, 9, 8, 10, 2)],
+    ['Miguel Torres', 'miguel.torres@nubeconecta.pe', 'Soporte', 'Suspendido', false, new Date(2026, 8, 12, 16, 0)],
+    ['Paola Linares', 'paola.linares@nubeconecta.pe', 'Finanzas', 'Invitado', false, null],
   ] as [string, string, string, string, boolean, Date | null][]
 ).map((r) => ({ n: r[0], m: r[1], role: r[2], st: r[3], mfa: r[4], last: r[5] }));
 /** Usuario de la sesión simulada. */
-export const SESSION_USER = { name: 'Renzo Vargas', initials: 'RV', email: 'renzo.vargas@alojamientoplus.pe' };
+export const SESSION_USER = { name: 'Renzo Vargas', initials: 'RV', email: 'renzo.vargas@nubeconecta.pe' };
 /** Empresa emisora (un solo RUC para las 4 marcas). */
 export const EMPRESA = { rs: 'Soluciones Digitales del Sur S.A.C. (datos de ejemplo)', ruc: '20000000001', dir: 'Av. José Larco 1232, of. 504, Miraflores, Lima' };
