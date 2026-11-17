@@ -21,6 +21,8 @@ import { createNotificationsApi } from './notifications';
 import { createFilesApi, createPortalFilesApi } from './files';
 import { createDashboardApi } from './dashboard';
 import { createDomainsApi } from './domains';
+import { createCloudApi } from './cloud';
+import { createMailApi } from './mail';
 
 export * from './http';
 export * from './auth';
@@ -45,13 +47,15 @@ export * from './notifications';
 export * from './files';
 export * from './dashboard';
 export * from './domains';
+export * from './cloud';
+export * from './mail';
 
 /** Crea un cliente con su propia configuración (p. ej. otro baseUrl). */
 export function createHubApi(opts: HttpClientOptions = {}) {
   const http = new HttpClient(opts);
   const billing = createBillingApi(http);
   /** `invoices` es alias de `billing` (comprobantes de M-BIL). */
-  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http), notifications: createNotificationsApi(http), files: createFilesApi(http), portalFiles: createPortalFilesApi(http), dashboard: createDashboardApi(http), domains: createDomainsApi(http) };
+  return { http, auth: createAuthApi(http), customers: createCustomersApi(http), brands: createBrandsApi(http), catalog: createCatalogApi(http), orders: createOrdersApi(http), services: createServicesApi(http), billing, invoices: billing, webConnector: createWebConnectorApi(http), sales: createSalesApi(http), contracts: createContractsApi(http), support: createSupportApi(http), identity: createIdentityApi(http), settings: createSettingsApi(http), providers: createProvidersApi(http), work: createWorkApi(http), monitoring: createMonitoringApi(http), inventory: createInventoryApi(http), finance: createFinanceApi(http), notifications: createNotificationsApi(http), files: createFilesApi(http), portalFiles: createPortalFilesApi(http), dashboard: createDashboardApi(http), domains: createDomainsApi(http), cloud: createCloudApi(http), mail: createMailApi(http) };
 }
 
 /** Cliente por defecto: mismo origen (proxy de Vite en desarrollo). */
