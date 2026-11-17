@@ -10,6 +10,7 @@ import type { ViewProps } from '../../app/routes';
 import CrmLive from './crm/CrmLive';
 import { LIVE } from './clientes/shared';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { Icon } from '../../components/Icon';
 import { BrandTag, Chip, EmptyState, PageHead, SearchBox, Seg, StatLine, Toolbar } from '../../components/ui';
 import { BRANDS, CHANNELS, diffD, EJEC, fD, fDL, fDs, fLeads, fromIso, fT, iso, leads, LPROD, norm, plural, STAGES, TODAY } from '../../data';
@@ -20,10 +21,10 @@ const isToday = (d: Date) => diffD(d, TODAY) === 0;
 
 /** Con backend usa el CRM de la API (crm/CrmLive); en modo demo (VITE_DEMO=1) conserva los datos de ejemplo. */
 export default function CrmView(props: ViewProps) {
-  return LIVE ? <CrmLive {...props} /> : <CrmDemo />;
+  return LIVE ? <CrmLive {...props} /> : <CrmDemo param={props.param} />;
 }
 
-function CrmDemo() {
+function CrmDemo({ param }: { param?: string | null }) {
   const { brand, dataVersion, toast, refresh, dialogs } = useApp();
   const m = useMoney();
   const [view, setView] = useViewState<'kanban' | 'lista'>('crm.view', 'kanban');
@@ -37,6 +38,16 @@ function CrmDemo() {
   const [bulkStage, setBulkStage] = useState<string>(STAGES[0]);
   const [bulkOwner, setBulkOwner] = useState<string>(EJEC[0]);
   const focusAfter = useRef<string | null>(null);
+
+  useEffect(() => {
+    const f = parseFilterParam(param);
+    if (!f) return;
+    setQ(f.q ?? '');
+    setSt(f.st ?? '');
+    setCh(f.ch ?? '');
+    setOw(f.ow ?? '');
+    setView('lista');
+  }, [param, setQ, setSt, setCh, setOw, setView]);
 
   const L = useMemo(() => fLeads(brand), [brand, dataVersion]);
   const openL = L.filter((l) => l.stage !== 'Ganado' && l.stage !== 'Perdido');
@@ -323,7 +334,7 @@ function CrmDemo() {
         items={[
           { label: 'Embudo abierto', value: m.money(sum(openL), 'PEN', true) },
           { label: 'Prospectos abiertos', value: openL.length },
-          { label: 'Ganados (mes)', value: `${won.length} · ${m.money(sum(won), 'PEN', true)}`, tone: 'ok' },
+          { label: 'Ganados (mes)', value: `${won.length} · ${m.money(sum(won), 'PEN', true)}`, tone: 'ok', to: 'crm', param: filterParam({ st: 'Ganado' }) },
           { label: 'Tasa de cierre', value: `${won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : 0} %` },
           { label: 'Seguimientos hoy', value: today.filter((l) => !l.done).length },
         ]}

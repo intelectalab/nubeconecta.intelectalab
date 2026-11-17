@@ -10,6 +10,7 @@ import { addD, EJEC, fD, fT, inBrand, ORDERS, OSTEPS, plural, TASKS, TODAY } fro
 import type { Order } from '../../data';
 import OrderList from './pedidos/OrderList';
 import type { ViewProps } from '../../app/routes';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { LIVE } from './clientes/shared';
 
 type OdFilter = '' | 'En curso' | 'Error' | 'Entregado';
@@ -17,14 +18,21 @@ const LAST = OSTEPS.length - 1;
 
 /** Con backend usa la API real de M-ORD (pedidos/OrderList); con VITE_DEMO=1, el prototipo. */
 export default function PedidosView({ param }: ViewProps) {
-  return LIVE ? <OrderList param={param} /> : <PedidosDemoView />;
+  return LIVE ? <OrderList param={param} /> : <PedidosDemoView param={param} />;
 }
 
-function PedidosDemoView() {
+function PedidosDemoView({ param }: Pick<ViewProps, 'param'>) {
   const { brand, dataVersion, toast, refresh } = useApp();
   const [f, setF] = useViewState<OdFilter>('ped.st', '');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const timers = useRef<number[]>([]);
+  useEffect(() => {
+    const fl = parseFilterParam(param);
+    if (!fl) return;
+    const st = fl.st ?? '';
+    setF(st === 'En curso' || st === 'Error' || st === 'Entregado' ? st : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [param]);
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
 
   const all = useMemo(() => ORDERS.filter((o) => inBrand(brand, o.cid)), [brand, dataVersion]);
@@ -56,10 +64,10 @@ function PedidosDemoView() {
       <div className="card" style={{ marginBottom: 16 }}>
         <StatLine
           items={[
-            { label: 'Pedidos (7 días)', value: all.length },
-            { label: 'En curso', value: all.filter((o) => !o.err && o.step < LAST).length },
-            { label: 'Con error', value: all.filter((o) => o.err).length, tone: 'danger' },
-            { label: 'Entregados', value: all.filter((o) => o.step === LAST).length, tone: 'ok' },
+            { label: 'Pedidos (7 días)', value: all.length, to: 'pedidos', param: filterParam({}) },
+            { label: 'En curso', value: all.filter((o) => !o.err && o.step < LAST).length, to: 'pedidos', param: filterParam({ st: 'En curso' }) },
+            { label: 'Con error', value: all.filter((o) => o.err).length, tone: 'danger', to: 'pedidos', param: filterParam({ st: 'Error' }) },
+            { label: 'Entregados', value: all.filter((o) => o.step === LAST).length, tone: 'ok', to: 'pedidos', param: filterParam({ st: 'Entregado' }) },
           ]}
         />
       </div>

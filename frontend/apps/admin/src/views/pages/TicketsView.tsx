@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isProblem, type Ticket, type TicketChannel, type TicketPriority, type TicketStatus, type TicketType } from '@hub/api';
 import { useApp } from '../../app/context';
+import { parseFilterParam } from '../../app/filterParam';
 import type { ViewProps } from '../../app/routes';
 import { Icon } from '../../components/Icon';
 import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
@@ -15,14 +16,21 @@ const TYPES: TicketType[] = ['incident', 'request', 'question', 'billing', 'comp
 const label = (values: [string, string][], value: string) => values.find(([v]) => v === value)?.[1] ?? value;
 
 export default function TicketsView({ param }: ViewProps) {
-  return param ? <TicketDetail id={param} /> : <TicketInbox />;
+  return param && !param.startsWith('f~') ? <TicketDetail id={param} /> : <TicketInbox param={param} />;
 }
 
-function TicketInbox() {
+function TicketInbox({ param }: { param?: string | null }) {
   const { toast, navigate } = useApp();
   const can = useCan();
   const [status, setStatus] = useState<TicketStatus | ''>('');
   const [priority, setPriority] = useState<TicketPriority | ''>('');
+  // Token de filtro (f~status=open,priority=high) desde un tile o desde Inicio.
+  useEffect(() => {
+    const f = parseFilterParam(param);
+    if (!f) return;
+    setStatus(STATUS.some(([k]) => k === f.status) ? (f.status as TicketStatus) : '');
+    setPriority(PRIORITY.some(([k]) => k === f.priority) ? (f.priority as TicketPriority) : '');
+  }, [param]);
   const [creating, setCreating] = useState(false);
   const [subject, setSubject] = useState('');
   const [channel, setChannel] = useState<TicketChannel>('email');

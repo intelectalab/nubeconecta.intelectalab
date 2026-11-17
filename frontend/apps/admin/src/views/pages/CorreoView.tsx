@@ -7,6 +7,7 @@ import { useEffect, useMemo } from 'react';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Chip, ClientLink, DayChip, PageHead, StatLine, Tabs } from '../../components/ui';
 import { addD, CBY, CERTS, diffD, fD, inBrand, LICS, TODAY } from '../../data';
@@ -22,6 +23,8 @@ export default function CorreoView({ param }: ViewProps) {
 
   useEffect(() => {
     if (param === 'lic' || param === 'ssl') setTab(param);
+    const t = parseFilterParam(param)?.tab;
+    if (t === 'lic' || t === 'ssl') setTab(t);
   }, [param, setTab]);
 
   const lics = useMemo(() => LICS.filter((l) => inBrand(brand, l.cid)), [brand, dataVersion]);
@@ -128,10 +131,10 @@ export default function CorreoView({ param }: ViewProps) {
       <PageHead crumbs={[['Infraestructura', 'infra'], ['Correo y SSL', 'correo']]} title="Correo y SSL" sub="Licencias de Google Workspace y Microsoft 365 asignadas frente a facturadas, y certificados por vencer." />
       <StatLine
         items={[
-          { label: 'Licencias asignadas', value: lics.reduce((a, l) => a + l.as, 0) },
-          { label: 'Licencias facturadas', value: lics.reduce((a, l) => a + l.bi, 0) },
-          { label: 'Clientes con diferencia', value: dif.length, tone: dif.length ? 'danger' : '' },
-          { label: 'Certificados por vencer (30 d)', value: soon.length, tone: 'warn' },
+          { label: 'Licencias asignadas', value: lics.reduce((a, l) => a + l.as, 0), to: 'correo', param: filterParam({ tab: 'lic' }) },
+          { label: 'Licencias facturadas', value: lics.reduce((a, l) => a + l.bi, 0), to: 'correo', param: filterParam({ tab: 'lic' }) },
+          { label: 'Clientes con diferencia', value: dif.length, tone: dif.length ? 'danger' : '', to: 'correo', param: filterParam({ tab: 'lic' }) },
+          { label: 'Certificados por vencer (30 d)', value: soon.length, tone: 'warn', to: 'correo', param: filterParam({ tab: 'ssl' }) },
         ]}
       />
       <section className="card">

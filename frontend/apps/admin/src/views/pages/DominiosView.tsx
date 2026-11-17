@@ -5,6 +5,7 @@ import { useEffect, useMemo } from 'react';
 import { ClientDatalist } from '../../app/actions';
 import { useApp } from '../../app/context';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import type { ViewProps } from '../../app/routes';
 import { Icon } from '../../components/Icon';
 import { EmptyState, PageHead, Pager, SearchBox, Select, StatLine, Toolbar } from '../../components/ui';
@@ -30,11 +31,16 @@ function DominiosDemoView({ param }: ViewProps) {
   const [page, setPage] = useViewState('dom.page', 0);
 
   useEffect(() => {
-    if (param) {
-      setQ(param);
-      setPage(0);
-    }
-  }, [param, setQ, setPage]);
+    if (!param) return;
+    const f = parseFilterParam(param);
+    if (f) {
+      setQ(f.q ?? '');
+      setReg(f.reg ?? '');
+      setTit(f.tit === 'company' ? 'Empresa' : f.tit === 'customer' ? 'Cliente' : (f.tit ?? ''));
+      setD30(f.d30 === '1');
+    } else setQ(param);
+    setPage(0);
+  }, [param, setQ, setReg, setTit, setD30, setPage]);
 
   const all = useMemo(() => fDom(brand), [brand, dataVersion]);
   const rows = useMemo(() => {
@@ -115,10 +121,10 @@ function DominiosDemoView({ param }: ViewProps) {
       <div className="card" style={{ marginBottom: 16 }}>
         <StatLine
           items={[
-            { label: 'Dominios', value: NF0.format(all.length) },
-            { label: 'Expiran en 30 días', value: e30, tone: 'high' },
+            { label: 'Dominios', value: NF0.format(all.length), to: 'dominios', param: filterParam({}) },
+            { label: 'Expiran en 30 días', value: e30, tone: 'high', to: 'dominios', param: filterParam({ d30: '1' }) },
             { label: 'Vencidos (en gracia)', value: all.filter((d) => diffD(d.real, TODAY) < 0).length, tone: 'danger' },
-            { label: 'Titular: empresa', value: all.filter((d) => d.tit === 'Empresa').length },
+            { label: 'Titular: empresa', value: all.filter((d) => d.tit === 'Empresa').length, to: 'dominios', param: filterParam({ tit: 'company' }) },
             { label: 'Sin renovación automática', value: all.filter((d) => !d.auto).length },
           ]}
         />

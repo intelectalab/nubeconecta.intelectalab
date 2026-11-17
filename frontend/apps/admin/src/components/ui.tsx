@@ -151,16 +151,20 @@ export interface StatItem {
   value: ReactNode;
   /** Color del valor: 'danger' | 'warn' | 'high' | 'ok' | 'info' */
   tone?: 'danger' | 'warn' | 'high' | 'ok' | 'info' | '';
+  /** Si se indica, el tile es clicable y lleva a esa ruta (con filtro opcional en `param`). */
+  to?: RouteId;
+  param?: string;
 }
-/** Franja de estadísticas en tarjeta (kpis()/statline del prototipo). */
+/** Franja de estadísticas en tarjeta (kpis()/statline del prototipo). Los tiles con `to` son enlaces a su lista ya filtrada. */
 export function StatLine({ items, style }: { items: StatItem[]; style?: CSSProperties }) {
   return (
     <div className="card" style={{ marginBottom: 16, ...style }}>
       <div className="statline">
         {items.map((x, i) => (
-          <div key={i}>
+          <div key={i} style={x.to ? { position: 'relative' } : undefined}>
             <small>{x.label}</small>
             <b style={x.tone ? { color: `var(--${x.tone}-text)` } : undefined}>{x.value}</b>
+            {x.to ? <a className="cover" href={href(x.to, x.param)} aria-label={`${x.label}: ver lista`} /> : null}
           </div>
         ))}
       </div>

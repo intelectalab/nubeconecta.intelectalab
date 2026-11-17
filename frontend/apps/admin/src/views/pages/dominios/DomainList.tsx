@@ -4,9 +4,10 @@
  * Se usa como página #dominios y embebido en la ficha del cliente (`customerId`).
  */
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { isProblem, type Domain, type DomainFilters, type DomainHolder, type DomainInput } from '@hub/api';
+import { isProblem, type Domain, type DomainFilters, type DomainHolder, type DomainInput, type DomainStatus } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { useViewState } from '../../../app/storage';
+import { filterParam, parseFilterParam } from '../../../app/filterParam';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
 import { EmptyState, Note, PageHead, SearchBox, Select, StatLine, Toolbar } from '../../../components/ui';
@@ -27,6 +28,7 @@ export default function DomainList({ param, customerId }: { param?: string | nul
   const [reg, setReg] = useViewState(`${ns}.reg`, '');
   const [tit, setTit] = useViewState(`${ns}.tit`, '');
   const [d30, setD30] = useViewState(`${ns}.30`, false);
+  const [st, setSt] = useViewState(`${ns}.st`, '');
   const [cursor, setCursor] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(isUuid(param) ? param : null);
   const [creating, setCreating] = useState(false);
@@ -34,18 +36,26 @@ export default function DomainList({ param, customerId }: { param?: string | nul
 
   useEffect(() => {
     if (!param) return;
-    if (isUuid(param)) setOpenId(param);
+    const f = parseFilterParam(param);
+    if (f) {
+      // Token de filtro (f~clave=valor) desde un tile: reemplaza los filtros de la lista.
+      setQ(f.q ?? '');
+      setReg(f.reg ?? '');
+      setTit(f.tit ?? '');
+      setD30(f.d30 === '1');
+      setSt(f.st ?? '');
+    } else if (isUuid(param)) setOpenId(param);
     else setQ(param);
     setCursor(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param]);
 
-  const filter = useMemo<DomainFilters>(() => ({ search: q.trim() || undefined, provider_account_id: reg || undefined, holder: tit as DomainHolder | '', expiring_30d: d30 || undefined, customer_id: customerId }), [q, reg, tit, d30, customerId]);
+  const filter = useMemo<DomainFilters>(() => ({ search: q.trim() || undefined, provider_account_id: reg || undefined, holder: tit as DomainHolder | '', status: st as DomainStatus | '', expiring_30d: d30 || undefined, customer_id: customerId }), [q, reg, tit, st, d30, customerId]);
   const res = useLoad(() => domainsApi.list({ filter, size: PER, cursor }), [filter, cursor]);
   const summary = useLoad(() => (embedded ? Promise.resolve(null) : domainsApi.summary()), [embedded]);
   const rows = res.data?.data ?? [];
   const meta = res.data?.meta;
-  const filtered = !!(q || reg || tit || d30);
+  const filtered = !!(q || reg || tit || st || d30);
 
   const reloadAll = () => {
     res.reload();
@@ -60,6 +70,7 @@ export default function DomainList({ param, customerId }: { param?: string | nul
     setReg('');
     setTit('');
     setD30(false);
+    setSt('');
     setCursor(null);
   };
   const s = summary.data;
@@ -94,10 +105,10 @@ export default function DomainList({ param, customerId }: { param?: string | nul
           ) : (
             <StatLine
               items={[
-                { label: 'Dominios', value: dash(s?.total) },
-                { label: 'Expiran en 30 días', value: dash(s?.expiring_30d), tone: 'high' },
-                { label: 'Vencidos (en gracia)', value: dash(s?.expired), tone: 'danger' },
-                { label: 'Titular: empresa', value: dash(s?.holder_company) },
+                { label: 'Dominios', value: dash(s?.total), to: 'dominios', param: filterParam({}) },
+                { label: 'Expiran en 30 días', value: dash(s?.expiring_30d), tone: 'high', to: 'dominios', param: filterParam({ d30: '1' }) },
+                { label: 'Vencidos (en gracia)', value: dash(s?.expired), tone: 'danger', to: 'dominios', param: filterParam({ st: 'expired' }) },
+                { label: 'Titular: empresa', value: dash(s?.holder_company), to: 'dominios', param: filterParam({ tit: 'company' }) },
                 { label: 'Sin renovación automática', value: dash(s?.no_auto_renew) },
               ]}
             />
@@ -112,6 +123,7 @@ export default function DomainList({ param, customerId }: { param?: string | nul
             <Select value={reg} onChange={upd(setReg)} label="Registrador" options={[['', 'Todos los registradores'], ...registrars.options.map((o): [string, string] => [o.id, o.label])]} />
           )}
           <Select value={tit} onChange={upd(setTit)} label="Titular" options={[['', 'Cualquier titular'], ['company', 'Empresa'], ['customer', 'Cliente']]} />
+          <Select value={st} onChange={upd(setSt)} label="Estado" options={[['', 'Cualquier estado'], ['active', 'Activo'], ['expired', 'Vencido']]} />
           <label className="check">
             <input type="checkbox" checked={d30} onChange={(e) => upd(setD30)(e.target.checked)} />
             Expiran en 30 días

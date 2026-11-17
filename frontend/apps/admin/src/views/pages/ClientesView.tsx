@@ -4,12 +4,14 @@
  * Con backend (por defecto) usa la API real de M-CUS (clientes/CustomerList);
  * en modo demo (VITE_DEMO=1) sigue con los datos de ejemplo.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CustomerList from './clientes/CustomerList';
 import { LIVE } from './clientes/shared';
 import { useActions } from '../../app/actions';
 import { useApp, useMoney } from '../../app/context';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
+import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { BrandSelect, BrandTag, ClientLink, EmptyState, PageHead, SearchBox, Select, StatLine, StatusChip, Toolbar } from '../../components/ui';
@@ -20,11 +22,35 @@ const PER = 25;
 const STATES = ['Activo', 'Moroso', 'Suspendido', 'Inactivo'] as const;
 const balOf = (c: Client) => c.invoices.filter((v) => v.status === 'Pendiente' || v.status === 'Vencida').reduce((a, v) => a + saldo(v), 0);
 
-export default function ClientesView() {
-  return LIVE ? <CustomerList /> : <ClientesDemoView />;
+export default function ClientesView({ param }: ViewProps) {
+  return LIVE ? <ClientesLive param={param} /> : <ClientesDemoView param={param} />;
 }
 
-function ClientesDemoView() {
+/** CustomerList lee sus filtros de useViewState al montar: se hidratan desde el token y se remonta. */
+function ClientesLive({ param }: { param?: string | null }) {
+  const [, setSt] = useViewState('cli.api.st', '');
+  const [, setPais] = useViewState('cli.api.pais', '');
+  const [, setMarca] = useViewState('cli.api.marca', '');
+  const [, setResp] = useViewState('cli.api.resp', '');
+  const [, setDeuda] = useViewState('cli.api.deuda', '');
+  const [, setQ] = useViewState('cli.api.q', '');
+  const [gen, setGen] = useState(0);
+  useEffect(() => {
+    const f = parseFilterParam(param);
+    if (!f) return;
+    setQ(f.q ?? '');
+    setSt(f.st ?? '');
+    setPais(f.pais ?? '');
+    setMarca(f.marca ?? '');
+    setResp(f.resp ?? '');
+    setDeuda(f.deuda ?? '');
+    setGen((g) => g + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [param]);
+  return <CustomerList key={gen} />;
+}
+
+function ClientesDemoView({ param }: { param?: string | null }) {
   const { brand, dataVersion, toast } = useApp();
   const m = useMoney();
   const act = useActions();
@@ -32,6 +58,16 @@ function ClientesDemoView() {
   const [st, setSt] = useViewState('cli.st', '');
   const [pais, setPais] = useViewState('cli.pais', '');
   const [page, setPage] = useViewState('cli.page', 0);
+
+  useEffect(() => {
+    const f = parseFilterParam(param);
+    if (!f) return;
+    const est: Record<string, string> = { active: 'Activo', inactive: 'Inactivo' };
+    setQ(f.q ?? '');
+    setSt(f.st ? (est[f.st] ?? f.st) : '');
+    setPais(f.pais ?? '');
+    setPage(0);
+  }, [param, setQ, setSt, setPais, setPage]);
 
   const all = useMemo(() => fClients(brand), [brand, dataVersion]);
   const rows = useMemo(() => {
@@ -114,7 +150,7 @@ function ClientesDemoView() {
         }
       />
       <div className="card" style={{ marginBottom: 16 }}>
-        <StatLine items={[...STATES.map((s) => ({ label: `${s}s`, value: NF0.format(all.filter((c) => c.status === s).length) })), { label: 'MRR promedio', value: m.money(avg, 'PEN') }]} />
+        <StatLine items={[...STATES.map((s) => ({ label: `${s}s`, value: NF0.format(all.filter((c) => c.status === s).length), to: 'clientes' as const, param: filterParam({ st: s }) })), { label: 'MRR promedio', value: m.money(avg, 'PEN'), to: 'clientes' as const, param: filterParam({ st: 'Activo' }) }]} />
       </div>
       <section className="card">
         <Toolbar count={plural(rows.length, 'resultado', 'resultados')}>

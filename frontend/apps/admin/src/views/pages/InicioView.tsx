@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react';
 import { api, type Attention, type Cashflow, type CashflowSeries, type DashboardSummary } from '@hub/api';
 import { useApp, useMoney } from '../../app/context';
+import { filterParam } from '../../app/filterParam';
 import { useActions } from '../../app/actions';
 import type { RouteId } from '../../app/routeMeta';
 import type { ViewProps } from '../../app/routes';
@@ -19,15 +20,21 @@ import {
 } from '../../data';
 import type { MoneyPair, Sev } from '../../data';
 import { useWidth } from './operacion-kpi/charts';
-import { errorText, useLoad, type Loadable } from './clientes/shared';
+import { errorText, LIVE, useLoad, type Loadable } from './clientes/shared';
 
 interface Att {
   sev: Sev;
   n: number;
   t: string;
   r: RouteId;
+  /** param de la ruta destino (token f~ de filtro o pestaña) */
+  p?: string;
   cta: string;
 }
+
+/** Pestaña de Cobranza: en vivo las secciones son otras que en la demo. */
+const COB_VENCIDAS = LIVE ? 'antiguedad' : 'vencidas';
+const COB_PRONTO = LIVE ? 'antiguedad' : 'pronto';
 
 export default function InicioView(_props: ViewProps) {
   const { brand, cur, navigate, dataVersion } = useApp();
@@ -62,14 +69,14 @@ export default function InicioView(_props: ViewProps) {
     const d = attention.data;
     if (!d) return [];
     const a: Att[] = [];
-    const add = (v: number | undefined, sev: Sev, t: (n: number) => string, r: RouteId, cta: string) => {
-      if (v !== undefined) a.push({ sev, n: v, t: t(v), r, cta });
+    const add = (v: number | undefined, sev: Sev, t: (n: number) => string, r: RouteId, cta: string, p?: string) => {
+      if (v !== undefined) a.push({ sev, n: v, t: t(v), r, p, cta });
     };
-    add(d.tickets_overdue_sla, 'critica', (n) => `${n} ${n === 1 ? 'ticket fuera' : 'tickets fuera'} de SLA`, 'tickets', 'Atender');
-    add(d.payments_to_validate, 'alta', (n) => `${n} ${n === 1 ? 'pago por validar' : 'pagos por validar'}`, 'cobranza', 'Validar');
-    add(d.domains_expiring_7d, 'alta', (n) => `${n} ${n === 1 ? 'dominio expira' : 'dominios expiran'} en ≤ 7 días sin renovación automática`, 'dominios', 'Renovar');
-    add(d.invoices_due_today, 'media', (n) => `${n} ${n === 1 ? 'comprobante vence' : 'comprobantes vencen'} hoy`, 'cobranza', 'Revisar');
-    add(d.sales_followups_today, 'baja', (n) => `${n} ${n === 1 ? 'seguimiento comercial' : 'seguimientos comerciales'} para hoy`, 'crm', 'Abrir CRM');
+    add(d.tickets_overdue_sla, 'critica', (n) => `${n} ${n === 1 ? 'ticket fuera' : 'tickets fuera'} de SLA`, 'tickets', 'Atender', filterParam({ status: 'open' }));
+    add(d.payments_to_validate, 'alta', (n) => `${n} ${n === 1 ? 'pago por validar' : 'pagos por validar'}`, 'cobranza', 'Validar', 'vouchers');
+    add(d.domains_expiring_7d, 'alta', (n) => `${n} ${n === 1 ? 'dominio expira' : 'dominios expiran'} en ≤ 7 días sin renovación automática`, 'dominios', 'Renovar', filterParam({ d30: '1' }));
+    add(d.invoices_due_today, 'media', (n) => `${n} ${n === 1 ? 'comprobante vence' : 'comprobantes vencen'} hoy`, 'cobranza', 'Revisar', COB_PRONTO);
+    add(d.sales_followups_today, 'baja', (n) => `${n} ${n === 1 ? 'seguimiento comercial' : 'seguimientos comerciales'} para hoy`, 'crm', 'Abrir CRM', filterParam({ st: 'open' }));
     return a.sort((x, y) => SEV[x.sev].r - SEV[y.sev].r);
   }, [attention.data]);
   const pending = att.filter((x) => x.n > 0).length;
@@ -113,8 +120,8 @@ export default function InicioView(_props: ViewProps) {
       />
       {summary.error ? <Note kind="warn" role="alert" style={{ marginBottom: 12 }}>No se pudieron cargar las KPI: {errorText(summary.error)} <button type="button" className="btn sm" onClick={summary.reload}>Reintentar</button></Note> : null}
       <section className="grid g-kpi" aria-label="Indicadores clave">
-        <KpiCard label="Ingresos recurrentes (MRR)" icon="activity" value={mrr ? <DualMoney r={mrr} int twin /> : '—'} meta="Ingreso recurrente mensual" to="clientes" />
-        <KpiCard label="Por cobrar" icon="wallet" value={receivable ? <DualMoney r={receivable} int twin /> : '—'} meta={<span className="delta-dn">Vencido: {vencidoMeta}</span>} to="cobranza" />
+        <KpiCard label="Ingresos recurrentes (MRR)" icon="activity" value={mrr ? <DualMoney r={mrr} int twin /> : '—'} meta="Ingreso recurrente mensual" to="clientes" param={filterParam({ st: 'active' })} />
+        <KpiCard label="Por cobrar" icon="wallet" value={receivable ? <DualMoney r={receivable} int twin /> : '—'} meta={<span className="delta-dn">Vencido: {vencidoMeta}</span>} to="cobranza" param={COB_VENCIDAS} />
         <KpiCard
           label="Vencen en 30 días"
           icon="cal"
@@ -124,7 +131,7 @@ export default function InicioView(_props: ViewProps) {
             </>
           }
           meta="Suscripciones"
-          to="dominios"
+          to="servicios"
         />
         <KpiCard
           label="Tickets abiertos"
@@ -136,6 +143,7 @@ export default function InicioView(_props: ViewProps) {
             </>
           }
           to="tickets"
+          param={filterParam({ status: 'open' })}
         />
         <KpiCard
           label="Uso de nodos de hosting"
@@ -182,7 +190,7 @@ export default function InicioView(_props: ViewProps) {
                       <span className="lvl">{SEV[a.sev].l}</span>
                       <b>{a.t}</b>
                     </div>
-                    <button type="button" className="btn sm" onClick={() => navigate(a.r)} aria-label={`${a.cta}: ${a.t}`}>
+                    <button type="button" className="btn sm" onClick={() => navigate(a.r, a.p)} aria-label={`${a.cta}: ${a.t}`}>
                       {a.cta}
                     </button>
                   </li>

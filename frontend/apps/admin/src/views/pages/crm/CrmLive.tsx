@@ -10,6 +10,7 @@ import { isProblem, LEAD_ACTIVITY_LABELS, LEAD_STATUS_LABELS, type Lead, type Le
 import { useApp } from '../../../app/context';
 import type { ViewProps } from '../../../app/routes';
 import { useViewState } from '../../../app/storage';
+import { parseFilterParam } from '../../../app/filterParam';
 import { hub } from '../../../auth/client';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
@@ -52,6 +53,18 @@ export default function CrmLive({ param }: ViewProps) {
 
   useEffect(() => {
     if (isUuid(param)) setOpenId(param);
+    const f = parseFilterParam(param);
+    if (f) {
+      // Token de filtro (f~st=open,stage=…,ch=…,ow=…): abre la lista ya filtrada.
+      setStatus(f.st ?? 'open');
+      setStageF(f.stage ?? '');
+      setChannelF(f.ch ?? '');
+      setOwnerF(f.ow ?? '');
+      setQ(f.q ?? '');
+      setCursor(null);
+      setView('lista');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param]);
 
   const opts = useLoad(() => api.options(), []);

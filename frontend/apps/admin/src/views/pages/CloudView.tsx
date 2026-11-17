@@ -2,9 +2,11 @@
  * Vista «cloud» (#cloud): proyectos y cuentas cloud administradas por cliente,
  * con costo del mes, proyección y presupuesto. Guía: vCloud del prototipo.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useApp } from '../../app/context';
+import type { ViewProps } from '../../app/routes';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { DataTable, type Column } from '../../components/DataTable';
 import { ClientLink, PageHead, PctBar, Seg, StatLine, Toolbar } from '../../components/ui';
 import { CBY, CPROJ, inBrand, moneyRaw, plural } from '../../data';
@@ -13,13 +15,22 @@ import { BusyButton, NoRows, useBusy } from './infraestructura/shared';
 
 const PROVS = ['AWS', 'Azure', 'Google Cloud', 'IBM Cloud'];
 
-export default function CloudView() {
+export default function CloudView({ param }: ViewProps) {
   const { brand, dataVersion, refresh, toast, dialogs } = useApp();
   const [prov, setProv] = useViewState('cp.prov', '');
+  const [overOnly, setOverOnly] = useViewState('cp.over', '');
   const { busy, run } = useBusy();
 
+  useEffect(() => {
+    const fl = parseFilterParam(param);
+    if (!fl) return;
+    setProv(PROVS.includes(fl.prov ?? '') ? fl.prov : '');
+    setOverOnly(fl.over === '1' ? '1' : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [param]);
+
   const all = useMemo(() => CPROJ.filter((p) => inBrand(brand, p.cid)), [brand, dataVersion]);
-  const rows = useMemo(() => all.filter((p) => !prov || p.prov === prov), [all, prov]);
+  const rows = useMemo(() => all.filter((p) => (!prov || p.prov === prov) && (!overOnly || p.fc > p.bud)), [all, prov, overOnly]);
   const over = all.filter((p) => p.fc > p.bud);
 
   const sync = () =>
@@ -117,15 +128,16 @@ export default function CloudView() {
       />
       <StatLine
         items={[
-          { label: 'Costo del mes (al 08/10)', value: moneyRaw(all.reduce((a, p) => a + p.cost, 0), 'USD', 1) },
+          { label: 'Costo del mes (al 08/10)', value: moneyRaw(all.reduce((a, p) => a + p.cost, 0), 'USD', 1), to: 'cloud', param: filterParam({}) },
           { label: 'Proyección de cierre', value: moneyRaw(all.reduce((a, p) => a + p.fc, 0), 'USD', 1) },
           { label: 'Presupuesto total', value: moneyRaw(all.reduce((a, p) => a + p.bud, 0), 'USD', 1) },
-          { label: 'Superarán el presupuesto', value: over.length, tone: over.length ? 'danger' : '' },
+          { label: 'Superarán el presupuesto', value: over.length, tone: over.length ? 'danger' : '', to: 'cloud', param: filterParam({ over: '1' }) },
         ]}
       />
       <section className="card">
         <Toolbar count={plural(rows.length, 'proyecto', 'proyectos')}>
           <Seg label="Proveedor" value={prov} onChange={setProv} options={[['', 'Todos'], ...PROVS.map((p): [string, string] => [p, p])]} />
+          <Seg label="Presupuesto" value={overOnly} onChange={setOverOnly} options={[['', 'Todos'], ['1', 'Superarán el presupuesto']]} />
         </Toolbar>
         <DataTable columns={cols} rows={rows} rowKey={(p) => p.id} empty={<NoRows />} />
       </section>

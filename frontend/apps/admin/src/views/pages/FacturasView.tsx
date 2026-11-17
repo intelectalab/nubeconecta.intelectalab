@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'react';
 import { ClientDatalist, useActions } from '../../app/actions';
 import { useApp, useMoney } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { useViewState } from '../../app/storage';
 import { DualMoney } from '../../components/Money';
 import { Icon } from '../../components/Icon';
@@ -41,6 +42,16 @@ function FacturasDemoView({ param }: Pick<ViewProps, 'param'>) {
   // #facturas/<número>: abre el detalle; otro texto se usa como búsqueda.
   useEffect(() => {
     if (!param) return;
+    const fl = parseFilterParam(param);
+    if (fl) {
+      // Token f~clave=valor de un tile: reemplaza los filtros (type, sunat, st).
+      setType(fl.type ?? '');
+      setSunat(fl.sunat ?? '');
+      setSt(fl.st ?? '');
+      setQ('');
+      setPage(0);
+      return;
+    }
     if (IBY[param]) act.openInvoice(param);
     else {
       setQ(param);
@@ -128,9 +139,9 @@ function FacturasDemoView({ param }: Pick<ViewProps, 'param'>) {
       <StatLine
         items={[
           { label: 'Emitido (30 días)', value: <DualMoney r={sumBy(mon.filter((v) => v.type !== 'Nota de crédito'), (v) => [v.total, v.cur])} int /> },
-          { label: 'Comprobantes', value: NF0.format(all.length) },
-          { label: 'Pendientes SUNAT', value: all.filter((v) => v.sunat === 'Pendiente').length, tone: 'warn' },
-          { label: 'Rechazados / observados', value: all.filter((v) => v.sunat === 'Rechazada' || v.sunat === 'Observada').length, tone: 'danger' },
+          { label: 'Comprobantes', value: NF0.format(all.length), to: 'facturas', param: filterParam({}) },
+          { label: 'Pendientes SUNAT', value: all.filter((v) => v.sunat === 'Pendiente').length, tone: 'warn', to: 'facturas', param: filterParam({ sunat: 'Pendiente' }) },
+          { label: 'Rechazados / observados', value: all.filter((v) => v.sunat === 'Rechazada' || v.sunat === 'Observada').length, tone: 'danger', to: 'facturas', param: filterParam({ sunat: 'Rechazada' }) },
         ]}
       />
       <section className="card" aria-label="Comprobantes">

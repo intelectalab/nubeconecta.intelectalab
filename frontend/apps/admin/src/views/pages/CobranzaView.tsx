@@ -563,11 +563,11 @@ function CobranzaDemoView({ param }: Pick<ViewProps, 'param'>) {
       />
       <StatLine
         items={[
-          { label: 'Por cobrar', value: <DualMoney r={sumBy(open, (v) => [saldo(v), v.cur])} int /> },
-          { label: 'Vencido', value: <DualMoney r={sumBy(open.filter((v) => v.status === 'Vencida'), (v) => [saldo(v), v.cur])} int />, tone: 'danger' },
-          { label: 'Vouchers por validar', value: cnt('vouchers') },
-          { label: 'Compromisos vigentes', value: cnt('compromisos') },
-          { label: 'Suspensiones mañana', value: suspManana },
+          { label: 'Por cobrar', to: 'cobranza', param: 'pronto', value: <DualMoney r={sumBy(open, (v) => [saldo(v), v.cur])} int /> },
+          { label: 'Vencido', to: 'cobranza', param: 'vencidas', value: <DualMoney r={sumBy(open.filter((v) => v.status === 'Vencida'), (v) => [saldo(v), v.cur])} int />, tone: 'danger' },
+          { label: 'Vouchers por validar', value: cnt('vouchers'), to: 'cobranza', param: 'vouchers' },
+          { label: 'Compromisos vigentes', value: cnt('compromisos'), to: 'cobranza', param: 'compromisos' },
+          { label: 'Suspensiones mañana', value: suspManana, to: 'cobranza', param: 'suspensiones' },
         ]}
       />
       <div className="split">

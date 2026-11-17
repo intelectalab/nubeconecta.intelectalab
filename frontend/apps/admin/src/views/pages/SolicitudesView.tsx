@@ -16,6 +16,7 @@ import { isProblem, WEB_SUBMISSION_STATUS_LABELS, type CursorPage, type WebSubmi
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { useViewState } from '../../app/storage';
+import { filterParam, parseFilterParam } from '../../app/filterParam';
 import { hub } from '../../auth/client';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
@@ -92,6 +93,14 @@ export default function SolicitudesView({ param }: ViewProps) {
 
   useEffect(() => {
     if (isUuid(param)) setOpenId(param);
+    const fl = parseFilterParam(param);
+    if (fl) {
+      setStatus(fl.st ?? '');
+      setForm(fl.form ?? '');
+      setQ('');
+      setCursor(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param]);
 
   const query: Query = { q, status, form, cursor, brand };
@@ -156,10 +165,10 @@ export default function SolicitudesView({ param }: ViewProps) {
       <PageHead crumbs={[['Comercial', 'solicitudes'], ['Solicitudes web']]} title="Solicitudes web" sub="Mensajes de los formularios de contacto y cotización de las webs WordPress." />
       <StatLine
         items={[
-          { label: 'Nuevas', value: counts ? counts.received : '—', tone: counts?.received ? 'info' : '' },
-          { label: 'Derivadas', value: counts ? counts.routed : '—', tone: 'ok' },
-          { label: 'Con error', value: counts ? counts.failed : '—', tone: counts?.failed ? 'danger' : '' },
-          { label: 'Spam', value: counts ? counts.spam : '—' },
+          { label: 'Nuevas', value: counts ? counts.received : '—', tone: counts?.received ? 'info' : '', to: 'solicitudes', param: filterParam({ st: 'received' }) },
+          { label: 'Derivadas', value: counts ? counts.routed : '—', tone: 'ok', to: 'solicitudes', param: filterParam({ st: 'routed' }) },
+          { label: 'Con error', value: counts ? counts.failed : '—', tone: counts?.failed ? 'danger' : '', to: 'solicitudes', param: filterParam({ st: 'failed' }) },
+          { label: 'Spam', value: counts ? counts.spam : '—', to: 'solicitudes', param: filterParam({ st: 'spam' }) },
         ]}
       />
       <section className="card">
