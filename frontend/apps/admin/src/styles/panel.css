@@ -412,6 +412,17 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .pop-list .unread{width:8px;height:8px;border-radius:50%;background:var(--brand);margin-top:6px;flex:none}
 .pop-list .read{width:8px;flex:none}
 .pop-list small{display:block;color:var(--muted);font-size:12px}
+/* Enlaces dentro del popover: misma caja que los botones (icono/punto + contenido). */
+.pop-list a{display:flex;gap:10px;width:100%;padding:11px 14px;color:var(--text);text-decoration:none}
+.pop-list a:hover{background:var(--hover)}
+/* Fila de notificación: punto/icono + contenido flexible (título, hora, cuerpo). */
+.pop-list .pn{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pop-list .pn-top{display:flex;align-items:baseline;gap:8px}
+.pop-list .pn-top b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pop-list li.un .pn-top b{font-weight:700}
+.pop-list .pn-when{flex:none;margin-left:auto;color:var(--faint);font-size:11px;white-space:nowrap}
+.pop-list .pill{flex:none;align-self:center;min-width:22px;height:20px;padding:0 7px;border-radius:10px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.pop-empty{padding:16px 14px;color:var(--muted);font-size:13px;text-align:center}
 .anchor{position:relative;flex:none}
 .umenu{padding:6px}
 .umenu .who{padding:10px 10px 12px;border-bottom:1px solid var(--border);margin-bottom:6px}

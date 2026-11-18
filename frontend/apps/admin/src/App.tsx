@@ -38,6 +38,21 @@ interface BellItem {
   param?: string;
 }
 
+/** Tiempo relativo corto en español para el feed de notificaciones. */
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return 'ahora';
+  const m = Math.round(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `hace ${d} d`;
+  return new Date(t).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+}
+
 const isMobile = () => {
   try {
     return window.matchMedia('(max-width:900px)').matches;
@@ -325,15 +340,18 @@ function Shell() {
                         <li key={it.key}>
                           <a href={href(it.route, it.param)} onClick={() => setPop(null)}>
                             <Icon name={it.icon} />
-                            <span style={{ flex: 1, minWidth: 0 }}>
-                              <b>{it.n}</b> <span>{it.label}</span>
+                            <span className="pn">
+                              <span className="pn-top">
+                                <b>{it.label}</b>
+                              </span>
                             </span>
+                            <span className="pill">{it.n}</span>
                           </a>
                         </li>
                       ))
                     ) : (
                       <li>
-                        <small style={{ padding: '10px 14px', display: 'block' }}>{attentionLoad.error ? 'No disponible' : attentionLoad.loading ? 'Cargando…' : 'Sin novedades'}</small>
+                        <p className="pop-empty">{attentionLoad.error ? 'No disponible' : attentionLoad.loading ? 'Cargando…' : 'Sin novedades pendientes'}</p>
                       </li>
                     )}
                   </ul>
@@ -353,30 +371,25 @@ function Shell() {
                             if (!n.read_at) markFeedRead(n.id);
                             setPop(null);
                           };
+                          const content = (
+                            <>
+                              {n.read_at ? <span className="read" /> : <span className="unread" aria-label="No leída" />}
+                              <span className="pn">
+                                <span className="pn-top">
+                                  <b>{n.title}</b>
+                                  <span className="pn-when">{relTime(n.created_at)}</span>
+                                </span>
+                                {n.body ? <small>{n.body}</small> : null}
+                              </span>
+                            </>
+                          );
                           return (
-                            <li key={n.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                            <li key={n.id} className={n.read_at ? undefined : 'un'}>
                               {n.link ? (
-                                <a href={n.link} onClick={open} style={{ flex: 1, minWidth: 0 }}>
-                                  {n.read_at ? <span className="read" /> : <span className="unread" aria-label="No leída" />}
-                                  <span style={{ flex: 1, minWidth: 0 }}>
-                                    <b>{n.title}</b>
-                                    {n.body ? <small>{n.body}</small> : null}
-                                  </span>
-                                </a>
+                                <a href={n.link} onClick={open}>{content}</a>
                               ) : (
-                                <button type="button" onClick={open} style={{ flex: 1, minWidth: 0 }}>
-                                  {n.read_at ? <span className="read" /> : <span className="unread" aria-label="No leída" />}
-                                  <span style={{ flex: 1, minWidth: 0 }}>
-                                    <b>{n.title}</b>
-                                    {n.body ? <small>{n.body}</small> : null}
-                                  </span>
-                                </button>
+                                <button type="button" onClick={open}>{content}</button>
                               )}
-                              {!n.read_at ? (
-                                <button type="button" className="btn ghost sm" style={{ width: 'auto', margin: '6px 8px 0 0' }} onClick={() => markFeedRead(n.id)} aria-label={`Marcar como leída: ${n.title}`}>
-                                  Leída
-                                </button>
-                              ) : null}
                             </li>
                           );
                         })}
