@@ -12,11 +12,15 @@ import { PageHead, Tabs } from '../../components/ui';
 import { KBY, KD, kCmpOff, kGroups, kPerLabel, plural } from '../../data';
 import { GoalsModal, KCard, KpiFilters, KpiGroupCharts, KpiInfoModal, brandLabel } from './operacion-kpi/parts';
 import { respFor, useKpiFilter, useKpiPrefs } from './operacion-kpi/state';
+import { hub } from '../../auth/client';
+import { useLoad } from './clientes/shared';
 
 export default function KpiView(_props: ViewProps) {
   const { role, toast, navigate, dataVersion } = useApp();
   const { F, setF } = useKpiFilter();
   const [prefs, setPrefs] = useKpiPrefs();
+  const kpisLoad = useLoad(() => hub.dashboard.kpis(), []);
+  const reals = kpisLoad.data ?? {};
   const gs = kGroups(role);
   const [tabRaw, setTab] = useViewState<string | null>('kpi.tab', null);
   const [custom, setCustom] = useViewState<boolean>('kpi.custom', false);
@@ -104,7 +108,7 @@ export default function KpiView(_props: ViewProps) {
           </h2>
           <div className="kgrid">
             {pins.map((k) => (
-              <KCard key={k.id} k={k} pinned {...cardProps} />
+              <KCard key={k.id} k={k} pinned {...cardProps} real={reals[k.id]?.value} />
             ))}
           </div>
         </section>
@@ -136,7 +140,7 @@ export default function KpiView(_props: ViewProps) {
         ) : null}
         <div className="kgrid">
           {vis.map((k, i) => (
-            <KCard key={k.id} k={k} pinned={prefs.pins.includes(k.id)} {...cardProps} custom={custom ? { idx: i, n: vis.length, onMove: move, onHide: hide } : null} />
+            <KCard key={k.id} k={k} pinned={prefs.pins.includes(k.id)} {...cardProps} real={reals[k.id]?.value} custom={custom ? { idx: i, n: vis.length, onMove: move, onHide: hide } : null} />
           ))}
         </div>
         <KpiGroupCharts g={T} F={F} />

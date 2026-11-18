@@ -68,7 +68,7 @@ final class DashboardController extends Controller
      *
      * @return list<array{currency: string, amount_minor: int}>
      */
-    private function mrr(?string $brandId): array
+    public function mrr(?string $brandId): array
     {
         $rows = Subscription::query()
             ->where('status', 'active')

@@ -27,9 +27,12 @@ export interface KCardProps {
   onPin: (id: string) => void;
   /** Modo personalización: índice y total para mover/ocultar */
   custom?: { idx: number; n: number; onMove: (id: string, d: -1 | 1) => void; onHide: (id: string) => void } | null;
+  /** Valor REAL del indicador (del backend). Si está, se muestra en vez del simulado y se oculta la tendencia/meta simuladas. */
+  real?: number;
 }
-export function KCard({ k, F, pinned, onOpen, onInfo, onPin, custom }: KCardProps) {
-  const v = kValQ(k, F);
+export function KCard({ k, F, pinned, onOpen, onInfo, onPin, custom, real }: KCardProps) {
+  const isReal = real !== undefined;
+  const v = isReal ? (real as number) : kValQ(k, F);
   const p = kPrev(k, F);
   const dl = kDelta(k, v, p);
   const g = kGoal(k, F);
@@ -67,24 +70,38 @@ export function KCard({ k, F, pinned, onOpen, onInfo, onPin, custom }: KCardProp
         type="button"
         className="kc-b"
         onClick={() => onOpen(k.id)}
-        aria-label={`${k.n}: ${kFmt(k, v, cur)}, ${dl.cls === 'good' ? 'mejora' : dl.cls === 'bad' ? 'empeora' : 'sin cambio'} ${dl.txt.slice(2)} vs ${F.kCmp === 'anual' ? 'año anterior' : 'periodo anterior'}. Ver detalle`}
+        aria-label={
+          isReal
+            ? `${k.n}: ${kFmt(k, v, cur)} (dato real del mes). Ver detalle`
+            : `${k.n}: ${kFmt(k, v, cur)}, ${dl.cls === 'good' ? 'mejora' : dl.cls === 'bad' ? 'empeora' : 'sin cambio'} ${dl.txt.slice(2)} vs ${F.kCmp === 'anual' ? 'año anterior' : 'periodo anterior'}. Ver detalle`
+        }
       >
         <span className="kc-v num">{kFmt(k, v, cur, true)}</span>
-        <span className="kc-row">
-          <span className={`kc-d ${dl.cls}`}>{dl.txt}</span>
-          <span className="kc-vs">vs {kFmt(k, p, cur, true)}</span>
-        </span>
-        <Spark v={kSpark(k, F)} cls={dl.cls} />
+        {isReal ? (
+          <span className="kc-row">
+            <span className="kc-d">Dato real del mes</span>
+          </span>
+        ) : (
+          <>
+            <span className="kc-row">
+              <span className={`kc-d ${dl.cls}`}>{dl.txt}</span>
+              <span className="kc-vs">vs {kFmt(k, p, cur, true)}</span>
+            </span>
+            <Spark v={kSpark(k, F)} cls={dl.cls} />
+          </>
+        )}
       </button>
-      <div className="kc-g">
-        <div className="kc-gt">
-          <span>Meta {kFmt(k, g, cur, true)}</span>
-          <Chip kind={sc}>{st}</Chip>
+      {isReal ? null : (
+        <div className="kc-g">
+          <div className="kc-gt">
+            <span>Meta {kFmt(k, g, cur, true)}</span>
+            <Chip kind={sc}>{st}</Chip>
+          </div>
+          <div className="bar thin">
+            <i className={sc === 'ok' ? 'l1' : sc === 'warn' ? 'l2' : 'l4'} style={{ width: `${Math.min(100, r * 100)}%` }} />
+          </div>
         </div>
-        <div className="bar thin">
-          <i className={sc === 'ok' ? 'l1' : sc === 'warn' ? 'l2' : 'l4'} style={{ width: `${Math.min(100, r * 100)}%` }} />
-        </div>
-      </div>
+      )}
     </article>
   );
 }

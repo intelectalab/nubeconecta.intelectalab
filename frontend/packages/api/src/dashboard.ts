@@ -43,5 +43,12 @@ export function createDashboardApi(http: HttpClient) {
     summary: (brandId?: string) =>
       http.get<Envelope<DashboardSummary>>(`/api/v1/admin/dashboard${toQuery({ brand_id: brandId || undefined })}`).then((r) => r.data),
     attention: () => http.get<Envelope<Attention>>('/api/v1/admin/attention').then((r) => r.data),
+    /** Valores REALES de un subconjunto de indicadores (GET /api/v1/admin/kpis), por id de KPI; cada clave se omite sin el permiso de su fuente. */
+    kpis: () => http.get<Envelope<KpiValues>>('/api/v1/admin/kpis').then((r) => r.data),
   };
+}
+
+/** Valores reales de KPIs indexados por el id del front (data/kpi.ts). */
+export interface KpiValues {
+  [id: string]: { value: number; as_of: string };
 }
