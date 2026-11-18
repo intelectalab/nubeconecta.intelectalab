@@ -10,6 +10,7 @@ use App\Modules\Support\Models\Ticket;
 use App\Modules\Support\Models\TicketMessage;
 use App\Modules\Customers\Models\Contact;
 use App\Modules\Notifications\Services\NotificationService;
+use App\Modules\Notifications\Services\UserNotifier;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Concurrency\VersionGuard;
 use App\Shared\Http\Problem\ProblemException;
@@ -67,6 +68,7 @@ final class TicketController
                 return $ticket;
             });
         } catch (QueryException $exception) { $this->translateDatabaseException($exception); throw $exception; }
+        $this->notifyAssigned($ticket, null);
         return (new TicketResource($ticket))->response()->setStatusCode(201);
     }
 
@@ -76,6 +78,7 @@ final class TicketController
         $org = app(CurrentOrganization::class)->id();
         $data = $request->validate(['version' => ['required', 'integer', 'min:1'], 'type' => ['sometimes', Rule::in(self::TYPES)], 'status' => ['sometimes', Rule::in(self::STATUSES)], 'priority' => ['sometimes', Rule::in(self::PRIORITIES)], 'subject' => ['sometimes', 'string', 'max:500'], 'assignee_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('organization_id', $org)], 'customer_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('customers', 'id')->where('organization_id', $org)], 'contact_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('contacts', 'id')->where('organization_id', $org)], 'brand_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('brands', 'id')->where('organization_id', $org)], 'department' => ['sometimes', 'nullable', 'string', 'max:120'], 'category' => ['sometimes', 'nullable', 'string', 'max:120'], 'level' => ['sometimes', 'integer', 'between:1,3'], 'custom' => ['sometimes', 'array'], 'resolution_due_at' => ['sometimes', 'nullable', 'date']]);
         try {
+            $previousAssignee = $ticket->assignee_id;
             DB::transaction(function () use ($ticket, $data): void {
                 VersionGuard::check($ticket, $data['version']);
                 $before = $ticket->attributesToArray();
@@ -91,7 +94,18 @@ final class TicketController
                 $this->audit->record('ticket.updated', 'ticket', $ticket->id, $before, $ticket->refresh()->attributesToArray());
             });
         } catch (QueryException $exception) { $this->translateDatabaseException($exception); throw $exception; }
+        $this->notifyAssigned($ticket, $previousAssignee);
         return new TicketResource($ticket);
+    }
+
+    /** Aviso secundario al nuevo responsable (no bloquea la acción; omite autoasignación). */
+    private function notifyAssigned(Ticket $ticket, ?string $previous): void
+    {
+        $to = $ticket->assignee_id;
+        if ($to === null || $to === $previous || $to === (string) auth()->id()) {
+            return;
+        }
+        app(UserNotifier::class)->toUser($ticket->organization_id, $to, 'ticket.assigned', 'Ticket asignado', $ticket->number.' · '.$ticket->subject, '#tickets/'.$ticket->number);
     }
 
     public function destroy(string $id): Response

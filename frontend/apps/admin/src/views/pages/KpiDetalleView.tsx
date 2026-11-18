@@ -165,8 +165,9 @@ function KpiDetail({ k }: { k: KpiDef }) {
   };
   const L = kLabels(F);
   const rp = real?.points ?? null;
+  const estimated = !!real?.estimated;
   const evoReal: ChartSpec | null = rp
-    ? { type: 'line', labels: rp.map((x) => kMonthLabel(x.month)), fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n + ' (datos reales)', series: [{ n: k.n + ' (real)', v: rp.map((x) => x.value) }] }
+    ? { type: 'line', labels: rp.map((x) => kMonthLabel(x.month)), fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n + (estimated ? ' (estimado)' : ' (datos reales)'), series: [{ n: k.n + (estimated ? ' (estimado)' : ' (real)'), v: rp.map((x) => x.value) }] }
     : null;
   const evo: ChartSpec = evoReal ?? { type: 'line', labels: L, fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n, series: [{ n: k.n, v: kSpark(k, F) }, { n: cmpLabel(F), v: kSpark(k, F, kCmpOff(F)), dash: true, c: 'var(--faint)' }, { n: 'Meta', v: L.map(() => g), dash: true, c: 'var(--c4)' }] };
 
@@ -363,7 +364,7 @@ function KpiDetail({ k }: { k: KpiDef }) {
           <span>
             {ok ? `El total del listado (${kdMeasLbl(k)}) coincide con el indicador.` : 'El listado no coincide con el indicador; revise la fórmula.'}
             {sp.note ? ' ' + sp.note : ''}
-            {rl ? ' Ojo: el valor del mes y la evolución son datos reales; el listado, los desgloses y la meta siguen siendo ilustrativos.' : ''}
+            {rl ? (estimated ? ' Ojo: el valor del mes es real; la evolución es una estimación por fechas de suscripción. El listado, los desgloses y la meta siguen siendo ilustrativos.' : ' Ojo: el valor del mes y la evolución son datos reales; el listado, los desgloses y la meta siguen siendo ilustrativos.') : ''}
             {sp.nobrand && F.brand !== 'all' ? ' Este indicador es de infraestructura compartida: no se separa por marca.' : ''}
           </span>
         </div>
@@ -372,7 +373,7 @@ function KpiDetail({ k }: { k: KpiDef }) {
         <section className="card kwide">
           <div className="card-h">
             <h2 className="sec">Evolución · 12 {rl ? 'meses' : 'periodos'}</h2>
-            <span className="sub">{rl ? 'datos reales del sistema (toda la organización, sin filtros)' : 'valor del indicador, periodo de comparación y meta · ilustrativo'}</span>
+            <span className="sub">{rl ? (estimated ? 'estimación por fechas de suscripción (toda la organización)' : 'datos reales del sistema (toda la organización, sin filtros)') : 'valor del indicador, periodo de comparación y meta · ilustrativo'}</span>
           </div>
           <div className="card-b">
             <SpecChart spec={evo} id="kdEvo" />

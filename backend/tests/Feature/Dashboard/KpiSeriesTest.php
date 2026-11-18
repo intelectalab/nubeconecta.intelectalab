@@ -101,9 +101,18 @@ final class KpiSeriesTest extends IdentityTestCase
 
     public function test_stock_or_unknown_id_has_no_series(): void
     {
-        foreach (['mrr', 'embudo', 'tkab', 'nope'] as $id) {
+        foreach (['embudo', 'tkab', 'nope'] as $id) {
             $this->assertProblem($this->getJson("/api/v1/admin/kpis/series?id={$id}"), 404, 'no_series');
         }
+    }
+
+    public function test_mrr_series_is_estimated(): void
+    {
+        $this->getJson('/api/v1/admin/kpis/series?id=mrr')->assertOk()
+            ->assertJsonPath('data.id', 'mrr')
+            ->assertJsonPath('data.estimated', true)
+            ->assertJsonPath('data.currency', 'PEN')
+            ->assertJsonCount(12, 'data.points');
     }
 
     public function test_other_currency_omits_monetary_series(): void

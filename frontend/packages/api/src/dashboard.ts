@@ -58,5 +58,7 @@ export interface KpiValues {
 export interface KpiSeries {
   id: string;
   currency?: string;
+  /** La serie es una estimación por fechas (no un dato histórico exacto): p. ej. MRR. */
+  estimated?: boolean;
   points: { month: string; value: number }[];
 }

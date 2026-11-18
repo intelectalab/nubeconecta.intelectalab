@@ -16,6 +16,7 @@ use App\Modules\Billing\Models\PaymentAllocation;
 use App\Modules\Billing\Models\PaymentMethod;
 use App\Modules\Billing\Models\StoredFile;
 use App\Modules\Customers\Models\Customer;
+use App\Modules\Notifications\Services\UserNotifier;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Concurrency\VersionGuard;
 use App\Shared\Http\Problem\ProblemException;
@@ -96,7 +97,26 @@ final class PaymentService
             throw $e;
         }
 
+        $this->notifyPending($payment);
+
         return $payment;
+    }
+
+    /** Aviso secundario al personal que puede validar; nunca afecta al registro. */
+    private function notifyPending(Payment $payment): void
+    {
+        if ($payment->status !== 'reported') {
+            return;
+        }
+        try {
+            $customer = Customer::query()->find($payment->customer_id, ['id', 'legal_name', 'trade_name']);
+            $who = $customer?->trade_name ?: $customer?->legal_name ?: 'cliente';
+            $amount = $payment->currency.' '.number_format($payment->amount_minor / 100, 2, '.', ',');
+            app(UserNotifier::class)->toPermission($payment->organization_id, 'billing.payment.validate', 'payment.pending', 'Pago por validar',
+                "{$amount} de {$who}", '#cobranza/vouchers', Auth::id() ? [(string) Auth::id()] : []);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

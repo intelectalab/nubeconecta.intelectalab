@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Payment;
 use App\Modules\Sales\Models\Lead;
+use App\Modules\Services\Models\Subscription;
+use App\Modules\Services\Support\Cycle;
 use App\Shared\Contracts\AccessControl;
 use App\Shared\Http\Problem\ProblemException;
 use Carbon\CarbonImmutable;
@@ -32,6 +34,7 @@ final class KpiSeriesController extends Controller
         'cobrado' => 'billing.payment.view',
         'vouch' => 'billing.payment.view',
         'ganados' => 'sales.lead.view',
+        'mrr' => 'billing.invoice.view',
     ];
 
     public function __invoke(Request $request, AccessControl $access): JsonResponse
@@ -54,6 +57,16 @@ final class KpiSeriesController extends Controller
 
         $start = CarbonImmutable::now('UTC')->startOfMonth()->subMonths(11);
         $end = $start->addMonths(12); // exclusivo
+
+        if ($id === 'mrr') {
+            $points = $this->mrrSeries($start);
+            if ($points === null) {
+                throw new ProblemException(404, 'no_series'); // mezcla de monedas: no se estima
+            }
+
+            return response()->json(['data' => ['id' => 'mrr', 'currency' => 'PEN', 'points' => $points, 'estimated' => true]]);
+        }
+
         $money = true;
         $currency = 'PEN';
 
@@ -120,5 +133,46 @@ final class KpiSeriesController extends Controller
         }
 
         return $q->get();
+    }
+
+    /**
+     * Serie mensual ESTIMADA de MRR (12 meses). Por cada mes suma el MRR normalizado
+     * (price_minor*quantity / meses-del-ciclo) de las suscripciones activas en ese mes
+     * según sus fechas (starts_on/ends_on). No hay histórico de estado, así que es una
+     * estimación por fechas, no un dato exacto. Devuelve null (404 no_series) si en la
+     * ventana hay suscripciones en otra moneda (no se mezclan ni convierten).
+     *
+     * @return list<array{month: string, value: float}>|null
+     */
+    private function mrrSeries(CarbonImmutable $start): ?array
+    {
+        $subs = Subscription::query()
+            ->whereIn('cycle', array_keys(Cycle::MONTHS))
+            ->get(['starts_on', 'ends_on', 'cycle', 'price_minor', 'quantity', 'currency']);
+
+        $points = [];
+        $foreign = false;
+        for ($i = 0; $i < 12; $i++) {
+            $mStart = $start->addMonths($i);
+            $mEnd = $mStart->endOfMonth();
+            $sum = 0.0;
+            foreach ($subs as $s) {
+                if ($s->starts_on !== null && $s->starts_on->gt($mEnd)) {
+                    continue; // aún no empezaba
+                }
+                if ($s->ends_on !== null && $s->ends_on->lt($mStart)) {
+                    continue; // ya había terminado
+                }
+                if (trim((string) $s->currency) !== 'PEN') {
+                    $foreign = true;
+
+                    continue;
+                }
+                $sum += ((float) $s->price_minor * (float) $s->quantity) / Cycle::MONTHS[$s->cycle];
+            }
+            $points[] = ['month' => $mStart->format('Y-m'), 'value' => round($sum / 100, 2)];
+        }
+
+        return $foreign ? null : $points;
     }
 }
