@@ -125,14 +125,25 @@ final class CloudMailDemoSeeder extends Seeder
                 ]);
             }
 
-            // --- Dominios demo (holder company) para correo y SSL ---
-            $domNames = ['cloudnube-demo1.pe', 'cloudnube-demo2.pe', 'cloudnube-demo3.pe', 'cloudnube-demo4.pe'];
+            // --- Dominios demo para correo y SSL ---
+            // Enlazados a clientes reales (holder=customer) para que las vistas de Correo/SSL
+            // muestren el nombre del cliente; el último queda corporativo (holder=company).
+            // [nombre, customerIdx|null]
+            $domSpec = [
+                ['cloudnube-demo1.pe', 0],
+                ['cloudnube-demo2.pe', 1],
+                ['cloudnube-demo3.pe', 2],
+                ['cloudnube-demo4.pe', null], // corporativo
+            ];
             $domIds = [];
-            foreach ($domNames as $dn) {
+            foreach ($domSpec as [$dn, $ci]) {
                 $did = (string) Str::uuid();
+                $customerId = $ci === null ? null : $cust($ci);
                 DB::table('domains')->insert([
                     'id' => $did, 'organization_id' => $org, 'name' => $dn, 'tld' => 'pe',
-                    'holder' => 'company', 'status' => 'active', 'sync_mode' => 'manual',
+                    'customer_id' => $customerId,
+                    'holder' => $customerId === null ? 'company' : 'customer',
+                    'status' => 'active', 'sync_mode' => 'manual',
                     'auto_renew' => true, 'lock' => true, 'nameservers' => '[]',
                     'version' => 1, 'created_at' => $now, 'updated_at' => $now,
                 ]);

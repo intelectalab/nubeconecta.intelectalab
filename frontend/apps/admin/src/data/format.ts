@@ -80,7 +80,7 @@ export const NF0 = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 });
 export const SYM: Record<Cur, string> = { PEN: 'S/', USD: 'US$' };
 export function compact(v: number): string {
   if (Math.abs(v) >= 1e6) return NF2.format(v / 1e6).replace(/\.?0+$/, '') + ' M';
-  if (Math.abs(v) >= 1e3) return NF0.format(v / 1e3) + ' k';
+  if (Math.abs(v) >= 1e3) return NF2.format(v / 1e3).replace(/\.?0+$/, '') + ' k';
   return NF0.format(v);
 }
 /** "1 cliente" / "3 clientes" */

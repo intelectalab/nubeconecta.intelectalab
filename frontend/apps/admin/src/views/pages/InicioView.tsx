@@ -261,20 +261,20 @@ export default function InicioView(_props: ViewProps) {
                       <th>Fecha</th>
                       <th>Concepto</th>
                       <th>Cliente</th>
-                      <th className="r">Monto / registrador</th>
-                      <th>Plazo</th>
+                      <th className="r">Monto</th>
+                      <th className="nw">Plazo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {renewals.slice(0, 8).map((x) => (
                       <tr key={x.key}>
                         <td className="nw num">{fD(x.d)}</td>
-                        <td className={x.mono ? 'mono' : ''}>{x.t}</td>
-                        <td>
+                        <td className={x.mono ? 'mono' : ''} style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.t}</td>
+                        <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <ClientLink cid={x.c} />
                         </td>
-                        <td className="r">{x.m}</td>
-                        <td>
+                        <td className="r nw">{x.m}</td>
+                        <td className="nw">
                           <DayChip n={x.n} />
                         </td>
                       </tr>
