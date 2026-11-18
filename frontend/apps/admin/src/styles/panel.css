@@ -265,8 +265,11 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .t .nw{white-space:nowrap}
 .t .strong{font-weight:700;color:var(--text)}
 .t .sub{font-size:12px;color:var(--muted)}
-.t a.rowlink{color:var(--text);font-weight:700;text-decoration:none}
-.t a.rowlink:hover{color:var(--brand-text);text-decoration:underline}
+/* Nombre/asunto clicable que entra al detalle (en tablas o tarjetas). Se ve como un
+   título limpio, no como un botón: el <button> se resetea para igualar al <a>. */
+a.rowlink,button.rowlink{color:var(--text);font-weight:700;text-decoration:none;max-width:100%}
+button.rowlink{border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;text-align:left;cursor:pointer;display:inline;overflow:hidden;text-overflow:ellipsis}
+a.rowlink:hover,button.rowlink:hover,a.rowlink:focus-visible,button.rowlink:focus-visible{color:var(--brand-text);text-decoration:underline;outline:none}
 .t tr.done td{opacity:.6}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .pager .btns{display:flex;gap:6px}
