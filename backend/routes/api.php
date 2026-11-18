@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AttentionController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\KpiController;
+use App\Http\Controllers\Api\V1\KpiSeriesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,4 +19,5 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/dashboard', DashboardController::class)->name('admin.dashboard');
     Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/attention', AttentionController::class)->name('admin.attention');
     Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/kpis', KpiController::class)->name('admin.kpis');
+    Route::middleware(['hub.auth', 'user.type:staff', 'throttle:60,1'])->get('admin/kpis/series', KpiSeriesController::class)->name('admin.kpis.series');
 });

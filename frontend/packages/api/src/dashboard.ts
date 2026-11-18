@@ -45,10 +45,18 @@ export function createDashboardApi(http: HttpClient) {
     attention: () => http.get<Envelope<Attention>>('/api/v1/admin/attention').then((r) => r.data),
     /** Valores REALES de un subconjunto de indicadores (GET /api/v1/admin/kpis), por id de KPI; cada clave se omite sin el permiso de su fuente. */
     kpis: () => http.get<Envelope<KpiValues>>('/api/v1/admin/kpis').then((r) => r.data),
+    /** Serie mensual REAL (12 meses) de un KPI de flujo (GET /api/v1/admin/kpis/series); 404 `no_series` si es de stock o la moneda no es PEN. */
+    kpiSeries: (id: string) => http.get<Envelope<KpiSeries>>(`/api/v1/admin/kpis/series${toQuery({ id })}`).then((r) => r.data),
   };
 }
 
 /** Valores reales de KPIs indexados por el id del front (data/kpi.ts). */
 export interface KpiValues {
   [id: string]: { value: number; as_of: string };
+}
+
+export interface KpiSeries {
+  id: string;
+  currency?: string;
+  points: { month: string; value: number }[];
 }

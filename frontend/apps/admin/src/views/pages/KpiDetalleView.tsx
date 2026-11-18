@@ -5,6 +5,8 @@
  * paginación y exportación CSV.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { hub } from '../../auth/client';
+import type { KpiSeries } from '@hub/api';
 import { useApp } from '../../app/context';
 import { ROUTE_META, isRouteId } from '../../app/routeMeta';
 import type { ViewProps } from '../../app/routes';
@@ -19,6 +21,9 @@ import { GoalsModal, KCard, KpiFilters, KpiInfoModal } from './operacion-kpi/par
 import { cmpLabel, respFor, useKpiFilter, useKpiPrefs } from './operacion-kpi/state';
 
 const PER = 25;
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/** 'YYYY-MM' -> 'mmm yy'. */
+const kMonthLabel = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1] ?? m} ${m.slice(2, 4)}`;
 
 export default function KpiDetalleView({ param }: ViewProps) {
   const { role, navigate } = useApp();
@@ -109,11 +114,27 @@ function KpiDetail({ k }: { k: KpiDef }) {
     document.title = `${k.n} · Panel NubeConecta`;
   }, [k.n]);
 
+  // Serie mensual REAL (solo KPIs de flujo con permiso); si falla o no existe, queda la ilustrativa.
+  const [real, setReal] = useState<KpiSeries | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setReal(null);
+    hub.dashboard
+      .kpiSeries(k.id)
+      .then((s) => alive && setReal(s.points.length ? s : null))
+      .catch(() => alive && setReal(null));
+    return () => {
+      alive = false;
+    };
+  }, [k.id]);
+
   const sp = KDS[k.id];
   const gname = KG.find((g) => g[0] === k.g)?.[1] || '';
   const cur = F.cur;
-  const v = kValQ(k, F);
-  const p = kPrev(k, F);
+  const vSim = kValQ(k, F);
+  const rl = real?.points ?? null;
+  const v = rl ? rl[rl.length - 1].value : vSim;
+  const p = rl && rl.length > 1 ? rl[rl.length - 2].value : kPrev(k, F);
   const dl = kDelta(k, v, p);
   const g = kGoal(k, F);
   const [stt, sc] = kStatus(k, v, g);
@@ -122,7 +143,7 @@ function KpiDetail({ k }: { k: KpiDef }) {
   const filt = !!(S.q.trim() || S.dim || S.st || S.x2);
   const tot = kdMeasure(k, all);
   const fv = kdMeasure(k, rows);
-  const ok = Math.abs((tot ?? 0) - v) <= Math.max(1e-6, Math.abs(v) * 1e-9) + (sp.m.t === 'count' ? 0.5 : 0);
+  const ok = Math.abs((tot ?? 0) - vSim) <= Math.max(1e-6, Math.abs(vSim) * 1e-9) + (sp.m.t === 'count' ? 0.5 : 0);
   const dc = sp.cols.find((c) => c.dim);
   const scol = sp.cols.find((c) => c.st);
   const xc = sp.cols.find((c) => c.x2);
@@ -143,7 +164,11 @@ function KpiDetail({ k }: { k: KpiDef }) {
     return { type: 'hbar', fmt: (x) => kFmt(k, x, cur, true), items: it, h: Math.max(110, it.length * 32 + 12), title: `${k.n} por ${col.l}`, max: sp.m.t === 'share' || k.unit === 'pct' ? 100 : undefined };
   };
   const L = kLabels(F);
-  const evo: ChartSpec = { type: 'line', labels: L, fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n, series: [{ n: k.n, v: kSpark(k, F) }, { n: cmpLabel(F), v: kSpark(k, F, kCmpOff(F)), dash: true, c: 'var(--faint)' }, { n: 'Meta', v: L.map(() => g), dash: true, c: 'var(--c4)' }] };
+  const rp = real?.points ?? null;
+  const evoReal: ChartSpec | null = rp
+    ? { type: 'line', labels: rp.map((x) => kMonthLabel(x.month)), fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n + ' (datos reales)', series: [{ n: k.n + ' (real)', v: rp.map((x) => x.value) }] }
+    : null;
+  const evo: ChartSpec = evoReal ?? { type: 'line', labels: L, fmt: (x) => kFmt(k, x, cur, true), ml: 72, h: 240, title: 'Evolución de ' + k.n, series: [{ n: k.n, v: kSpark(k, F) }, { n: cmpLabel(F), v: kSpark(k, F, kCmpOff(F)), dash: true, c: 'var(--faint)' }, { n: 'Meta', v: L.map(() => g), dash: true, c: 'var(--c4)' }] };
 
   const onQ = (val: string) => {
     setQ(val);
@@ -299,11 +324,11 @@ function KpiDetail({ k }: { k: KpiDef }) {
       <section className="card" style={{ marginBottom: 16 }}>
         <div className="statline kd-stats">
           <div>
-            <small>{kPerLabel(F)}</small>
+            <small>{rl ? 'Mes actual · dato real' : kPerLabel(F)}</small>
             <b className="kd-big">{kFmt(k, v, cur)}</b>
           </div>
           <div>
-            <small>{cmpLabel(F)}</small>
+            <small>{rl ? 'Mes anterior · dato real' : cmpLabel(F)}</small>
             <b>{kFmt(k, p, cur)}</b>
           </div>
           <div>
@@ -338,6 +363,7 @@ function KpiDetail({ k }: { k: KpiDef }) {
           <span>
             {ok ? `El total del listado (${kdMeasLbl(k)}) coincide con el indicador.` : 'El listado no coincide con el indicador; revise la fórmula.'}
             {sp.note ? ' ' + sp.note : ''}
+            {rl ? ' Ojo: el valor del mes y la evolución son datos reales; el listado, los desgloses y la meta siguen siendo ilustrativos.' : ''}
             {sp.nobrand && F.brand !== 'all' ? ' Este indicador es de infraestructura compartida: no se separa por marca.' : ''}
           </span>
         </div>
@@ -345,8 +371,8 @@ function KpiDetail({ k }: { k: KpiDef }) {
       <div className="kcharts kd-charts">
         <section className="card kwide">
           <div className="card-h">
-            <h2 className="sec">Evolución · 12 periodos</h2>
-            <span className="sub">valor del indicador, periodo de comparación y meta</span>
+            <h2 className="sec">Evolución · 12 {rl ? 'meses' : 'periodos'}</h2>
+            <span className="sub">{rl ? 'datos reales del sistema (toda la organización, sin filtros)' : 'valor del indicador, periodo de comparación y meta · ilustrativo'}</span>
           </div>
           <div className="card-b">
             <SpecChart spec={evo} id="kdEvo" />
