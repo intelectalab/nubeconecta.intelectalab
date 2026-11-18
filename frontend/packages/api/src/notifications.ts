@@ -66,6 +66,18 @@ export interface NotificationDeliveryFilters {
 }
 export interface NotificationTestInput { template_code: string; to: string }
 
+/** Notificación in-app del usuario (feed de la campana). */
+export interface UserNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+export interface UserNotificationFeed { data: UserNotification[]; meta: { unread_count: number } }
+
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
@@ -89,6 +101,12 @@ export function createNotificationsApi(http: HttpClient) {
       list: (params: ListParams & { filter?: NotificationDeliveryFilters } = {}) =>
         http.get<CursorPage<NotificationDelivery>>(`${deliveries}${toQuery({ ...page(params), filter: params.filter })}`),
       get: (id: string) => http.get<Envelope<NotificationDelivery>>(`${deliveries}/${enc(id)}`).then(unwrap),
+    },
+    /** Feed in-app del usuario autenticado (solo lo suyo). */
+    feed: {
+      list: () => http.get<UserNotificationFeed>('/api/v1/admin/notifications'),
+      markRead: (id: string) => http.post<Envelope<UserNotification>>(`/api/v1/admin/notifications/${enc(id)}/read`, {}).then(unwrap),
+      markAllRead: () => http.post<Envelope<{ updated: number }>>('/api/v1/admin/notifications/read-all', {}).then(unwrap),
     },
     test: (input: NotificationTestInput) =>
       http.post<Envelope<NotificationDelivery>>('/api/v1/admin/notifications/test', input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),

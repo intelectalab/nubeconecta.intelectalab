@@ -3603,6 +3603,21 @@ CREATE TABLE notification_templates (
 );
 COMMENT ON TABLE notification_templates IS 'Plantillas de aviso por canal, marca, idioma y país; ningún texto de aviso vive en el código.';
 
+-- Feed in-app por usuario del personal (campana del header); cada usuario lee solo lo suyo.
+CREATE TABLE user_notifications (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id),
+    user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type            text NOT NULL,
+    title           text NOT NULL,
+    body            text NULL,
+    link            text NULL,
+    read_at         timestamptz NULL,
+    created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON user_notifications (organization_id, user_id, created_at);
+CREATE INDEX ON user_notifications (user_id) WHERE read_at IS NULL;
+
 CREATE TABLE notification_deliveries (
     id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id          uuid NOT NULL REFERENCES organizations(id),

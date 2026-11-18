@@ -24,7 +24,7 @@ import { AuthGate } from './auth/AuthGate';
 import { DEMO_MODE } from './auth/client';
 import { initials, useSession } from './auth/session';
 import { hub } from './auth/client';
-import type { Attention } from '@hub/api';
+import type { Attention, UserNotification } from '@hub/api';
 import { filterParam } from './app/filterParam';
 import { LIVE, useCan, useLoad } from './views/pages/clientes/shared';
 import type { BrandFilter, CurView, RoleName } from './data/types';
@@ -100,6 +100,8 @@ function Shell() {
   );
   const brands = brandsLoad.data ?? [];
   const attentionLoad = useLoad<Attention>(() => hub.dashboard.attention(), []);
+  // Feed persistente por usuario; si falla (401/403/red) la campana sigue con "Atención hoy".
+  const feedLoad = useLoad(() => hub.notifications.feed.list(), []);
   const { route, param, navSeq, brand, setBrand, cur, setCur, role, setRole, allowed, theme, toggleTheme, navigate, toasts, dismissToast, dialogs, toast, dataVersion } = app;
 
   const [collapsed, setCollapsed] = useState(() => lsGet('ap.collapsed') === '1');
@@ -247,7 +249,16 @@ function Shell() {
     add('crm', d.sales_followups_today, 'seguimientos de hoy', 'activity', 'crm', filterParam({ st: 'open' }));
     return items;
   }, [attentionLoad.data]);
-  const bellTotal = bellItems.reduce((s, i) => s + i.n, 0);
+  const feedItems: UserNotification[] = feedLoad.data?.data ?? [];
+  const feedUnread = feedLoad.data?.meta.unread_count ?? 0;
+  // Badge = pendientes de "Atención hoy" + no leídas del feed (ambos visibles en el popover).
+  const bellTotal = bellItems.reduce((s, i) => s + i.n, 0) + feedUnread;
+  const markFeedRead = (id: string) => {
+    void hub.notifications.feed.markRead(id).then(feedLoad.reload, () => undefined);
+  };
+  const markFeedAllRead = () => {
+    void hub.notifications.feed.markAllRead().then(feedLoad.reload, () => undefined);
+  };
   const activeOf = useCallback((k: RouteId) => route === k || ROUTE_META[route].parent === k, [route]);
   const View = VIEWS[route];
 
@@ -304,7 +315,7 @@ function Shell() {
                 <>
                   <div className="pop-h">
                     <b>Atención hoy</b>
-                    <button type="button" className="btn ghost sm" autoFocus onClick={attentionLoad.reload}>
+                    <button type="button" className="btn ghost sm" autoFocus onClick={() => { attentionLoad.reload(); feedLoad.reload(); }}>
                       Recargar
                     </button>
                   </div>
@@ -326,6 +337,52 @@ function Shell() {
                       </li>
                     )}
                   </ul>
+                  {feedItems.length ? (
+                    <>
+                      <div className="pop-h">
+                        <b>Mis notificaciones</b>
+                        {feedUnread ? (
+                          <button type="button" className="btn ghost sm" onClick={markFeedAllRead}>
+                            Marcar todo como leído
+                          </button>
+                        ) : null}
+                      </div>
+                      <ul className="pop-list">
+                        {feedItems.map((n) => {
+                          const open = () => {
+                            if (!n.read_at) markFeedRead(n.id);
+                            setPop(null);
+                          };
+                          return (
+                            <li key={n.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                              {n.link ? (
+                                <a href={n.link} onClick={open} style={{ flex: 1, minWidth: 0 }}>
+                                  {n.read_at ? <span className="read" /> : <span className="unread" aria-label="No leída" />}
+                                  <span style={{ flex: 1, minWidth: 0 }}>
+                                    <b>{n.title}</b>
+                                    {n.body ? <small>{n.body}</small> : null}
+                                  </span>
+                                </a>
+                              ) : (
+                                <button type="button" onClick={open} style={{ flex: 1, minWidth: 0 }}>
+                                  {n.read_at ? <span className="read" /> : <span className="unread" aria-label="No leída" />}
+                                  <span style={{ flex: 1, minWidth: 0 }}>
+                                    <b>{n.title}</b>
+                                    {n.body ? <small>{n.body}</small> : null}
+                                  </span>
+                                </button>
+                              )}
+                              {!n.read_at ? (
+                                <button type="button" className="btn ghost sm" style={{ width: 'auto', margin: '6px 8px 0 0' }} onClick={() => markFeedRead(n.id)} aria-label={`Marcar como leída: ${n.title}`}>
+                                  Leída
+                                </button>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  ) : null}
                 </>
               ) : null}
             </div>
