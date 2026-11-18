@@ -11,13 +11,14 @@ import { PageHead, Tabs } from '../../components/ui';
 import { FORMS, SCDEF, WPS, type BrandId } from '../../data';
 import WpSitios from './web-config/WpSitios';
 import WpGenerador from './web-config/WpGenerador';
+import WpWidget from './web-config/WpWidget';
 import WpFormularios from './web-config/WpFormularios';
 import { WpContacto, WpLegales } from './web-config/WpContactoLegales';
 import type { ScVals } from './web-config/wpData';
 
-type Tab = 'sitios' | 'generador' | 'formularios' | 'contacto' | 'legales';
-const TABS: Tab[] = ['sitios', 'generador', 'formularios', 'contacto', 'legales'];
-const TAB_LABEL: Record<Tab, string> = { sitios: 'Sitios conectados', generador: 'Generador de shortcodes', formularios: 'Formularios', contacto: 'Contacto por marca', legales: 'Documentos legales' };
+type Tab = 'sitios' | 'generador' | 'widget' | 'formularios' | 'contacto' | 'legales';
+const TABS: Tab[] = ['sitios', 'generador', 'widget', 'formularios', 'contacto', 'legales'];
+const TAB_LABEL: Record<Tab, string> = { widget: 'Widget embebible', sitios: 'Sitios conectados', generador: 'Generador de shortcodes', formularios: 'Formularios', contacto: 'Contacto por marca', legales: 'Documentos legales' };
 
 export default function WpView({ param }: ViewProps) {
   const { brand } = useApp();
@@ -63,6 +64,7 @@ export default function WpView({ param }: ViewProps) {
           tabs={[
             { id: 'sitios', label: 'Sitios conectados', count: nSites },
             { id: 'generador', label: 'Generador de shortcodes', count: Object.keys(SCDEF).length },
+            { id: 'widget', label: 'Widget embebible' },
             { id: 'formularios', label: 'Formularios', count: FORMS.length },
             { id: 'contacto', label: 'Contacto por marca' },
             { id: 'legales', label: 'Documentos legales' },
@@ -71,6 +73,7 @@ export default function WpView({ param }: ViewProps) {
         <div role="tabpanel" aria-label={TAB_LABEL[tab]}>
           {tab === 'sitios' ? <WpSitios /> : null}
           {tab === 'generador' ? <WpGenerador name={scName} setName={setScName} vals={scVals} setVals={setScVals} brand={scBrand} setBrand={setScBrand} /> : null}
+          {tab === 'widget' ? <WpWidget /> : null}
           {tab === 'formularios' ? <WpFormularios sel={formSel} setSel={setFormSel} /> : null}
           {tab === 'contacto' ? <WpContacto brand={ctBrand} setBrand={setCtBrand} /> : null}
           {tab === 'legales' ? <WpLegales brand={legBrand} setBrand={setLegBrand} /> : null}
