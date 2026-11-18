@@ -37,13 +37,15 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState>(() => (DEMO_MODE ? { k: 'ready', user: DEMO_USER } : { k: 'loading' }));
 
   /** El portal es solo para usuarios de cliente (type=customer) o staff con la vista "ver como cliente" activa. */
-  const enter = useCallback((user: Me) => {
+  const enter = useCallback((user: Me, passive = false) => {
     if (user.type !== 'customer' && !user.impersonation) {
       // OJO: NO cerrar sesión aquí. El panel y el portal comparten la cookie de sesión
       // (mismo host), así que un logout botaría también la sesión del panel. Solo avisamos.
       // Mensaje genérico a propósito: no revelar el tipo de cuenta ni la existencia o el
       // flujo del panel de administración (dato que ayudaría a un ataque de credenciales).
-      setAuth({ k: 'anon', notice: 'Esta cuenta no tiene acceso al portal de clientes.' });
+      // En el chequeo pasivo (ya había una sesión de staff) no mostramos aviso de error:
+      // solo aparece tras un intento ACTIVO de iniciar sesión con una cuenta sin acceso.
+      setAuth({ k: 'anon', notice: passive ? null : 'Esta cuenta no tiene acceso al portal de clientes.' });
       return;
     }
     if (user.password.change_required) {
@@ -57,7 +59,7 @@ export default function App() {
     if (DEMO_MODE) return;
     hub.auth
       .me()
-      .then(enter)
+      .then((u) => enter(u, true))
       .catch((e: unknown) => {
         const silent = isProblem(e) && e.status === 401;
         setAuth({ k: 'anon', notice: silent ? null : 'No se pudo comprobar tu sesión. Ingresa de nuevo.' });

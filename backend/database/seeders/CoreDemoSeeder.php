@@ -82,6 +82,8 @@ final class CoreDemoSeeder extends Seeder
                 ['individual', 'Marco Villanueva Paredes', null, 'dni', null, 'Jr. Cusco 120, Arequipa'],
                 ['company', 'Academia Digital Horizonte SAC', 'Horizonte', 'ruc', null, 'Av. Sucre 640, Pueblo Libre'],
             ];
+            // Nombre de la persona de contacto por cliente (para empresas); un individuo es su propio contacto.
+            $personas = ['Carla Rojas Mendoza', 'Jorge Salas Pinto', 'Ana Torres Vega', 'Diego Ramos Flores', 'Sofia Mendez Cruz', 'Luis Paredes Soto', 'Rocio Campos Diaz', 'Victor Nunez Rios'];
             $customers = [];
             foreach ($clientes as $i => [$type, $name, $trade, $idType, , $addr]) {
                 $n = $i + 1;
@@ -99,7 +101,7 @@ final class CoreDemoSeeder extends Seeder
                 ]);
                 DB::table('contacts')->insert([
                     'id' => (string) Str::uuid(), 'organization_id' => $this->org, 'customer_id' => $id,
-                    'name' => $type === 'company' ? 'Contacto '.($trade ?? $name) : $name,
+                    'name' => $type === 'company' ? ($personas[$i] ?? 'Contacto '.($trade ?? $name)) : $name,
                     'email' => $email, 'phone' => '+5198'.sprintf('%07d', 1000000 + $n * 4321),
                     'roles' => '{billing,administrative}', 'is_primary' => true,
                 ]);
