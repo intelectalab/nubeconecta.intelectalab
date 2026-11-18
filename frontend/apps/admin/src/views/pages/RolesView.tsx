@@ -150,7 +150,7 @@ export default function RolesView({ param }: ViewProps) {
   const userError = userList.error;
   const roleError = roleList.error || (canPermissionView ? permissionList.error || matrix.error : null);
   return <>
-    <PageHead crumbs={[[ 'Administración', 'roles' ], ['Usuarios y roles']]} title="Usuarios y roles" sub="Cuentas del panel, roles y permisos" actions={tab === 'usuarios' && can('identity.user.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setUserModal({}); }}>Invitar usuario</button> : tab === 'roles' && can('identity.role.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setRoleModal({}); }}>Nuevo rol</button> : null} />
+    <PageHead crumbs={[[ 'Configuración', 'roles' ], ['Usuarios y roles']]} title="Usuarios y roles" sub="Cuentas del panel, roles y permisos" actions={tab === 'usuarios' && can('identity.user.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setUserModal({}); }}>Invitar usuario</button> : tab === 'roles' && can('identity.role.create') ? <button className="btn primary" type="button" onClick={() => { setFormError(''); setRoleModal({}); }}>Nuevo rol</button> : null} />
     <Tabs label="Usuarios y roles" value={tab} onChange={setTab} tabs={[...(canUsers ? [{ id: 'usuarios' as const, label: 'Usuarios' }] : []), ...(canRoles ? [{ id: 'roles' as const, label: 'Roles y permisos' }] : [])]} />
     {!canUsers && !canRoles ? <section className="card"><div className="card-b"><Note kind="warn">No tiene permiso para ver usuarios ni roles.</Note></div></section> : null}
     {tab === 'usuarios' && canUsers ? <section className="card">

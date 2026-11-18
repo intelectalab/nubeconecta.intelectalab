@@ -66,7 +66,6 @@ export default function PlantillasView(_props: ViewProps) {
   return <>
     <PageHead crumbs={[[ 'Configuración', 'ajustes' ], [ 'Plantillas de correo', 'plantillas' ]]} title="Plantillas de correo" sub="Plantillas de correo para avisos y respuestas de soporte." />
     <section className="card">
-      <div className="card-h"><div><h2>Plantillas de correo</h2><p>Administre los mensajes automáticos y las respuestas de notificación.</p></div></div>
       {!can('automation.notification_template.view') ? <div className="card-b"><Note kind="warn">No tiene permiso para consultar plantillas.</Note></div> : <>
         <Toolbar count={result.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} plantillas`}>
           <input className="input" aria-label="Buscar plantillas" placeholder="Buscar por código" value={query} onChange={(e) => { setQuery(e.target.value); setCursor(null); }} />
