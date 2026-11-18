@@ -51,6 +51,7 @@ final class PaymentController
             'filter.customer_id' => ['sometimes', 'uuid'],
             'filter.payment_method_id' => ['sometimes', 'uuid'],
             'filter.invoice_id' => ['sometimes', 'uuid'],
+            'q' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
         $query = Payment::query()->with(['customer:id,code,legal_name,trade_name', 'method', 'proof', 'allocations.invoice']);
         foreach (['status', 'reported_via', 'currency', 'customer_id', 'payment_method_id'] as $column) {
@@ -61,6 +62,16 @@ final class PaymentController
         }
         if (is_string($invoice = $request->input('filter.invoice_id')) && $invoice !== '') {
             $query->whereHas('allocations', fn ($q) => $q->where('invoice_id', $invoice));
+        }
+        // Búsqueda por texto: cliente (razón social, nombre comercial, código), referencia/operación y comprobante aplicado.
+        $q = trim((string) $request->input('q', ''));
+        if ($q !== '') {
+            $like = '%'.addcslashes($q, '\\%_').'%';
+            $query->where(function ($w) use ($like): void {
+                $w->where('external_id', 'ilike', $like)
+                    ->orWhereHas('customer', fn ($c) => $c->where('legal_name', 'ilike', $like)->orWhere('trade_name', 'ilike', $like)->orWhere('code', 'ilike', $like))
+                    ->orWhereHas('allocations.invoice', fn ($i) => $i->whereRaw("(coalesce(series, '') || '-' || lpad(number::text, 8, '0')) ilike ?", [$like]));
+            });
         }
 
         return CursorPagination::respond($query, $request, ['created_at', 'received_at', 'amount_minor'], PaymentResource::class);

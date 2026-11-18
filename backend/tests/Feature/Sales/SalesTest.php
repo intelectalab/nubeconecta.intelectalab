@@ -187,4 +187,21 @@ final class SalesTest extends IdentityTestCase
         $this->actingAs($this->makeUser(['external_accountant'], mfa: true));
         $this->assertProblem($this->getJson('/api/v1/admin/leads'), 403, 'forbidden');
     }
+
+    public function test_board_text_search_q(): void
+    {
+        $this->postJson('/api/v1/admin/web-connector/form-submissions/'.$this->submission(['name' => 'Zulema Quispe', 'email' => 'zulema@acme.pe', 'company' => 'Textiles Andinos']).'/lead')->assertCreated();
+        $this->postJson('/api/v1/admin/web-connector/form-submissions/'.$this->submission(['name' => 'Bruno Díaz', 'email' => 'bruno@otra.pe', 'company' => 'Otra SAC']).'/lead')->assertCreated();
+        $total = fn (string $q): int => array_sum(array_map(fn ($c) => count($c['leads']), $this->getJson('/api/v1/admin/leads/board?'.http_build_query(['q' => $q]))->assertOk()->json('data')));
+
+        $this->assertSame(2, $total(''));
+        $this->assertSame(1, $total('zulema'));
+        $this->assertSame(1, $total('andinos'));
+        $this->assertSame(1, $total('bruno@otra'));
+        $this->assertSame(0, $total('%'));
+        $this->assertSame(0, $total('inexistente'));
+
+        $this->actingAs($this->makeUser(['external_accountant'], mfa: true));
+        $this->assertProblem($this->getJson('/api/v1/admin/leads/board?q=zulema'), 403, 'forbidden');
+    }
 }

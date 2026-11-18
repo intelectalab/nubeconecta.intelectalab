@@ -236,7 +236,7 @@ export function createSalesApi(http: HttpClient) {
     leads: {
       list: (params: ListParams & { filter?: LeadFilters } = {}) =>
         http.get<CursorPage<Lead>>(`${base}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
-      board: (filter: { owner_id?: string } = {}) => http.get<Envelope<LeadBoardColumn[]>>(`${base}/board${toQuery({ filter })}`).then(unwrap),
+      board: (filter: { owner_id?: string; q?: string } = {}) => http.get<Envelope<LeadBoardColumn[]>>(`${base}/board${toQuery({ filter: { owner_id: filter.owner_id }, q: filter.q || undefined })}`).then(unwrap),
       options: () => http.get<Envelope<LeadOptions>>(`${base}/options`).then(unwrap),
       get: (id: string) => http.get<Envelope<LeadDetail>>(`${base}/${enc(id)}`).then(unwrap),
       create: (input: LeadInput) => http.post<Envelope<LeadDetail>>(base, input).then(unwrap),

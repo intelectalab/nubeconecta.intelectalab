@@ -78,7 +78,7 @@ export default function CrmLive({ param }: ViewProps) {
   }, [q]);
 
   const opts = useLoad(() => api.options(), []);
-  const board = useLoad(() => (view === 'kanban' ? api.board({ owner_id: ownerF && ownerF !== 'none' ? ownerF : undefined }) : Promise.resolve(null)), [view, ownerF, dataVersion, tick]);
+  const board = useLoad(() => (view === 'kanban' ? api.board({ owner_id: ownerF && ownerF !== 'none' ? ownerF : undefined, q: qDeb || undefined }) : Promise.resolve(null)), [view, ownerF, qDeb, dataVersion, tick]);
   const list = useLoad(
     () =>
       view === 'lista'
@@ -91,7 +91,7 @@ export default function CrmLive({ param }: ViewProps) {
   const openStages = stages.filter((s) => s.outcome === 'open');
 
   const cols = board.data ?? [];
-  const boardLeads = useMemo(() => cols.flatMap((c) => c.leads.filter((l) => (q.trim() ? [l.name, l.company_name, l.email].some((x) => (x ?? '').toLowerCase().includes(q.trim().toLowerCase())) : true))), [cols, q]);
+  const boardLeads = useMemo(() => cols.flatMap((c) => c.leads), [cols]);
   const totals = useMemo(() => {
     const out: Record<string, number> = {};
     cols.forEach((c) => Object.entries(c.totals).forEach(([cur, v]) => (out[cur] = (out[cur] ?? 0) + v)));

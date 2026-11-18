@@ -274,4 +274,26 @@ final class PaymentsTest extends SalesFlowTestCase
         $this->actAs($this->makeUser(['support'], mfa: true));
         $this->assertProblem($this->getJson('/api/v1/admin/collections/aging'), 403, 'forbidden');
     }
+
+    public function test_payments_list_text_search_q(): void
+    {
+        $inv = $this->invoice();
+        $this->pay(5000, [[$inv['id'], 5000]], ref: 'OP-ZETA-77')->assertCreated();
+        $inv2 = $this->invoice($this->dniCustomer);
+        $this->pay(3000, [[$inv2['id'], 3000]], ref: 'OP-OTRO-1', customer: $this->dniCustomer)->assertCreated();
+
+        $count = fn (string $q): int => count($this->getJson('/api/v1/admin/payments?'.http_build_query(['q' => $q]))->assertOk()->json('data'));
+        $this->assertSame(2, count($this->getJson('/api/v1/admin/payments')->json('data')));
+        $this->assertSame(1, $count('zeta-77'));
+        $this->assertSame(1, $count('Cliente RUC'));
+        $this->assertSame(1, $count('Ana Pérez'));
+        $this->assertSame(1, $count((string) $inv['series']));
+        $this->assertSame(0, $count('no-existe'));
+        $this->assertSame(0, $count('%'));
+        // Se combina con los filtros existentes.
+        $this->assertCount(0, $this->getJson('/api/v1/admin/payments?'.http_build_query(['q' => 'zeta', 'filter' => ['customer_id' => $this->dniCustomer]]))->assertOk()->json('data'));
+
+        $this->actingAs($this->makeUser(['external_accountant'], mfa: true));
+        $this->getJson('/api/v1/admin/payments?q=zeta')->assertStatus(200);
+    }
 }

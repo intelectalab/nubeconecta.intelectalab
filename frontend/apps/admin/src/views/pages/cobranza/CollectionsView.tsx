@@ -4,13 +4,13 @@
  * P-BIL-12 antigüedad de deuda y avisos de la secuencia de cobranza.
  * Sin recargo por mora (D-04) ni suspensión automática.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AGING_LABELS, isProblem, newIdempotencyKey, PAYMENT_STATUS_LABELS, paymentStatusLabel, type AgingBucket, type Payment, type PaymentStatus } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { href } from '../../../app/routeMeta';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
-import { Chip, EmptyState, Note, PageHead, Select, Tabs, Toolbar } from '../../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Tabs, Toolbar } from '../../../components/ui';
 import { displayName, downloadBlob, errorText, fDate, fDateTime, moneyMinor, useCan, useLoad } from '../clientes/shared';
 import { paymentChip, paymentsApi, VIA_LABELS } from './shared';
 
@@ -51,8 +51,18 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
   const can = useCan();
   const [status, setStatus] = useState<string>(fixedStatus ?? '');
   const [cursor, setCursor] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [qDeb, setQDeb] = useState('');
+  // Búsqueda con debounce (300 ms): el término enviado a la API no cambia en cada tecla.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCursor(null);
+      setQDeb(q.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
   // «Vouchers por validar» = solo constancias subidas desde el portal; los pagos del panel sin validar están en «Pagos».
-  const res = useLoad(() => paymentsApi.payments({ filter: { status: (fixedStatus ?? status) as PaymentStatus | '', reported_via: fixedStatus ? 'portal' : undefined }, cursor, size: 25 }), [status, cursor, fixedStatus]);
+  const res = useLoad(() => paymentsApi.payments({ filter: { status: (fixedStatus ?? status) as PaymentStatus | '', reported_via: fixedStatus ? 'portal' : undefined }, q: qDeb || undefined, cursor, size: 25 }), [status, qDeb, cursor, fixedStatus]);
   const rows = res.data?.data ?? [];
   const meta = res.data?.meta;
   const [acting, setActing] = useState<{ id: string; kind: 'reject' | 'void' } | null>(null);
@@ -158,6 +168,7 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
             options={[['', 'Todos los estados'], ...(Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]).map((s): [string, string] => [s, PAYMENT_STATUS_LABELS[s]])]}
           />
         )}
+        <SearchBox value={q} onChange={setQ} label="Buscar pagos" placeholder="Cliente, comprobante u operación" />
         <button type="button" className="btn sm" onClick={res.reload}>
           <Icon name="refresh" size="sm" />
           Actualizar

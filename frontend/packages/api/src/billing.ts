@@ -345,8 +345,8 @@ function createPaymentsApi(http: HttpClient) {
   const admin = '/api/v1/admin/payments';
   const pagePayments =
     (base: string) =>
-    (params: ListParams & { filter?: PaymentFilters } = {}) =>
-      http.get<CursorPage<Payment>>(`${base}${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`);
+    (params: ListParams & { filter?: PaymentFilters; q?: string } = {}) =>
+      http.get<CursorPage<Payment>>(`${base}${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter, q: params.q || undefined })}`);
   return {
     paymentMethods: () => http.get<Envelope<PaymentMethodOption[]>>('/api/v1/admin/payment-methods').then(unwrap),
     payments: pagePayments(admin),

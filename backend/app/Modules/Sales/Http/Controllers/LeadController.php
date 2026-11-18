@@ -74,6 +74,12 @@ final class LeadController
         if (is_string($owner = $request->input('filter.owner_id')) && Str::isUuid($owner)) {
             $leadsQuery->where('leads.owner_id', $owner);
         }
+        $q = trim((string) $request->input('q', ''));
+        if ($q !== '') {
+            $like = '%'.addcslashes($q, '\\%_').'%';
+            $leadsQuery->where(fn ($w) => $w->where('leads.name', 'ilike', $like)->orWhere('leads.email', 'ilike', $like)
+                ->orWhere('leads.company_name', 'ilike', $like)->orWhere('leads.code', 'ilike', $like));
+        }
         $byStage = $leadsQuery->get()->groupBy('pipeline_stage_id');
 
         return response()->json(['data' => $stages->map(function (PipelineStage $stage) use ($byStage): array {
