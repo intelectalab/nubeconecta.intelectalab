@@ -67,14 +67,24 @@ export default function CrmLive({ param }: ViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param]);
 
+  // Búsqueda con debounce (300 ms): el término enviado a la API no cambia en cada tecla.
+  const [qDeb, setQDeb] = useState(q.trim());
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCursor(null);
+      setQDeb(q.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
   const opts = useLoad(() => api.options(), []);
   const board = useLoad(() => (view === 'kanban' ? api.board({ owner_id: ownerF && ownerF !== 'none' ? ownerF : undefined }) : Promise.resolve(null)), [view, ownerF, dataVersion, tick]);
   const list = useLoad(
     () =>
       view === 'lista'
-        ? api.list({ q: q.trim() || undefined, filter: { status: status || undefined, stage_id: stageF || undefined, channel_id: channelF || undefined, owner_id: ownerF || undefined }, cursor, size: PER })
+        ? api.list({ q: qDeb || undefined, filter: { status: status || undefined, stage_id: stageF || undefined, channel_id: channelF || undefined, owner_id: ownerF || undefined }, cursor, size: PER })
         : Promise.resolve(null),
-    [view, q, status, stageF, channelF, ownerF, cursor, dataVersion, tick],
+    [view, qDeb, status, stageF, channelF, ownerF, cursor, dataVersion, tick],
   );
   const reload = () => setTick((t) => t + 1);
   const stages: PipelineStage[] = opts.data?.stages ?? [];

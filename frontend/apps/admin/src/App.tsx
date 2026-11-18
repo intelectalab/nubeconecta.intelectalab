@@ -23,10 +23,20 @@ import { ROLE_NAMES } from './data/config';
 import { AuthGate } from './auth/AuthGate';
 import { DEMO_MODE } from './auth/client';
 import { initials, useSession } from './auth/session';
-import { notifs } from './data/db';
 import { hub } from './auth/client';
-import { useCan, useLoad } from './views/pages/clientes/shared';
+import type { Attention } from '@hub/api';
+import { filterParam } from './app/filterParam';
+import { LIVE, useCan, useLoad } from './views/pages/clientes/shared';
 import type { BrandFilter, CurView, RoleName } from './data/types';
+
+interface BellItem {
+  key: string;
+  n: number;
+  label: string;
+  icon: string;
+  route: RouteId;
+  param?: string;
+}
 
 const isMobile = () => {
   try {
@@ -89,7 +99,8 @@ function Shell() {
     [canBrands],
   );
   const brands = brandsLoad.data ?? [];
-  const { route, param, navSeq, brand, setBrand, cur, setCur, role, setRole, allowed, theme, toggleTheme, navigate, toasts, dismissToast, dialogs, toast, dataVersion, refresh } = app;
+  const attentionLoad = useLoad<Attention>(() => hub.dashboard.attention(), []);
+  const { route, param, navSeq, brand, setBrand, cur, setCur, role, setRole, allowed, theme, toggleTheme, navigate, toasts, dismissToast, dialogs, toast, dataVersion } = app;
 
   const [collapsed, setCollapsed] = useState(() => lsGet('ap.collapsed') === '1');
   const [drawer, setDrawer] = useState(false);
@@ -222,7 +233,21 @@ function Shell() {
 
   const liveCounts = useLiveNavCounts([route, dataVersion]);
   const counts = useMemo(() => ({ ...navCounts(brand), ...liveCounts }), [brand, dataVersion, liveCounts]);
-  const unread = notifs.filter((n) => n.u).length;
+  const bellItems = useMemo<BellItem[]>(() => {
+    const d = attentionLoad.data;
+    if (!d) return [];
+    const items: BellItem[] = [];
+    const add = (key: string, v: number | undefined, label: string, icon: string, route: RouteId, param?: string) => {
+      if (v !== undefined && v > 0) items.push({ key, n: v, label, icon, route, param });
+    };
+    add('sla', d.tickets_overdue_sla, 'tickets fuera de SLA', 'msg', 'tickets', filterParam({ status: 'open' }));
+    add('pay', d.payments_to_validate, 'pagos por validar', 'wallet', 'cobranza', 'vouchers');
+    add('dom', d.domains_expiring_7d, 'dominios por vencer (7 días)', 'globe', 'dominios', filterParam({ d30: '1' }));
+    add('inv', d.invoices_due_today, 'facturas que vencen hoy', 'cal', 'cobranza', LIVE ? 'antiguedad' : 'pronto');
+    add('crm', d.sales_followups_today, 'seguimientos de hoy', 'activity', 'crm', filterParam({ st: 'open' }));
+    return items;
+  }, [attentionLoad.data]);
+  const bellTotal = bellItems.reduce((s, i) => s + i.n, 0);
   const activeOf = useCallback((k: RouteId) => route === k || ROUTE_META[route].parent === k, [route]);
   const View = VIEWS[route];
 
@@ -270,51 +295,36 @@ function Shell() {
             <span>Ver portal del cliente</span>
           </a>
           <div className="anchor">
-            <button ref={btnNotif} type="button" className="tb-btn" onClick={() => setPop((p) => (p === 'notif' ? null : 'notif'))} aria-label={`Notificaciones, ${unread} sin leer`} aria-haspopup="true" aria-expanded={pop === 'notif'}>
+            <button ref={btnNotif} type="button" className="tb-btn" onClick={() => setPop((p) => (p === 'notif' ? null : 'notif'))} aria-label={`Notificaciones, ${bellTotal} pendientes`} aria-haspopup="true" aria-expanded={pop === 'notif'}>
               <Icon name="bell" />
-              {unread ? <span className="dot">{unread}</span> : null}
+              {bellTotal ? <span className="dot">{bellTotal}</span> : null}
             </button>
             <div className={`pop${pop === 'notif' ? ' open' : ''}`} role="region" aria-label="Notificaciones">
               {pop === 'notif' ? (
                 <>
                   <div className="pop-h">
-                    <b>Notificaciones</b>
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      autoFocus
-                      onClick={() => {
-                        notifs.forEach((n) => (n.u = false));
-                        refresh();
-                        toast('Notificaciones marcadas como leídas', '', 'info');
-                      }}
-                    >
-                      Marcar todo como leído
+                    <b>Atención hoy</b>
+                    <button type="button" className="btn ghost sm" autoFocus onClick={attentionLoad.reload}>
+                      Recargar
                     </button>
                   </div>
                   <ul className="pop-list">
-                    {notifs.map((n, k) => (
-                      <li key={k}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            n.u = false;
-                            setPop(null);
-                            refresh();
-                            navigate(n.r as RouteId);
-                          }}
-                        >
-                          {n.u ? <i className="unread" aria-label="sin leer" /> : <i className="read" />}
-                          <Icon name={n.ic} />
-                          <span style={{ flex: 1, minWidth: 0 }}>
-                            <b style={{ fontWeight: n.u ? 700 : 500 }}>{n.t}</b>
-                            <small>
-                              {n.s} · {n.at}
-                            </small>
-                          </span>
-                        </button>
+                    {bellItems.length ? (
+                      bellItems.map((it) => (
+                        <li key={it.key}>
+                          <a href={href(it.route, it.param)} onClick={() => setPop(null)}>
+                            <Icon name={it.icon} />
+                            <span style={{ flex: 1, minWidth: 0 }}>
+                              <b>{it.n}</b> <span>{it.label}</span>
+                            </span>
+                          </a>
+                        </li>
+                      ))
+                    ) : (
+                      <li>
+                        <small style={{ padding: '10px 14px', display: 'block' }}>{attentionLoad.error ? 'No disponible' : attentionLoad.loading ? 'Cargando…' : 'Sin novedades'}</small>
                       </li>
-                    ))}
+                    )}
                   </ul>
                 </>
               ) : null}

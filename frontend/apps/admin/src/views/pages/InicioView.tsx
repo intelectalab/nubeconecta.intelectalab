@@ -96,7 +96,7 @@ export default function InicioView(_props: ViewProps) {
     return it.sort((a, b) => a.n - b.n);
   }, [brand, cur, dataVersion]);
 
-  const fdl = fDL(TODAY);
+  const fdl = fDL(new Date());
   const vencidoMeta = overdue ? m.dual(overdue, true) : '—';
 
   return (
