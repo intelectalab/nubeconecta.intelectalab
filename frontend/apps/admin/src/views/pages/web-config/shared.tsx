@@ -8,7 +8,18 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
+import { Chip } from '../../../components/ui';
 import { NF2, esc, mwBtnCls, type BrandId } from '../../../data';
+
+/* ---------- Etiqueta discreta de función en desarrollo ---------- */
+export function SoonNote({ label = 'Próximamente', children, style }: { label?: string; children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '0 0 12px', ...style }}>
+      <Chip kind="outline" icon="info">{label}</Chip>
+      <span className="sub">{children}</span>
+    </div>
+  );
+}
 
 /* ---------- Copiar al portapapeles ---------- */
 export function copyText(t: string, toast: (a: string, b?: string, k?: 'ok' | 'info' | 'warn' | 'err') => void, field?: HTMLInputElement | null): void {

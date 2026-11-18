@@ -7,7 +7,7 @@ import { useApp } from '../../app/context';
 import { useViewState } from '../../app/storage';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
-import { ClientLink, Note, PageHead, SearchBox, Toolbar } from '../../components/ui';
+import { Chip, ClientLink, Note, PageHead, SearchBox, Toolbar } from '../../components/ui';
 import { AUDIT, CBY, fD, fT, inBrand, ME, norm, plural, TODAY, VAULT } from '../../data';
 import type { VaultItem } from '../../data';
 import { NoRows } from './infraestructura/shared';
@@ -121,9 +121,10 @@ export default function BovedaView() {
           </button>
         }
       />
-      <Note kind="warn" icon="shield" style={{ marginBottom: 16 }}>
-        Prototipo: no se guardan ni se muestran contraseñas reales. Al revelar se muestra un valor simulado durante 20 segundos.
-      </Note>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Chip kind="outline" icon="shield">En desarrollo</Chip>
+        <span className="sub">No se guardan ni se muestran contraseñas reales; al revelar se muestra un valor simulado durante 20 segundos.</span>
+      </div>
       <div className="split">
         <section className="card">
           <Toolbar count={plural(rows.length, 'acceso', 'accesos')}>

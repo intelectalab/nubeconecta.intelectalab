@@ -85,7 +85,7 @@ export function KCard({ k, F, pinned, onOpen, onInfo, onPin, custom, real }: KCa
           <>
             <span className="kc-row">
               <span className={`kc-d ${dl.cls}`}>{dl.txt}</span>
-              <span className="kc-vs">vs {kFmt(k, p, cur, true)}</span>
+              <span className="kc-vs">vs {kFmt(k, p, cur, true)} · ilustrativo</span>
             </span>
             <Spark v={kSpark(k, F)} cls={dl.cls} />
           </>

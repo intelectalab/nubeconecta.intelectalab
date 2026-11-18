@@ -232,6 +232,7 @@ textarea.input{height:auto;padding:8px 10px;resize:vertical}
 .check{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none}
 .check input{width:16px;height:16px;accent-color:var(--brand)}
 
+.field .switch,.stack>.field .switch{justify-self:start}
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);border:0;background:transparent;padding:4px}
 .switch .trk{width:36px;height:20px;border-radius:999px;background:var(--border-strong);position:relative;transition:background .15s}
 .switch .trk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}

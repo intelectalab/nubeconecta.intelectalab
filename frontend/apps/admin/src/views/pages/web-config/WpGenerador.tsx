@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { BRANDS, SCDEF, type BrandId } from '../../../data';
 import { catName } from '../comercial/catalogData';
 import { ScPreview } from './previews';
-import { ScBox } from './shared';
+import { ScBox, SoonNote } from './shared';
 import { embedCode, scCode, scOpts, scValues, type ScVals } from './wpData';
 import { Note } from '../../../components/ui';
 
@@ -23,7 +23,7 @@ export default function WpGenerador({ name, setName, vals, setVals, brand, setBr
   const [fmt, setFmt] = useState<'wp' | 'embed'>('wp');
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
-      <Note kind="warn" icon="info">Pendiente de backend: el generador depende de la configuración de shortcodes del plugin; no existe un endpoint administrativo para leer o guardar esta configuración.</Note>
+      <SoonNote>La configuración de shortcodes se leerá y guardará desde el plugin cuando esté disponible la administración en el backend.</SoonNote>
       <div className="grid g-2">
         <div className="stack">
           <div className="form-grid">

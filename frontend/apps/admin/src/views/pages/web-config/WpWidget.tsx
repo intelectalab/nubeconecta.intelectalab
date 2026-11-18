@@ -95,7 +95,7 @@ export default function WpWidget() {
     `<div data-hub-block="${block}"${divAttrs}></div>`;
 
   if (!canView) return <div className="card-b"><Note kind="warn" icon="info">No tienes permiso para ver los sitios conectados.</Note></div>;
-  if (!LIVE) return <div className="card-b"><Note kind="warn" icon="info">El generador del widget requiere el backend real (sitios y claves). No está disponible en modo demostración.</Note></div>;
+  if (!LIVE) return <div className="card-b"><Note kind="warn" icon="info">El generador del widget requiere el backend real (sitios y claves). Aún no está disponible en este entorno.</Note></div>;
   if (sites.loading && !sites.data) return <div className="card-b"><p className="sub">Cargando sitios…</p></div>;
   if (sites.error) return <div className="card-b"><Note kind="warn">No se pudieron cargar los sitios: {errorText(sites.error)} <button className="btn sm" onClick={sites.reload}>Reintentar</button></Note></div>;
   if (!embedSites.length) {

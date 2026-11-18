@@ -1,5 +1,5 @@
 /** WordPress: administración de sitios, credenciales de plugin y avisos de caché. */
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { isProblem, type CursorPage, type WpCacheInvalidation, type WpSite, type WpSiteInput, type WpSiteKind, type WpSiteToken } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { DataTable, type Column } from '../../../components/DataTable';
@@ -9,7 +9,7 @@ import { Chip, EmptyState, Note, Select, Skeleton, Toolbar } from '../../../comp
 import { hub } from '../../../auth/client';
 import { SCUSE, WPS } from '../../../data';
 import { errorText, fDateTime, LIVE, useCan, useLoad } from '../clientes/shared';
-import { ScBox } from './shared';
+import { ScBox, SoonNote } from './shared';
 
 const PER = 25;
 const api = hub.webConnector;
@@ -19,7 +19,7 @@ const SITE_LABEL = { pending: 'Pendiente', active: 'Activo', disabled: 'Desactiv
 const SITE_CHIP = { pending: 'warn', active: 'ok', disabled: 'neutral' } as const;
 const INVALIDATION_CHIP: Record<string, 'info' | 'ok' | 'danger' | 'neutral'> = { pending: 'info', delivered: 'ok', failed: 'danger' };
 
-export default function WpSitios() {
+export default function WpSitios({ onCount }: { onCount?: (n: number | null) => void }) {
   const can = useCan();
   const { brand, toast, dialogs, refresh } = useApp();
   const [query, setQuery] = useState('');
@@ -37,6 +37,7 @@ export default function WpSitios() {
   [query, filterStatus, brand, brandId, cursor, reload]);
   const inv = useLoad(() => !can('web_connector.cache_invalidation.view') || !LIVE ? Promise.resolve(page<WpCacheInvalidation>([])) : api.cacheInvalidations.list({ size: PER, sort: '-created_at' }), [reload, can('web_connector.cache_invalidation.view')]);
   const rows = res.data?.data ?? [];
+  useEffect(() => { onCount?.(res.data ? res.data.data.length : null); }, [res.data]); // eslint-disable-line react-hooks/exhaustive-deps
   const meta = res.data?.meta;
   const changed = () => { setReload((n) => n + 1); refresh(); };
 
@@ -98,7 +99,7 @@ export default function WpSitios() {
     <CacheInvalidations result={inv} can={can} onChanged={changed} />
     <section>
       <h3 className="fs">Shortcodes usados por sitio <span className="sub" style={{ fontWeight: 500 }}>detectados por el plugin</span></h3>
-      <Note kind="warn" icon="info">Pendiente de backend: no existe un endpoint para consultar el uso de shortcodes reportado por cada plugin; esta tabla conserva datos de muestra.</Note>
+      <SoonNote label="Datos de ejemplo">El uso de shortcodes por sitio se mostrará cuando el plugin lo reporte al backend.</SoonNote>
       <div className="tw" style={{ border: '1px solid var(--border)', borderRadius: 8 }}><table className="t"><thead><tr><th>Sitio</th><th>Shortcode</th><th>Página</th><th>Última vista</th></tr></thead><tbody>{SCUSE.filter((r) => brand === 'all' || WPS.find((w) => w.id === r[0])?.brand === brand).map((r, i) => <tr key={i}><td className="nw">{WPS.find((w) => w.id === r[0])?.host ?? r[0]}</td><td className="mono" style={{ minWidth: 220 }}>[{r[1]}]</td><td className="mono">{r[2]}</td><td className="num">{r[3]}</td></tr>)}</tbody></table></div>
     </section>
     {editing ? <SiteForm site={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} onSaved={changed} /> : null}

@@ -10,7 +10,7 @@ import { Sheet } from '../../../components/Modal';
 import { Chip, Note } from '../../../components/ui';
 import { BR, BRANDS, CONTACT, LEGAL, NF0, TODAY, addD, diffD, fD, fromIso, iso, type BrandContact, type BrandId, type LegalDoc } from '../../../data';
 import { ContactPreview, MwFrame } from './previews';
-import { ScBox, copyText } from './shared';
+import { ScBox, SoonNote, copyText } from './shared';
 
 const BRAND_OPTS = BRANDS.map((b) => (
   <option key={b.id} value={b.id}>
@@ -52,7 +52,7 @@ export function WpContacto({ brand, setBrand }: { brand: BrandId; setBrand: (b: 
   };
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
-      <Note kind="warn" icon="info">Pendiente de backend: hay permisos de puntos de contacto, pero no se encontró una ruta administrativa CRUD disponible en el módulo; esta sección sigue usando datos de muestra.</Note>
+      <SoonNote>La edición de contacto por marca llegará con el backend; los datos mostrados son de ejemplo.</SoonNote>
       <div className="grid g-2">
         <div className="form-grid">
           <label className="field full" htmlFor="ctB">
@@ -141,7 +141,7 @@ export function WpLegales({ brand, setBrand }: { brand: BrandId; setBrand: (b: B
 
   return (
     <>
-      <div className="card-b" style={{ paddingTop: 12 }}><Note kind="warn" icon="info">Pendiente de backend: el plugin tiene lectura pública de documentos legales, pero no hay endpoints administrativos de edición o publicación en el módulo.</Note></div>
+      <div className="card-b" style={{ paddingTop: 16, paddingBottom: 0 }}><SoonNote>La edición y publicación de documentos legales llegará con el backend; los datos mostrados son de ejemplo.</SoonNote></div>
       <div className="toolbar">
         <label className="field" htmlFor="lgB">
           Marca
@@ -171,7 +171,7 @@ export function WpLegales({ brand, setBrand }: { brand: BrandId; setBrand: (b: B
                 <tr key={d.id}>
                   <td>
                     <b>
-                      <Icon name="contract" size="sm" /> {d.n}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="contract" size="sm" />{d.n}</span>
                     </b>
                     {d.st !== 'Publicado' ? (
                       <>

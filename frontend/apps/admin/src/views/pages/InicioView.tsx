@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react';
 import { api, type Attention, type Cashflow, type CashflowSeries, type DashboardSummary } from '@hub/api';
 import { useApp, useMoney } from '../../app/context';
+import { useSession } from '../../auth/session';
 import { filterParam } from '../../app/filterParam';
 import { useActions } from '../../app/actions';
 import type { RouteId } from '../../app/routeMeta';
@@ -38,6 +39,7 @@ const COB_PRONTO = LIVE ? 'antiguedad' : 'pronto';
 
 export default function InicioView(_props: ViewProps) {
   const { brand, cur, navigate, dataVersion } = useApp();
+  const { user } = useSession();
   const m = useMoney();
   const act = useActions();
   // TODO: filtrar por marca cuando el selector use brand_id reales
@@ -70,7 +72,7 @@ export default function InicioView(_props: ViewProps) {
     if (!d) return [];
     const a: Att[] = [];
     const add = (v: number | undefined, sev: Sev, t: (n: number) => string, r: RouteId, cta: string, p?: string) => {
-      if (v !== undefined) a.push({ sev, n: v, t: t(v), r, p, cta });
+      if (v !== undefined && v > 0) a.push({ sev, n: v, t: t(v), r, p, cta });
     };
     add(d.tickets_overdue_sla, 'critica', (n) => `${n} ${n === 1 ? 'ticket fuera' : 'tickets fuera'} de SLA`, 'tickets', 'Atender', filterParam({ status: 'open' }));
     add(d.payments_to_validate, 'alta', (n) => `${n} ${n === 1 ? 'pago por validar' : 'pagos por validar'}`, 'cobranza', 'Validar', 'vouchers');
@@ -97,13 +99,16 @@ export default function InicioView(_props: ViewProps) {
   }, [brand, cur, dataVersion]);
 
   const fdl = fDL(new Date());
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const firstName = user.name.trim().split(/\s+/)[0] || user.name;
   const vencidoMeta = overdue ? m.dual(overdue, true) : '—';
 
   return (
     <>
       <PageHead
         crumbs={[['Operación', 'inicio'], ['Resumen del día', 'inicio']]}
-        title="Buenos días, Renzo"
+        title={`${greet}, ${firstName}`}
         sub={`${fdl[0].toUpperCase() + fdl.slice(1)} · ${brand === 'all' ? 'Todas las marcas' : BR[brand].n} · ${attention.data ? `${pending} ${pending === 1 ? 'asunto requiere' : 'asuntos requieren'} atención` : 'Resumen operativo'}`}
         actions={
           <>

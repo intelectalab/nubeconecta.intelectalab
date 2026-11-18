@@ -3,12 +3,12 @@
  * ampliación [hub_whois]/[hub_servidores], l.3256-3280).
  * Parámetros: #wp/<pestaña> o #wp/generador/<shortcode>.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { useViewState } from '../../app/storage';
 import { PageHead, Tabs } from '../../components/ui';
-import { FORMS, SCDEF, WPS, type BrandId } from '../../data';
+import { FORMS, SCDEF, type BrandId } from '../../data';
 import WpSitios from './web-config/WpSitios';
 import WpGenerador from './web-config/WpGenerador';
 import WpWidget from './web-config/WpWidget';
@@ -48,7 +48,7 @@ export default function WpView({ param }: ViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brand]);
 
-  const nSites = WPS.filter((w) => brand === 'all' || w.brand === brand).length;
+  const [nSites, setNSites] = useState<number | null>(null);
   return (
     <>
       <PageHead
@@ -62,7 +62,7 @@ export default function WpView({ param }: ViewProps) {
           value={tab}
           onChange={setTab}
           tabs={[
-            { id: 'sitios', label: 'Sitios conectados', count: nSites },
+            { id: 'sitios', label: 'Sitios conectados', count: nSites ?? undefined },
             { id: 'generador', label: 'Generador de shortcodes', count: Object.keys(SCDEF).length },
             { id: 'widget', label: 'Widget embebible' },
             { id: 'formularios', label: 'Formularios', count: FORMS.length },
@@ -71,7 +71,7 @@ export default function WpView({ param }: ViewProps) {
           ]}
         />
         <div role="tabpanel" aria-label={TAB_LABEL[tab]}>
-          {tab === 'sitios' ? <WpSitios /> : null}
+          {tab === 'sitios' ? <WpSitios onCount={setNSites} /> : null}
           {tab === 'generador' ? <WpGenerador name={scName} setName={setScName} vals={scVals} setVals={setScVals} brand={scBrand} setBrand={setScBrand} /> : null}
           {tab === 'widget' ? <WpWidget /> : null}
           {tab === 'formularios' ? <WpFormularios sel={formSel} setSel={setFormSel} /> : null}

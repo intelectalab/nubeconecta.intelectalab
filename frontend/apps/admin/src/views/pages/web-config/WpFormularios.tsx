@@ -9,7 +9,7 @@ import { Icon } from '../../../components/Icon';
 import { Note } from '../../../components/ui';
 import { AGENTS, EJEC, FORMS, FTYP, VALS, type FormField, type WebForm } from '../../../data';
 import { FormPreview, MwFrame } from './previews';
-import { MiniRte, ScBox, txt2html, html2txt } from './shared';
+import { MiniRte, ScBox, SoonNote, txt2html, html2txt } from './shared';
 
 /** HTML del mensaje de confirmación por formulario (el dato base es texto). */
 const MSG_HTML: Record<string, string> = {};
@@ -105,7 +105,7 @@ export default function WpFormularios({ sel, setSel }: { sel: string; setSel: (i
 
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
-      <Note kind="warn" icon="info">Pendiente de backend: el plugin expone lectura y envío públicos de formularios, pero el backend no ofrece CRUD administrativo para el constructor.</Note>
+      <SoonNote>El constructor de formularios es una vista previa; la edición administrativa llegará con el backend.</SoonNote>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginBottom: 14 }}>
         <label className="field" htmlFor="fmSel">
           Formulario

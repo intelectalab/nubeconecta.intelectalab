@@ -22,6 +22,7 @@ const PER = 25;
 type Tab = 'lic' | 'ssl';
 
 const PROVIDER_LABEL: Record<MailProviderKind, string> = { cpanel: 'cPanel', google_workspace: 'Google Workspace', microsoft_365: 'Microsoft 365', other: 'Otro' };
+const SSL_KIND_LABEL: Record<string, string> = { paid: 'De pago', free_auto: 'Gratuito (auto)' };
 
 const customerCell = (c: { id: string; name: string } | null) =>
   c ? (
@@ -154,7 +155,7 @@ export default function CorreoView({ param }: ViewProps) {
   const sslCols: Column<SslCertificate>[] = [
     { key: 'd', header: 'Dominio', className: 'mono strong', render: (c) => c.common_name || c.domain?.name || '—', sort: (c) => c.common_name || c.domain?.name },
     { key: 'cli', header: 'Cliente', render: (c) => customerCell(c.customer), sort: (c) => c.customer?.name },
-    { key: 'type', header: 'Tipo', className: 'nw', render: (c) => c.kind, sort: (c) => c.kind },
+    { key: 'type', header: 'Tipo', className: 'nw', render: (c) => SSL_KIND_LABEL[c.kind] ?? c.kind, sort: (c) => c.kind },
     {
       key: 'exp',
       header: 'Vence',
