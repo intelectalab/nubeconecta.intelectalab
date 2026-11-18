@@ -5,7 +5,7 @@ import { useApp } from '../../../app/context';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
 import { Modal } from '../../../components/Modal';
-import { Chip, EmptyState, Note, Select, Skeleton, Toolbar } from '../../../components/ui';
+import { Chip, EmptyState, Note, SearchBox, Select, Skeleton, Toolbar } from '../../../components/ui';
 import { hub } from '../../../auth/client';
 import { SCUSE, WPS } from '../../../data';
 import { errorText, fDateTime, LIVE, useCan, useLoad } from '../clientes/shared';
@@ -85,9 +85,9 @@ export default function WpSitios({ onCount }: { onCount?: (n: number | null) => 
     <Note>Administre los sitios conectados, los secretos de firma y los tokens de solo lectura usados por el plugin de WordPress.</Note>
     {!can('web_connector.site.view') ? <Note kind="warn">No tiene permiso para consultar sitios conectados.</Note> : null}
     <section className="card">
-      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} sitios`}>
-        <input className="input" aria-label="Buscar sitios WordPress" placeholder="Buscar nombre o dominio" value={query} onChange={(e) => { setQuery(e.target.value); setCursor(null); }} />
-        <Select label="Estado" value={filterStatus} onChange={(v) => { setFilterStatus(v); setCursor(null); }} options={ [['', 'Todos'], ['pending', 'Pendiente'], ['active', 'Activo'], ['disabled', 'Desactivado']] } />
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} sitios`}><SearchBox label="Buscar sitios WordPress" placeholder="Buscar nombre o dominio" value={query} onChange={(v) => { setQuery(v); setCursor(null); }} />
+        
+        <Select label="Estado" value={filterStatus} onChange={(v) => { setFilterStatus(v); setCursor(null); }} options={ [['', 'Todos los estados'], ['pending', 'Pendiente'], ['active', 'Activo'], ['disabled', 'Desactivado']] } />
         {can('web_connector.site.create') ? <button className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size="sm" /> Nuevo sitio</button> : null}
       </Toolbar>
       {res.error ? <div className="card-b"><Note kind="warn" icon="tri">No se pudieron cargar sitios: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>

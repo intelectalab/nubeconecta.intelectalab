@@ -57,7 +57,7 @@ export function ServiceTypesPanel() {
   return <>
     <Toolbar count={res.loading ? <Spinner size="sm" /> : `${rows.length}${meta?.next_cursor ? '+' : ''} tipos`}>
       <SearchBox value={q} onChange={(v) => { setQ(v); setCursor(null); }} placeholder="Nombre o código…" label="Buscar tipos de servicio" />
-      <Select value={status} onChange={(v) => { setStatus(v); setCursor(null); }} label="Estado" options={[['', 'Todos'], ['draft', 'Borrador'], ['active', 'Activo'], ['archived', 'Archivado']]} />
+      <Select value={status} onChange={(v) => { setStatus(v); setCursor(null); }} label="Estado" options={[['', 'Todos los estados'], ['draft', 'Borrador'], ['active', 'Activo'], ['archived', 'Archivado']]} />
       <Select value={categoryId} onChange={(v) => { setCategoryId(v); setCursor(null); }} label="Categoría" options={[['', 'Todas las categorías'], ...categories.map((c) => [c.id, c.name] as [string, string])]} />
       {can('catalog.service_type.create') ? <button type="button" className="btn primary" onClick={() => setEditor({})}>＋ Nuevo tipo</button> : null}
     </Toolbar>

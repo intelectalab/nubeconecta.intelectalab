@@ -5,7 +5,7 @@ import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, Toolbar } from '../../components/ui';
 import { CustomerSearch } from './clientes/CustomerSearch';
 import { errorText, fDate, fDateTime, moneyMinor, useCan, useLoad, useLookups } from './clientes/shared';
 import { quotesApi, QUOTE_CHIP } from './cotizaciones/shared';
@@ -47,10 +47,10 @@ function QuoteList() {
     <PageHead crumbs={[[ 'Comercial', 'cotizaciones' ], ['Cotizaciones']]} title="Cotizaciones" sub="Propuestas comerciales y sus versiones vigentes."
       actions={can('sales.quote.create') ? <button type="button" className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" size="sm" />Nueva cotización</button> : null} />
     <section className="card">
-      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}><SearchBox label="Buscar cotizaciones" placeholder="Buscar número o cliente…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
         <Select value={status} onChange={changeFilter(setStatus)} label="Estado" options={[['', 'Todos los estados'], ...Object.entries(QUOTE_STATUS_LABELS)]} />
         <Select value={currency} onChange={changeFilter(setCurrency)} label="Moneda" options={[[ '', 'Todas las monedas' ], ['PEN', 'Soles'], ['USD', 'Dólares']]} />
-        <input className="input" aria-label="Buscar cotizaciones" placeholder="Buscar número o cliente…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        
       </Toolbar>
       {res.error ? <div className="card-b"><Note kind="warn" role="alert">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
         : res.loading && !res.data ? <Skeleton variant="table" rows={5} />

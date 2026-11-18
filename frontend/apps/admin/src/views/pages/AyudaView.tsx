@@ -3,7 +3,7 @@ import { api, isProblem, type KbArticle, type KbArticleInput, type KbCategory, t
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { Icon } from '../../components/Icon';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, Toolbar } from '../../components/ui';
 import { RichOut } from '../../components/RichText';
 import { errorText, useLoad } from './clientes/shared';
 
@@ -104,8 +104,8 @@ export default function AyudaView(_props: ViewProps) {
     </div>
 
     {section === 'articles' ? <>
-      <Toolbar count={`${rows.length}${articleList.data?.meta?.has_more ? '+' : ''} artículos`}>
-        <input className="input" aria-label="Buscar artículos" placeholder="Buscar artículos" value={query} onChange={(e) => { setQuery(e.target.value); setCursor(null); }} />
+      <Toolbar count={`${rows.length}${articleList.data?.meta?.has_more ? '+' : ''} artículos`}><SearchBox label="Buscar artículos" placeholder="Buscar artículos" value={query} onChange={(v) => { setQuery(v); setCursor(null); }} />
+        
         <Select label="Visibilidad" value={visibility} onChange={(value) => { setVisibility(value as KbVisibility | ''); setCursor(null); }} options={VISIBILITY} />
         <Select label="Estado" value={status} onChange={(value) => { setStatus(value as KbStatus | ''); setCursor(null); }} options={STATUSES} />
         <button className="btn primary" type="button" onClick={beginNewArticle}><Icon name="plus" size="sm" /> Nuevo artículo</button>
@@ -139,8 +139,8 @@ export default function AyudaView(_props: ViewProps) {
     </> : null}
 
     {section === 'categories' ? <>
-      <Toolbar count={`${categories.length}${categoryList.data?.meta?.has_more ? '+' : ''} categorías`}>
-        <input className="input" aria-label="Buscar categorías" placeholder="Buscar categorías" value={query} onChange={(e) => { setQuery(e.target.value); setCategoryCursor(null); }} />
+      <Toolbar count={`${categories.length}${categoryList.data?.meta?.has_more ? '+' : ''} categorías`}><SearchBox label="Buscar categorías" placeholder="Buscar categorías" value={query} onChange={(v) => { setQuery(v); setCategoryCursor(null); }} />
+        
         <button className="btn primary" type="button" onClick={() => setCategoryDraft({ name: '', slug: '', visibility: 'internal', sort_order: '0' })}><Icon name="plus" size="sm" /> Nueva categoría</button>
       </Toolbar>
       {categoryDraft ? <form className="card card-b" onSubmit={(event) => void saveCategory(event)} style={{ display: 'grid', gap: 14, marginBottom: 16 }}>

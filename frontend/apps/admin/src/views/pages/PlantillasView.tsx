@@ -6,7 +6,7 @@ import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, Toolbar } from '../../components/ui';
 import { hub } from '../../auth/client';
 import { errorText, fDateTime, useCan, useLoad } from './clientes/shared';
 
@@ -67,8 +67,8 @@ export default function PlantillasView(_props: ViewProps) {
     <PageHead crumbs={[[ 'Configuración', 'ajustes' ], [ 'Plantillas de correo', 'plantillas' ]]} title="Plantillas de correo" sub="Plantillas de correo para avisos y respuestas de soporte." />
     <section className="card">
       {!can('automation.notification_template.view') ? <div className="card-b"><Note kind="warn">No tiene permiso para consultar plantillas.</Note></div> : <>
-        <Toolbar count={result.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} plantillas`}>
-          <input className="input" aria-label="Buscar plantillas" placeholder="Buscar por código" value={query} onChange={(e) => { setQuery(e.target.value); setCursor(null); }} />
+        <Toolbar count={result.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} plantillas`}><SearchBox label="Buscar plantillas" placeholder="Buscar por código" value={query} onChange={(v) => { setQuery(v); setCursor(null); }} />
+          
           <Select label="Canal" value={channel} onChange={(v) => { setChannel(v); setCursor(null); }} options={ [['', 'Todos los canales'], ['email', 'Correo']] } />
           <Select label="Categoría" value={category} onChange={(v) => { setCategory(v); setCursor(null); }} options={ [['', 'Todas las categorías'], ...CATEGORY_OPTIONS] } />
           <Select label="Estado" value={active} onChange={(v) => { setActive(v); setCursor(null); }} options={ [['', 'Todos los estados'], ['true', 'Activas'], ['false', 'Inactivas']] } />

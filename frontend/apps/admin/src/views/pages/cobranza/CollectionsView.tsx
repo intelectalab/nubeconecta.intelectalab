@@ -157,6 +157,7 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
         <span className="sub">{fixedStatus ? 'Constancias subidas por los clientes desde el portal' : 'Historial de pagos y su estado de validación'}</span>
       </div>
       <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <SearchBox value={q} onChange={setQ} label="Buscar pagos" placeholder="Cliente, comprobante u operación" />
         {fixedStatus ? null : (
           <Select
             value={status}
@@ -168,7 +169,6 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
             options={[['', 'Todos los estados'], ...(Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]).map((s): [string, string] => [s, PAYMENT_STATUS_LABELS[s]])]}
           />
         )}
-        <SearchBox value={q} onChange={setQ} label="Buscar pagos" placeholder="Cliente, comprobante u operación" />
         <button type="button" className="btn sm" onClick={res.reload}>
           <Icon name="refresh" size="sm" />
           Actualizar

@@ -68,9 +68,12 @@ function Costs() {
   return (
     <>
       <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
-        <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos'], ...KINDS.map((k) => [k, KIND_LABEL[k]] as [string, string])]} />
-        <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => { setPeriod(e.target.value); setCursor(null); }} />
         <SearchBox label="Buscar costos" placeholder="Buscar descripción…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
+        <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos los tipos'], ...KINDS.map((k) => [k, KIND_LABEL[k]] as [string, string])]} />
+        <label className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+          Periodo
+          <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => { setPeriod(e.target.value); setCursor(null); }} />
+        </label>
         {can('finance.cost.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo costo</button> : null}
       </Toolbar>
       {res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
@@ -184,7 +187,10 @@ function Profitability() {
   return (
     <>
       <Toolbar count={period ? (res.loading ? 'Cargando…' : `${rows.length} servicios`) : 'Elija un periodo'}>
-        <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value)} />
+        <label className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+          Periodo
+          <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value)} />
+        </label>
       </Toolbar>
       <div className="card-b"><Note kind="warn">La rentabilidad muestra solo el costo asignado por servicio; el lado de ingresos aún no está disponible.</Note></div>
       {!period ? <EmptyState title="Elija un periodo" text="Seleccione un mes para ver el costo asignado por servicio." />

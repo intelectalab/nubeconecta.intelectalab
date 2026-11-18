@@ -57,11 +57,11 @@ function TicketInbox({ param }: { param?: string | null }) {
       </div>
       <div><button className="btn primary" disabled={busy}>{busy ? 'Creando…' : 'Crear ticket'}</button> <button className="btn" type="button" onClick={() => setCreating(false)}>Cancelar</button></div>
     </form> : null}
-    <Toolbar count={`${rows.length}${list.data?.meta?.next_cursor ? '+' : ''} tickets`}>
-      <Select value={status} onChange={(v) => setStatus(v as TicketStatus | '')} label="Estado" options={[[ '', 'Todos los estados' ], ...STATUS]} />
-      <Select value={priority} onChange={(v) => setPriority(v as TicketPriority | '')} label="Prioridad" options={[[ '', 'Todas las prioridades' ], ...PRIORITY]} />
-    </Toolbar>
     <section className="card" aria-busy={list.loading}>
+      <Toolbar count={`${rows.length}${list.data?.meta?.next_cursor ? '+' : ''} tickets`}>
+        <Select value={status} onChange={(v) => setStatus(v as TicketStatus | '')} label="Estado" options={[[ '', 'Todos los estados' ], ...STATUS]} />
+        <Select value={priority} onChange={(v) => setPriority(v as TicketPriority | '')} label="Prioridad" options={[[ '', 'Todas las prioridades' ], ...PRIORITY]} />
+      </Toolbar>
       {list.error ? <div className="card-b"><Note kind="warn" role="alert">No se pudieron cargar los tickets: {errorText(list.error)} <button className="btn sm" type="button" onClick={list.reload}>Reintentar</button></Note></div>
         : list.loading ? <Skeleton variant="table" rows={6} />
           : rows.length ? <div className="tw"><table className="t"><thead><tr><th>Número / asunto</th><th>Estado</th><th>Prioridad</th><th>Tipo</th><th>Creado</th></tr></thead><tbody>{rows.map((t: Ticket) => <tr key={t.id}>

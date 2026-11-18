@@ -4,7 +4,7 @@ import { useApp } from '../../app/context';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Toolbar } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, Toolbar } from '../../components/ui';
 import { CustomerSearch } from './clientes/CustomerSearch';
 import { errorText, fDate, useCan, useLoad } from './clientes/shared';
 import { PROVIDER_STATUS_CHIP, PROVIDER_TYPE_LABEL, providersApi } from './proveedores/shared';
@@ -28,11 +28,11 @@ export default function ProveedoresView() {
     { key: 'actions', header: 'Acciones', align: 'r', render: p => <span className="nw">{can('providers.provider.update') ? <button className="btn sm" onClick={() => setForm(p)}>Editar</button> : null} {can('providers.provider.delete') ? <button className="btn sm danger" onClick={() => remove(p)}>Eliminar</button> : null}</span> },
   ];
   return <><PageHead crumbs={[[ 'Infraestructura', 'infra' ], ['Proveedores']]} title="Proveedores" sub="Proveedores externos y sus cuentas." actions={can('providers.provider.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm"/> Nuevo proveedor</button> : null}/>
-    <section className="card"><Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+    <section className="card"><Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}><SearchBox label="Buscar proveedores" placeholder="Buscar…" value={q} onChange={(v) => {setQ(v);setCursor(null)}} />
       <Select label="Tipo" value={type} onChange={v => {setType(v);setCursor(null)}} options={[['','Todos los tipos'], ...types.map(t => [t, PROVIDER_TYPE_LABEL[t]] as [string,string])]} />
-      <Select label="Estado" value={status} onChange={v => {setStatus(v);setCursor(null)}} options={[['','Todos'],['active','Activo'],['inactive','Inactivo']]} />
-      <Select label="Origen" value={origin} onChange={v => {setOrigin(v);setCursor(null)}} options={[['','Todos'],['company','Empresa'],['customer','Cliente']]} />
-      <input className="input" aria-label="Buscar proveedores" placeholder="Buscar…" value={q} onChange={e => {setQ(e.target.value);setCursor(null)}} />
+      <Select label="Estado" value={status} onChange={v => {setStatus(v);setCursor(null)}} options={[['','Todos los estados'],['active','Activo'],['inactive','Inactivo']]} />
+      <Select label="Origen" value={origin} onChange={v => {setOrigin(v);setCursor(null)}} options={[['','Todos los orígenes'],['company','Empresa'],['customer','Cliente']]} />
+      
     </Toolbar>{res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div> : res.loading && !res.data ? <Skeleton variant="table" rows={5}/> : !rows.length ? <EmptyState title="Sin proveedores" text="No hay proveedores que coincidan con los filtros."/> : <><DataTable columns={cols} rows={rows} rowKey={p => p.id} caption="Proveedores"/><div className="card-b" style={{display:'flex',justifyContent:'flex-end',gap:8}}><button className="btn sm" disabled={res.loading||!meta?.prev_cursor} onClick={()=>setCursor(meta?.prev_cursor??null)}>Anterior</button><button className="btn sm" disabled={res.loading||!meta?.next_cursor} onClick={()=>setCursor(meta?.next_cursor??null)}>Siguiente</button></div></>}</section>
     {form ? <ProviderForm provider={form === 'new' ? undefined : form} onClose={()=>setForm(null)} onSaved={()=>{setForm(null);refresh()}}/> : null}
     {detail ? <ProviderDetail provider={detail} can={can} toast={toast} onClose={()=>setDetail(null)} onChanged={refresh}/> : null}

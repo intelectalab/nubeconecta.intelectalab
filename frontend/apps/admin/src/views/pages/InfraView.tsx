@@ -13,7 +13,7 @@ import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, Select, Skeleton, Tabs, Toolbar, type TabDef } from '../../components/ui';
+import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, Tabs, Toolbar, type TabDef } from '../../components/ui';
 import { CustomerSearch } from './clientes/CustomerSearch';
 import { errorText, fDate, useCan, useLoad, type Loadable } from './clientes/shared';
 import {
@@ -87,9 +87,9 @@ function Resources() {
   return (
     <>
       <Toolbar count={res.loading ? 'Cargando…' : `${(res.data?.data ?? []).length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <SearchBox label="Buscar recursos" placeholder="Buscar…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
         <Select label="Tipo" value={type} onChange={(v) => { setType(v); setCursor(null); }} options={[['', 'Todos los tipos'], ...RTYPES.map((t) => [t, RESOURCE_TYPE_LABEL[t]] as [string, string])]} />
-        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todos'], ...(Object.keys(RESOURCE_STATUS_LABEL) as (keyof typeof RESOURCE_STATUS_LABEL)[]).map((s) => [s, RESOURCE_STATUS_LABEL[s]] as [string, string])]} />
-        <input className="input" aria-label="Buscar recursos" placeholder="Buscar…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todos los estados'], ...(Object.keys(RESOURCE_STATUS_LABEL) as (keyof typeof RESOURCE_STATUS_LABEL)[]).map((s) => [s, RESOURCE_STATUS_LABEL[s]] as [string, string])]} />
         {can('inventory.resource.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo recurso</button> : null}
       </Toolbar>
       <ListFrame res={res} empty="Sin recursos">{(rows) => <><DataTable columns={cols} rows={rows} rowKey={(r) => r.id} caption="Recursos" /><Pager meta={meta} loading={res.loading} setCursor={setCursor} /></>}</ListFrame>
@@ -163,7 +163,7 @@ function Servers() {
   return (
     <>
       <Toolbar count={res.loading ? 'Cargando…' : `${(res.data?.data ?? []).length}${meta?.has_more ? '+' : ''} en esta página`}>
-        <input className="input" aria-label="Buscar servidores" placeholder="Buscar hostname/IP…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        <SearchBox label="Buscar servidores" placeholder="Buscar hostname/IP…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
         {can('inventory.server.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo servidor</button> : null}
       </Toolbar>
       <ListFrame res={res} empty="Sin servidores">{(rows) => <><DataTable columns={cols} rows={rows} rowKey={(s) => s.id} caption="Servidores" /><Pager meta={meta} loading={res.loading} setCursor={setCursor} /></>}</ListFrame>
@@ -244,9 +244,9 @@ function Nodes() {
   return (
     <>
       <Toolbar count={res.loading ? 'Cargando…' : `${(res.data?.data ?? []).length}${meta?.has_more ? '+' : ''} en esta página`}>
-        <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos'], ['reseller', 'Reseller'], ['own_vps', 'VPS propio']]} />
-        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todos'], ...(Object.keys(NODE_STATUS_LABEL) as (keyof typeof NODE_STATUS_LABEL)[]).map((s) => [s, NODE_STATUS_LABEL[s]] as [string, string])]} />
-        <input className="input" aria-label="Buscar nodos" placeholder="Buscar hostname…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        <SearchBox label="Buscar nodos" placeholder="Buscar hostname…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
+        <Select label="Tipo" value={kind} onChange={(v) => { setKind(v); setCursor(null); }} options={[['', 'Todos los tipos'], ['reseller', 'Reseller'], ['own_vps', 'VPS propio']]} />
+        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todos los estados'], ...(Object.keys(NODE_STATUS_LABEL) as (keyof typeof NODE_STATUS_LABEL)[]).map((s) => [s, NODE_STATUS_LABEL[s]] as [string, string])]} />
         {can('inventory.hosting_node.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nuevo nodo</button> : null}
       </Toolbar>
       <ListFrame res={res} empty="Sin nodos">{(rows) => <><DataTable columns={cols} rows={rows} rowKey={(n) => n.id} caption="Nodos" /><Pager meta={meta} loading={res.loading} setCursor={setCursor} /></>}</ListFrame>
@@ -323,8 +323,8 @@ function Accounts() {
   return (
     <>
       <Toolbar count={res.loading ? 'Cargando…' : `${(res.data?.data ?? []).length}${meta?.has_more ? '+' : ''} en esta página`}>
-        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todas'], ...(Object.keys(ACCOUNT_STATUS_LABEL) as (keyof typeof ACCOUNT_STATUS_LABEL)[]).map((s) => [s, ACCOUNT_STATUS_LABEL[s]] as [string, string])]} />
-        <input className="input" aria-label="Buscar cuentas" placeholder="Buscar usuario/dominio…" value={q} onChange={(e) => { setQ(e.target.value); setCursor(null); }} />
+        <SearchBox label="Buscar cuentas" placeholder="Buscar usuario/dominio…" value={q} onChange={(v) => { setQ(v); setCursor(null); }} />
+        <Select label="Estado" value={status} onChange={(v) => { setStatus(v); setCursor(null); }} options={[['', 'Todos los estados'], ...(Object.keys(ACCOUNT_STATUS_LABEL) as (keyof typeof ACCOUNT_STATUS_LABEL)[]).map((s) => [s, ACCOUNT_STATUS_LABEL[s]] as [string, string])]} />
         {can('inventory.hosting_account.create') ? <button className="btn primary" onClick={() => setForm('new')}><Icon name="plus" size="sm" /> Nueva cuenta</button> : null}
       </Toolbar>
       <ListFrame res={res} empty="Sin cuentas">{(rows) => <><DataTable columns={cols} rows={rows} rowKey={(a) => a.id} caption="Cuentas" /><Pager meta={meta} loading={res.loading} setCursor={setCursor} /></>}</ListFrame>
