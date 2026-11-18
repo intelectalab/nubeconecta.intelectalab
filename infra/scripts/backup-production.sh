@@ -39,6 +39,28 @@ tar -C "$BACKUP_DIR" -czf "$ARCHIVE" ".work-$STAMP"
 chmod 600 "$ARCHIVE"
 rm -rf "$WORK"
 trap - EXIT HUP INT TERM
-find "$BACKUP_DIR" -maxdepth 1 -type f -name 'hub-backup-*.tar.gz' -mtime "+$BACKUP_RETENTION_DAYS" -delete
+
+# --- Cifrado y copia fuera del host (off-site). Opcional, por variables de entorno. ---
+# BACKUP_GPG_PASSPHRASE : si se define, cifra el archivo con AES256 antes de subirlo.
+# BACKUP_S3_URI         : destino S3 (p. ej. s3://mi-bucket/hub). Requiere el cliente `aws` instalado y sus credenciales.
+# BACKUP_UPLOAD_CMD     : alternativa genérica; se ejecuta como `<cmd> <archivo>` (rclone, scp a otro host, etc.).
+UPLOAD="$ARCHIVE"
+if [ -n "${BACKUP_GPG_PASSPHRASE:-}" ]; then
+  if command -v gpg >/dev/null 2>&1; then
+    gpg --batch --yes --passphrase "$BACKUP_GPG_PASSPHRASE" --symmetric --cipher-algo AES256 -o "$ARCHIVE.gpg" "$ARCHIVE"
+    UPLOAD="$ARCHIVE.gpg"; chmod 600 "$UPLOAD"
+  else
+    echo "BACKUP_GPG_PASSPHRASE definido pero falta gpg; se sube SIN cifrar." >&2
+  fi
+fi
+if [ -n "${BACKUP_S3_URI:-}" ] && command -v aws >/dev/null 2>&1; then
+  aws s3 cp "$UPLOAD" "${BACKUP_S3_URI%/}/" && printf 'Off-site: subido a %s\n' "${BACKUP_S3_URI%/}/"
+elif [ -n "${BACKUP_UPLOAD_CMD:-}" ]; then
+  sh -c "$BACKUP_UPLOAD_CMD \"$UPLOAD\"" && printf 'Off-site: subido con BACKUP_UPLOAD_CMD\n'
+else
+  printf 'Off-site: NO configurado (define BACKUP_S3_URI+aws o BACKUP_UPLOAD_CMD). El respaldo quedó SOLO en el VPS.\n' >&2
+fi
+
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'hub-backup-*.tar.gz' -o -name 'hub-backup-*.tar.gz.gpg' \) -mtime "+$BACKUP_RETENTION_DAYS" -delete
 printf 'Backup created: %s\n' "$ARCHIVE"
 printf '%s\n' 'Copy it off the VPS and test database and uploads restore before relying on it.'

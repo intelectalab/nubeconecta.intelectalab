@@ -1,0 +1,22 @@
+# Respaldo diario de producción — instalar en el crontab de root del VPS.
+#
+# 1) Programar (crontab -e, como root), una línea:
+#
+#    17 3 * * * cd /var/www/alojamientoplus/infra && set -a && . ./.env.production && set +a && ./scripts/backup-production.sh >> /var/log/hub-backup.log 2>&1
+#
+#    Corre todos los días a las 03:17. Carga las variables de .env.production
+#    (DB_DATABASE, DB_OWNER_USERNAME, WP_DB_NAME, retención, y las de off-site si existen)
+#    y deja la salida en /var/log/hub-backup.log.
+#
+# 2) Copia fuera del host (off-site). Hoy el respaldo queda SOLO en el VPS; para que
+#    sobreviva a una falla del servidor, define en infra/.env.production (cuando haya S3):
+#
+#       BACKUP_GPG_PASSPHRASE=<frase-secreta-para-cifrar>      # opcional pero recomendado
+#       BACKUP_S3_URI=s3://tu-bucket/hub                        # requiere el cliente `aws` + credenciales
+#       # o, en su lugar, un comando propio:
+#       # BACKUP_UPLOAD_CMD=rclone copy --quiet {} remoto:hub   # (el script pasa el archivo como argumento)
+#
+#    Sin esas variables el backup se crea igual, pero el script avisa que quedó solo local.
+#
+# 3) Prueba la RESTAURACIÓN de un respaldo antes de confiar en él
+#    (un backup sin restauración probada no cuenta).
