@@ -223,6 +223,7 @@ final class WpPublicController
             ->leftJoin('products as p', fn ($j) => $j->on('p.id', '=', 'c.product_id'))
             ->where('c.organization_id', $site->organization_id)
             ->where('c.is_active', true)
+            ->where('c.is_public', true)
             ->where(fn (Builder $q) => $q->whereNull('c.brand_id')->orWhere('c.brand_id', $site->brand_id))
             ->where(fn (Builder $q) => $q->whereNull('c.valid_from')->orWhereDate('c.valid_from', '<=', $today))
             ->where(fn (Builder $q) => $q->whereNull('c.valid_until')->orWhereDate('c.valid_until', '>=', $today))

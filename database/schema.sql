@@ -2867,6 +2867,7 @@ CREATE TABLE coupons (
     max_uses        integer NULL CHECK (max_uses > 0),
     uses_count      integer NOT NULL DEFAULT 0 CHECK (uses_count >= 0),
     is_active       boolean NOT NULL DEFAULT true,
+    is_public       boolean NOT NULL DEFAULT false,   -- solo los públicos se exponen en el bloque 'promocion' del widget
     version         integer NOT NULL DEFAULT 1 CHECK (version >= 1),   -- concurrencia optimista: PATCH con versión vieja responde 409
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
     created_by uuid NULL, updated_by uuid NULL,

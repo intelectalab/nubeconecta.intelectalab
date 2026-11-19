@@ -871,7 +871,7 @@ final class WebConnectorTest extends IdentityTestCase
         $otherBrand = $this->brand('promo-b');
         $base = [
             'organization_id' => $org, 'product_id' => null, 'description' => null, 'discount_minor' => null, 'currency' => null,
-            'uses_count' => 0, 'is_active' => true, 'version' => 1, 'created_at' => now(), 'updated_at' => now(),
+            'uses_count' => 0, 'is_active' => true, 'is_public' => true, 'version' => 1, 'created_at' => now(), 'updated_at' => now(),
             'valid_from' => now()->subDay()->toDateString(), 'valid_until' => now()->addDays(10)->toDateString(),
         ];
         $row = fn (array $o) => array_merge($base, ['id' => (string) Str::uuid(), 'discount_type' => 'percent', 'discount_percent' => 25], $o);
@@ -879,6 +879,7 @@ final class WebConnectorTest extends IdentityTestCase
             $row(['code' => 'GLOBAL25', 'description' => 'Global', 'brand_id' => null]),
             $row(['code' => 'MARCA50', 'description' => 'De la marca', 'discount_percent' => 50, 'brand_id' => $brand]),
             $row(['code' => 'INACTIVO', 'brand_id' => null, 'is_active' => false]),
+            $row(['code' => 'PRIVADO', 'brand_id' => null, 'is_public' => false]), // activo pero no público: no debe exponerse
             $row(['code' => 'VENCIDO', 'brand_id' => null, 'valid_until' => now()->subDay()->toDateString()]),
             $row(['code' => 'OTRA', 'brand_id' => $otherBrand]),
         ]);

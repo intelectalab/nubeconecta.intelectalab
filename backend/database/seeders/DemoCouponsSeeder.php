@@ -50,7 +50,7 @@ final class DemoCouponsSeeder extends Seeder
                     'discount_percent' => $percent, 'discount_minor' => $minor, 'currency' => $currency,
                     'brand_id' => null, 'product_id' => null,
                     'valid_from' => $today->toDateString(), 'valid_until' => $today->copy()->addDays($days)->toDateString(),
-                    'is_active' => true, 'uses_count' => 0, 'version' => 1,
+                    'is_active' => true, 'is_public' => true, 'uses_count' => 0, 'version' => 1,
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
             }
