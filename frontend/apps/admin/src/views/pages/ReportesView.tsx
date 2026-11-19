@@ -14,7 +14,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
-import { errorText, fDate, useCan, useLoad } from './clientes/shared';
+import { errorText, fDate, moneyMinor, useCan, useLoad } from './clientes/shared';
 import { hub } from '../../auth/client';
 
 const financeApi = hub.finance;
@@ -23,7 +23,7 @@ const TABS: TabDef<Tab>[] = [{ id: 'costos', label: 'Costos' }, { id: 'rentabili
 const KIND_LABEL: Record<CostKind, string> = { provider_recurring: 'Proveedor (recurrente)', provider_one_time: 'Proveedor (único)', license: 'Licencia', payment_fee: 'Comisión de pago', other: 'Otro' };
 const KINDS = Object.keys(KIND_LABEL) as CostKind[];
 const PER = 25;
-const money = (minor: number, cur: string) => `${(minor / 100).toLocaleString('es-PE', { minimumFractionDigits: 2 })} ${cur}`;
+const money = (minor: number, cur: string) => moneyMinor(minor, cur);
 const firstOfMonth = (ym: string) => (ym ? `${ym}-01` : '');
 
 export default function ReportesView({ param }: ViewProps) {
@@ -183,7 +183,6 @@ function Profitability() {
   const marginStyle = (v: number) => ({ color: v > 0 ? 'var(--ok-text, var(--ok))' : v < 0 ? 'var(--danger-text)' : 'var(--muted)', fontWeight: 700 });
   const cols: Column<ProfitabilityRow>[] = [
     { key: 'service', header: 'Servicio', className: 'strong', render: (r) => r.service_name ?? r.service_id },
-    { key: 'currency', header: 'Moneda', render: (r) => r.currency },
     { key: 'revenue', header: 'Ingreso (mensual)', align: 'r', className: 'num', render: (r) => money(r.revenue_minor, r.currency) },
     { key: 'cost', header: 'Costo asignado', align: 'r', className: 'num', render: (r) => money(r.allocated_cost_minor, r.currency) },
     { key: 'margin', header: 'Margen', align: 'r', className: 'num', render: (r) => <span style={marginStyle(r.margin_minor)}>{money(r.margin_minor, r.currency)}</span> },

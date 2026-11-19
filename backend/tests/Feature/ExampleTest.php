@@ -8,12 +8,10 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * La raíz redirige al panel de administración (la SPA se sirve en /admin/).
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_root_redirects_to_admin(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
+        $this->get('/')->assertRedirect('/admin/');
     }
 }
