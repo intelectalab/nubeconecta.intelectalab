@@ -13,7 +13,7 @@ import type { ViewProps } from '../../app/routes';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
-import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
+import { EmptyState, Note, PageHead, SearchBox, Select, Skeleton, StatLine, Tabs, Toolbar, type TabDef } from '../../components/ui';
 import { errorText, fDate, moneyMinor, useCan, useLoad } from './clientes/shared';
 import { hub } from '../../auth/client';
 
@@ -203,8 +203,16 @@ function Profitability() {
           : res.loading && !res.data ? <Skeleton variant="table" rows={4} />
             : !rows.length ? <EmptyState title="Sin datos" text="No hay ingreso ni costo asignado en este periodo." />
               : <>
+                <StatLine items={totals.flatMap((t) => {
+                  const suf = totals.length > 1 ? ` · ${t.currency}` : '';
+                  return [
+                    { label: `Ingreso del mes${suf}`, value: money(t.revenue_minor, t.currency) },
+                    { label: `Costo asignado${suf}`, value: money(t.allocated_cost_minor, t.currency) },
+                    { label: `Margen${suf}`, value: money(t.margin_minor, t.currency), tone: t.margin_minor >= 0 ? '' : 'danger' },
+                    { label: `Margen %${suf}`, value: t.margin_pct === null ? '—' : `${t.margin_pct} %`, tone: t.margin_minor >= 0 ? '' : 'danger' },
+                  ];
+                })} />
                 <DataTable columns={cols} rows={rows} rowKey={(r) => r.service_id + r.currency} caption="Rentabilidad por servicio" />
-                <div className="card-b" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>{totals.map((t) => <Chip key={t.currency} kind={t.margin_minor >= 0 ? 'ok' : 'danger'}>{t.currency}: ingreso {money(t.revenue_minor, t.currency)} · costo {money(t.allocated_cost_minor, t.currency)} · margen {money(t.margin_minor, t.currency)}{t.margin_pct === null ? '' : ` (${t.margin_pct} %)`}</Chip>)}</div>
               </>}
     </>
   );

@@ -223,14 +223,16 @@ function HelpPage({ go }: { go: (r: LiveRoute) => void }) {
       {res.loading && !res.data ? <Loading inCard /> : !rows.length ? (
         <Empty icon="book"><b>Sin artículos</b>{q.trim() ? 'No encontramos artículos para esta búsqueda.' : 'Aún no hay artículos publicados.'}</Empty>
       ) : (
-        <Table cols={[{ label: 'Artículo' }, { label: 'Categoría' }, { label: 'Actualizado' }, { label: 'Acción', right: true }]}>
-          {rows.map((article) => <tr key={article.id}>
-            <td><b>{article.title}</b></td>
-            <td>{article.category?.name ?? 'General'}</td>
-            <td className="nw">{fDate(article.updated_at ?? article.published_at)}</td>
-            <td className="r nw"><button type="button" className="btn sm" onClick={() => setArticleId(article.id)}>Leer artículo →</button></td>
-          </tr>)}
-        </Table>
+        <div className="card-b">
+          <div className="help-grid">
+            {rows.map((article) => <button key={article.id} type="button" className="help-card" onClick={() => setArticleId(article.id)}>
+              <span className="hc-cat">{article.category?.name ?? 'General'}</span>
+              <span className="hc-title">{article.title}</span>
+              <span className="hc-meta">Actualizado {fDate(article.updated_at ?? article.published_at)}</span>
+              <span className="hc-go">Leer artículo →</span>
+            </button>)}
+          </div>
+        </div>
       )}
       <Pager loading={res.loading} prev={meta?.prev_cursor} next={meta?.next_cursor} onPrev={() => setCursor(meta?.prev_cursor ?? null)} onNext={() => setCursor(meta?.next_cursor ?? null)} />
     </Card>
