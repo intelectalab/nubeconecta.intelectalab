@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Support\Models;
 
+use App\Models\User;
+use App\Modules\Customers\Models\Customer;
 use App\Modules\Files\Models\File;
 use App\Shared\Database\Concerns\BelongsToOrganization;
 use App\Shared\Database\Concerns\TracksVersionAndActor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -26,6 +29,10 @@ class Ticket extends Model
     {
         return ['custom' => 'array', 'sla_breached' => 'boolean', 'first_response_due_at' => 'datetime', 'first_responded_at' => 'datetime', 'resolution_due_at' => 'datetime', 'sla_paused_since' => 'datetime', 'resolved_at' => 'datetime', 'closed_at' => 'datetime', 'last_customer_activity_at' => 'datetime', 'sla_paused_minutes' => 'integer', 'reopened_count' => 'integer', 'level' => 'integer', 'version' => 'integer'];
     }
+
+    public function assignee(): BelongsTo { return $this->belongsTo(User::class, 'assignee_id'); }
+
+    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
 
     public function messages(): HasMany { return $this->hasMany(TicketMessage::class)->orderBy('created_at'); }
 

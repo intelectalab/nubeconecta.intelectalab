@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { isProblem, type TicketMessageChannel, type TicketPriority, type TicketStatus } from '@hub/api';
 import { hub } from '../../../auth/client';
 import { useApp } from '../../../app/context';
+import { href } from '../../../app/routeMeta';
 import { Icon } from '../../../components/Icon';
 import { Chip, type ChipKind, Note, Skeleton } from '../../../components/ui';
 import { errorText, useCan, useLoad } from '../clientes/shared';
@@ -108,8 +109,8 @@ export default function TicketDetail({ id }: { id: string }) {
           <section className="card"><div className="card-b" style={{ paddingTop: 14, display: 'grid', gap: 12 }}>
             <label className="field">Estado{write ? <select className="select" value={t.status} onChange={(e) => void changeStatus(e.target.value as TicketStatus)}><option value={t.status}>{statusLabel(t.status)}</option>{NEXT[t.status].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select> : <div>{statusLabel(t.status)}</div>}</label>
             <div className="field">Prioridad<div>{PRIORITY[t.priority]}</div></div>
-            <div className="field">Agente asignado<div>{t.assignee_id ?? 'Sin asignar'}</div></div>
-            <div className="field">Cliente<div>{t.customer_id ?? 'Sin cliente asociado'}</div></div>
+            <div className="field">Agente asignado<div>{t.assignee?.name ?? 'Sin asignar'}</div></div>
+            <div className="field">Cliente<div>{t.customer ? <a className="rowlink" href={href('cliente', t.customer.id)}>{t.customer.name}</a> : 'Sin cliente asociado'}</div></div>
             {t.department || t.category ? <div className="field">Clasificación<div className="sub">{[t.department, t.category].filter(Boolean).join(' · ') || '—'}</div></div> : null}
           </div></section>
           <section className="card"><div className="card-h"><h2 className="sec">SLA</h2>{t.sla_breached ? <Chip kind="danger">Incumplido</Chip> : null}</div><div className="card-b" style={{ display: 'grid', gap: 10 }}>

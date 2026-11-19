@@ -176,7 +176,8 @@ function AllocationForm({ cost, remaining, onClose, onSaved }: { cost: Cost; rem
 
 /* ===================== Rentabilidad ===================== */
 function Profitability() {
-  const [period, setPeriod] = useState('');
+  const now = new Date();
+  const [period, setPeriod] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const res = useLoad(() => (period ? financeApi.profitability(firstOfMonth(period)) : Promise.resolve({ data: [], totals: [] })), [period]);
   const rows = res.data?.data ?? [];
   const totals = res.data?.totals ?? [];

@@ -15,7 +15,7 @@ export interface TicketMessage {
 export interface Ticket {
   id: string; number: string; customer_id: string | null; contact_id: string | null; brand_id: string | null;
   type: TicketType; status: TicketStatus; priority: TicketPriority; channel: TicketChannel; subject: string;
-  assignee_id: string | null; first_response_due_at: string | null; first_responded_at: string | null;
+  assignee_id: string | null; assignee?: { id: string; name: string } | null; customer?: { id: string; name: string } | null; first_response_due_at: string | null; first_responded_at: string | null;
   resolution_due_at: string | null; sla_breached: boolean; resolved_at: string | null; closed_at: string | null;
   department: string | null; category: string | null; level: number; version: number; created_at: string;
   messages: TicketMessage[];

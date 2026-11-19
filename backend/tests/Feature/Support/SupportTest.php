@@ -75,6 +75,24 @@ final class SupportTest extends IdentityTestCase
             ->assertJsonPath('data.attachments.0.original_name', 'captura.jpg');
     }
 
+    public function test_ticket_show_includes_assignee_and_customer_names(): void
+    {
+        $customer = $this->postJson('/api/v1/admin/customers', [
+            'type' => 'company', 'legal_name' => 'Cliente Soporte SAC', 'tax_id_type' => 'ruc', 'tax_id' => '20100070970',
+            'country' => 'PE', 'currency' => 'PEN', 'origin_brand_id' => $this->brand,
+        ])->assertCreated()->json('data.id');
+        $ticket = $this->postJson('/api/v1/admin/tickets', [
+            'brand_id' => $this->brand, 'customer_id' => $customer, 'assignee_id' => $this->admin->id, 'channel' => 'portal', 'subject' => 'Con nombres',
+        ])->assertCreated()->json('data.id');
+
+        $this->getJson("/api/v1/admin/tickets/{$ticket}")
+            ->assertOk()
+            ->assertJsonPath('data.assignee.id', $this->admin->id)
+            ->assertJsonPath('data.assignee.name', $this->admin->name)
+            ->assertJsonPath('data.customer.id', $customer)
+            ->assertJsonPath('data.customer.name', 'Cliente Soporte SAC');
+    }
+
     public function test_complaint_and_official_response(): void
     {
         $complaint = $this->postJson('/api/v1/admin/complaints', [
