@@ -6,7 +6,7 @@
  */
 import { useMemo, useState, type FormEvent } from 'react';
 import {
-  isProblem, type Cost, type CostAllocation, type CostAllocationInput, type CostInput, type CostKind,
+  isProblem, type Cost, type CostAllocation, type CostAllocationInput, type CostInput, type CostKind, type ProfitabilityRow,
 } from '@hub/api';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
@@ -180,9 +180,14 @@ function Profitability() {
   const res = useLoad(() => (period ? financeApi.profitability(firstOfMonth(period)) : Promise.resolve({ data: [], totals: [] })), [period]);
   const rows = res.data?.data ?? [];
   const totals = res.data?.totals ?? [];
-  const cols: Column<{ service_id: string; service_name: string | null; allocated_cost_minor: number; cost_currency: string }>[] = [
+  const marginStyle = (v: number) => ({ color: v > 0 ? 'var(--ok-text, var(--ok))' : v < 0 ? 'var(--danger-text)' : 'var(--muted)', fontWeight: 700 });
+  const cols: Column<ProfitabilityRow>[] = [
     { key: 'service', header: 'Servicio', className: 'strong', render: (r) => r.service_name ?? r.service_id },
-    { key: 'cost', header: 'Costo asignado', align: 'r', render: (r) => money(r.allocated_cost_minor, r.cost_currency) },
+    { key: 'currency', header: 'Moneda', render: (r) => r.currency },
+    { key: 'revenue', header: 'Ingreso (mensual)', align: 'r', className: 'num', render: (r) => money(r.revenue_minor, r.currency) },
+    { key: 'cost', header: 'Costo asignado', align: 'r', className: 'num', render: (r) => money(r.allocated_cost_minor, r.currency) },
+    { key: 'margin', header: 'Margen', align: 'r', className: 'num', render: (r) => <span style={marginStyle(r.margin_minor)}>{money(r.margin_minor, r.currency)}</span> },
+    { key: 'pct', header: 'Margen %', align: 'r', className: 'num', render: (r) => (r.margin_pct === null ? <span className="sub">—</span> : <span style={marginStyle(r.margin_minor)}>{r.margin_pct} %</span>) },
   ];
   return (
     <>
@@ -192,14 +197,14 @@ function Profitability() {
           <input className="input" type="month" aria-label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value)} />
         </label>
       </Toolbar>
-      <div className="card-b"><Note kind="warn">La rentabilidad muestra solo el costo asignado por servicio; el lado de ingresos aún no está disponible.</Note></div>
-      {!period ? <EmptyState title="Elija un periodo" text="Seleccione un mes para ver el costo asignado por servicio." />
+      <div className="card-b"><Note icon="info">Ingreso = suscripciones activas del mes normalizadas a su equivalente mensual. El margen solo se calcula cuando ingreso y costo están en la misma moneda (sin tipo de cambio).</Note></div>
+      {!period ? <EmptyState title="Elija un periodo" text="Seleccione un mes para ver el ingreso, costo y margen por servicio." />
         : res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
           : res.loading && !res.data ? <Skeleton variant="table" rows={4} />
-            : !rows.length ? <EmptyState title="Sin datos" text="No hay costos asignados en este periodo." />
+            : !rows.length ? <EmptyState title="Sin datos" text="No hay ingreso ni costo asignado en este periodo." />
               : <>
-                <DataTable columns={cols} rows={rows} rowKey={(r) => r.service_id} caption="Rentabilidad por servicio" />
-                <div className="card-b" style={{ display: 'flex', gap: 16, justifyContent: 'flex-end' }}>{totals.map((t) => <Chip key={t.cost_currency} kind="info">Total {money(t.allocated_cost_minor, t.cost_currency)}</Chip>)}</div>
+                <DataTable columns={cols} rows={rows} rowKey={(r) => r.service_id + r.currency} caption="Rentabilidad por servicio" />
+                <div className="card-b" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>{totals.map((t) => <Chip key={t.currency} kind={t.margin_minor >= 0 ? 'ok' : 'danger'}>{t.currency}: ingreso {money(t.revenue_minor, t.currency)} · costo {money(t.allocated_cost_minor, t.currency)} · margen {money(t.margin_minor, t.currency)}{t.margin_pct === null ? '' : ` (${t.margin_pct} %)`}</Chip>)}</div>
               </>}
     </>
   );

@@ -63,11 +63,52 @@ final class FinanceTest extends IdentityTestCase
             $cost = $this->createCost($amount);
             $this->postJson('/api/v1/admin/cost-allocations', $this->allocationPayload($cost, ['amount_minor' => $amount]))->assertCreated();
         }
+        // Sin suscripciones: ingreso 0, margen negativo, margen % nulo.
         $this->getJson('/api/v1/admin/finance/profitability?period_month=2026-03-01')->assertOk()
             ->assertJsonPath('data.0.service_id', $this->service)
             ->assertJsonPath('data.0.allocated_cost_minor', 1050)
-            ->assertJsonPath('data.0.cost_currency', 'PEN')
-            ->assertJsonPath('totals.0.allocated_cost_minor', 1050);
+            ->assertJsonPath('data.0.revenue_minor', 0)
+            ->assertJsonPath('data.0.margin_minor', -1050)
+            ->assertJsonPath('data.0.margin_pct', null)
+            ->assertJsonPath('data.0.currency', 'PEN')
+            ->assertJsonPath('totals.0.allocated_cost_minor', 1050)
+            ->assertJsonPath('totals.0.revenue_minor', 0);
+    }
+
+    public function test_profitability_includes_monthly_normalized_subscription_revenue_and_margin(): void
+    {
+        // Suscripción mensual S/100 activa en el periodo + costo asignado S/40 → margen S/60 (60%).
+        DB::table('subscriptions')->insert([
+            'id' => (string) Str::uuid(), 'organization_id' => $this->admin->organization_id, 'service_id' => $this->service,
+            'cycle' => 'monthly', 'quantity' => 1, 'price_minor' => 10000, 'currency' => 'PEN',
+            'next_invoice_date' => '2026-04-01', 'starts_on' => '2026-01-01', 'status' => 'active',
+            'version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $cost = $this->createCost(4000);
+        $this->postJson('/api/v1/admin/cost-allocations', $this->allocationPayload($cost, ['amount_minor' => 4000]))->assertCreated();
+
+        $this->getJson('/api/v1/admin/finance/profitability?period_month=2026-03-01')->assertOk()
+            ->assertJsonPath('data.0.service_id', $this->service)
+            ->assertJsonPath('data.0.revenue_minor', 10000)
+            ->assertJsonPath('data.0.allocated_cost_minor', 4000)
+            ->assertJsonPath('data.0.margin_minor', 6000)
+            ->assertJsonPath('data.0.margin_pct', 60)
+            ->assertJsonPath('data.0.currency', 'PEN')
+            ->assertJsonPath('totals.0.revenue_minor', 10000)
+            ->assertJsonPath('totals.0.margin_minor', 6000);
+    }
+
+    public function test_profitability_annual_subscription_is_normalized_to_monthly(): void
+    {
+        // Suscripción anual S/1200 → equivalente mensual S/100.
+        DB::table('subscriptions')->insert([
+            'id' => (string) Str::uuid(), 'organization_id' => $this->admin->organization_id, 'service_id' => $this->service,
+            'cycle' => 'annual', 'quantity' => 1, 'price_minor' => 120000, 'currency' => 'PEN',
+            'next_invoice_date' => '2027-01-01', 'starts_on' => '2026-01-01', 'status' => 'active',
+            'version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->getJson('/api/v1/admin/finance/profitability?period_month=2026-03-01')->assertOk()
+            ->assertJsonPath('data.0.revenue_minor', 10000);
     }
 
     public function test_costs_are_isolated_by_organization(): void

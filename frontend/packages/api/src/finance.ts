@@ -39,8 +39,8 @@ export interface CostAllocation {
   service?: { id: string; name?: string; label?: string; status?: string } | null;
 }
 
-export interface ProfitabilityRow { service_id: string; service_name: string | null; allocated_cost_minor: number; cost_currency: string }
-export interface ProfitabilityTotal { cost_currency: string; allocated_cost_minor: number }
+export interface ProfitabilityRow { service_id: string; service_name: string | null; currency: string; revenue_minor: number; allocated_cost_minor: number; margin_minor: number; margin_pct: number | null }
+export interface ProfitabilityTotal { currency: string; revenue_minor: number; allocated_cost_minor: number; margin_minor: number; margin_pct: number | null }
 export interface ProfitabilityReport { data: ProfitabilityRow[]; totals: ProfitabilityTotal[] }
 
 export type CostInput = {
