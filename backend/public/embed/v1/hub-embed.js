@@ -325,6 +325,17 @@
         });
         wrap.appendChild(ul);
       }).catch(function (e) { fail(wrap, e); });
+    },
+    promocion: function (div, wrap) {
+      loading(wrap, 'Cargando promociones');
+      api('/catalog/promotions', {}).then(function (rows) {
+        if (!rows) return; wrap.innerHTML = '';
+        if (!rows.length) { wrap.appendChild(el('div', 'hub-msg', 'No hay promociones vigentes.')); return; }
+        var cols = Math.max(1, Math.min(4, parseInt(div.dataset.columnas, 10) || 2));
+        var grid = el('div', 'hub-grid'); grid.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(0,1fr))';
+        rows.forEach(function (p) { grid.appendChild(promoCard(p)); });
+        wrap.appendChild(grid);
+      }).catch(function (e) { fail(wrap, e); });
     }
   };
 
@@ -365,6 +376,22 @@
     if (s.sellable_online) {
       var a = el('a', 'hub-btn', 'Contratar'); a.href = ORIGIN + '/cart?add=' + encodeURIComponent(s.id); a.target = '_blank'; a.rel = 'noopener'; card.appendChild(a);
     }
+    return card;
+  }
+
+  function promoCard(p) {
+    var card = el('div', 'hub-card feat');
+    var disc = p.discount_type === 'percent'
+      ? (Number(p.discount_percent) + '% de descuento')
+      : (p.discount_minor != null ? money(p.discount_minor, p.currency || 'PEN') + ' de descuento' : 'Promoción');
+    var price = el('div', 'hub-price'); price.appendChild(document.createTextNode(disc));
+    card.appendChild(price);
+    if (p.description) card.appendChild(el('p', 'hub-tag', p.description));
+    var code = el('div'); code.style.margin = '8px 0';
+    code.appendChild(el('span', 'hub-badge ok', 'Código: ' + p.code));
+    card.appendChild(code);
+    if (p.product_name) card.appendChild(el('small', 'hub-tag', 'Aplica a ' + p.product_name));
+    if (p.valid_until) card.appendChild(el('small', 'hub-tag', 'Válido hasta ' + p.valid_until));
     return card;
   }
 

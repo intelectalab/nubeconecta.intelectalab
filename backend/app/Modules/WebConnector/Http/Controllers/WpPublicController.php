@@ -209,6 +209,40 @@ final class WpPublicController
         ]);
     }
 
+    /**
+     * Promociones públicas de la marca: cupones activos y vigentes (dentro de
+     * valid_from/valid_until y sin agotar max_uses), globales (brand_id null) o
+     * de la marca del sitio. Expone el código para usarlo en el portal/checkout.
+     * Bloque [hub_promocion] / data-hub-block="promocion".
+     */
+    public function promotions(Request $request): JsonResponse
+    {
+        $site = $this->wpSite($request);
+        $today = CarbonImmutable::now()->toDateString();
+        $rows = DB::table('coupons as c')
+            ->leftJoin('products as p', fn ($j) => $j->on('p.id', '=', 'c.product_id'))
+            ->where('c.organization_id', $site->organization_id)
+            ->where('c.is_active', true)
+            ->where(fn (Builder $q) => $q->whereNull('c.brand_id')->orWhere('c.brand_id', $site->brand_id))
+            ->where(fn (Builder $q) => $q->whereNull('c.valid_from')->orWhereDate('c.valid_from', '<=', $today))
+            ->where(fn (Builder $q) => $q->whereNull('c.valid_until')->orWhereDate('c.valid_until', '>=', $today))
+            ->where(fn (Builder $q) => $q->whereNull('c.max_uses')->orWhereColumn('c.uses_count', '<', 'c.max_uses'))
+            ->orderByRaw('c.valid_until is null, c.valid_until')
+            ->limit(20)
+            ->get(['c.code', 'c.description', 'c.discount_type', 'c.discount_percent', 'c.discount_minor', 'c.currency', 'c.valid_until', 'p.name as product_name']);
+
+        return $this->cached($request, $rows->map(fn ($r) => [
+            'code' => $r->code,
+            'description' => $r->description,
+            'discount_type' => $r->discount_type,
+            'discount_percent' => $r->discount_percent !== null ? (float) $r->discount_percent : null,
+            'discount_minor' => $r->discount_minor !== null ? (int) $r->discount_minor : null,
+            'currency' => $r->currency,
+            'product_name' => $r->product_name,
+            'valid_until' => $r->valid_until ? CarbonImmutable::parse($r->valid_until)->toDateString() : null,
+        ])->all());
+    }
+
     public function contact(Request $request): JsonResponse
     {
         $filters = $request->validate(['field' => ['sometimes', 'in:phone,email,whatsapp,address,hours']]);

@@ -26,6 +26,7 @@ final class AuthenticateWpSite
         '#^/api/v1/public/wp/catalog/compare$#',
         '#^/api/v1/public/wp/catalog/bundles/[A-Za-z0-9][A-Za-z0-9_-]{0,80}$#',
         '#^/api/v1/public/wp/catalog/servers$#',
+        '#^/api/v1/public/wp/catalog/promotions$#',
         '#^/api/v1/public/wp/catalog/domain-prices$#',
         '#^/api/v1/public/wp/domains/availability$#',
         '#^/api/v1/public/wp/contact$#',

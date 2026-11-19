@@ -862,4 +862,30 @@ final class WebConnectorTest extends IdentityTestCase
             'X-Hub-Plugin-Version' => '1.2.0',
         ])->assertStatus(403);
     }
+
+    public function test_public_promotions_returns_only_active_valid_coupons_for_brand_or_global(): void
+    {
+        $brand = $this->brand('promo-a');
+        ['site' => $site, 'token' => $token] = $this->activeSite($brand, 'www.promo-a.test');
+        $org = DB::table('wp_sites')->where('id', $site)->value('organization_id');
+        $otherBrand = $this->brand('promo-b');
+        $base = [
+            'organization_id' => $org, 'product_id' => null, 'description' => null, 'discount_minor' => null, 'currency' => null,
+            'uses_count' => 0, 'is_active' => true, 'version' => 1, 'created_at' => now(), 'updated_at' => now(),
+            'valid_from' => now()->subDay()->toDateString(), 'valid_until' => now()->addDays(10)->toDateString(),
+        ];
+        $row = fn (array $o) => array_merge($base, ['id' => (string) Str::uuid(), 'discount_type' => 'percent', 'discount_percent' => 25], $o);
+        DB::table('coupons')->insert([
+            $row(['code' => 'GLOBAL25', 'description' => 'Global', 'brand_id' => null]),
+            $row(['code' => 'MARCA50', 'description' => 'De la marca', 'discount_percent' => 50, 'brand_id' => $brand]),
+            $row(['code' => 'INACTIVO', 'brand_id' => null, 'is_active' => false]),
+            $row(['code' => 'VENCIDO', 'brand_id' => null, 'valid_until' => now()->subDay()->toDateString()]),
+            $row(['code' => 'OTRA', 'brand_id' => $otherBrand]),
+        ]);
+
+        $res = $this->plugin('/api/v1/public/wp/catalog/promotions', $token)->assertOk()->assertHeader('ETag');
+        $codes = array_column($res->json('data'), 'code');
+        sort($codes);
+        $this->assertSame(['GLOBAL25', 'MARCA50'], $codes);
+    }
 }
