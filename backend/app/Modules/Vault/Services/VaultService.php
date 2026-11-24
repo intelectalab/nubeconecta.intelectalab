@@ -188,7 +188,14 @@ final class VaultService
      */
     public function consumeOneTimeLink(string $token, Request $request): array
     {
-        $link = OneTimeLink::query()->withoutGlobalScope('organization')->where('token_hash', hash('sha256', $token))->first();
+        // Bloqueo de fila: garantiza "un solo uso" aunque dos peticiones lleguen a la vez.
+        return DB::transaction(fn (): array => $this->consumeLocked($token, $request));
+    }
+
+    /** @return array{value: string, purpose: string, expires_at: ?string} */
+    private function consumeLocked(string $token, Request $request): array
+    {
+        $link = OneTimeLink::query()->withoutGlobalScope('organization')->where('token_hash', hash('sha256', $token))->lockForUpdate()->first();
         if ($link === null || ! $link->isUsable()) {
             throw new ProblemException(404, 'link_unusable', 'El enlace no existe, ya se usó o venció.');
         }
