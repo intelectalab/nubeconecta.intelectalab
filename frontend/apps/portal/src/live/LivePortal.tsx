@@ -449,6 +449,16 @@ function ServicePage({ id, back }: { id: string; back: () => void }) {
       {s ? (
         <div className="detail">
           <div className="stack" style={{ display: 'grid', gap: 16 }}>
+            {s.access?.url ? (
+              <Card title="Acceso a tu servicio" icon="globe">
+                <CardBody style={{ padding: '14px 18px', display: 'grid', gap: 10 }}>
+                  {s.access.notes ? <p style={{ margin: 0 }}>{s.access.notes}</p> : null}
+                  <a className="btn primary" href={s.access.url} target="_blank" rel="noopener noreferrer" style={{ justifySelf: 'start' }}>
+                    {s.access.label || 'Acceder a tu servicio'} →
+                  </a>
+                </CardBody>
+              </Card>
+            ) : null}
             <Card title="Datos del servicio" icon="sliders">
               <CardBody style={{ padding: '14px 18px' }}>
                 <Kv

@@ -41,6 +41,8 @@ export interface Service {
   starts_on: string | null;
   commercial_due_date: string | null;
   auto_renew: boolean;
+  /** Acceso del cliente al servicio (URL del panel + guía). Null si no se configuró. */
+  access: { url?: string; label?: string; notes?: string } | null;
   activated_at: string | null;
   suspended_at: string | null;
   cancelled_at: string | null;
@@ -87,6 +89,9 @@ export function createServicesApi(http: HttpClient) {
     /** suspend, reactivate y cancel exigen motivo. */
     transition: (id: string, action: ServiceAction, reason?: string, version?: number, idempotencyKey = newIdempotencyKey()) =>
       http.post<Envelope<Service>>(`${admin}/${enc(id)}/${action}`, { reason, version }, { idempotencyKey }).then(unwrap),
+    /** Define el acceso del cliente (URL del panel + guía). */
+    setAccess: (id: string, input: { url?: string | null; label?: string | null; notes?: string | null }, version?: number) =>
+      http.patch<Envelope<Service>>(`${admin}/${enc(id)}/access`, { ...input, version }).then(unwrap),
     portalList: list(portal),
     portalGet: (id: string) => http.get<Envelope<Service>>(`${portal}/${enc(id)}`).then(unwrap),
   };

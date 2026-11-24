@@ -18,6 +18,7 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('services/{id}/suspend', [ServiceController::class, 'suspend'])->whereUuid('id')->middleware(['permission:services.service.suspend', 'idempotency'])->name('services.suspend');
     Route::post('services/{id}/reactivate', [ServiceController::class, 'reactivate'])->whereUuid('id')->middleware(['permission:services.service.suspend', 'idempotency'])->name('services.reactivate');
     Route::post('services/{id}/cancel', [ServiceController::class, 'cancel'])->whereUuid('id')->middleware(['permission:services.service.delete', 'idempotency'])->name('services.cancel');
+    Route::patch('services/{id}/access', [ServiceController::class, 'setAccess'])->whereUuid('id')->middleware('permission:services.service.update')->name('services.access');
 });
 
 Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {

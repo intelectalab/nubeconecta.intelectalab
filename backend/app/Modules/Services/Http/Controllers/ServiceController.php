@@ -70,6 +70,39 @@ final class ServiceController
         return $this->resource(Service::query()->findOrFail($id));
     }
 
+    /**
+     * Define el acceso del cliente al servicio (URL del panel + guía), guardado en
+     * `custom.access`. El cliente lo ve en su portal como botón "Acceder". Las
+     * credenciales no van aquí: se entregan por la Bóveda (enlace de un solo uso).
+     */
+    public function setAccess(Request $request, string $id): ServiceResource
+    {
+        $data = $request->validate([
+            'url' => ['nullable', 'url', 'max:500'],
+            'label' => ['nullable', 'string', 'max:120'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'version' => ['sometimes', 'integer'],
+        ]);
+        $service = Service::query()->findOrFail($id);
+        if (isset($data['version']) && (int) $data['version'] !== (int) $service->version) {
+            throw new \App\Shared\Http\Problem\ProblemException(409, 'version_conflict', 'El servicio cambió; recargue.', ['current_version' => (int) $service->version]);
+        }
+        $custom = $service->custom ?? [];
+        $access = array_filter([
+            'url' => $data['url'] ?? null,
+            'label' => $data['label'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+        if ($access === []) {
+            unset($custom['access']);
+        } else {
+            $custom['access'] = $access;
+        }
+        $service->forceFill(['custom' => $custom])->save();
+
+        return $this->resource($service);
+    }
+
     public function activate(Request $request, string $id): ServiceResource
     {
         return $this->move($request, $id, 'activate', false);

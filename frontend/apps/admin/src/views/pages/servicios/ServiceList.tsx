@@ -282,6 +282,7 @@ export function ServiceSheet({ id, onClose, onChanged }: { id: string; onClose: 
               />
             </>
           ) : null}
+          {can('services.service.update') ? <AccessForm service={s} onSaved={res.setData} /> : null}
           {current ? (
             <label className="field full" htmlFor="srv-reason" style={{ marginTop: 12 }}>
               Motivo para «{current.label.toLowerCase()}» *
@@ -302,5 +303,38 @@ export function ServiceSheet({ id, onClose, onChanged }: { id: string; onClose: 
         </>
       )}
     </Sheet>
+  );
+}
+
+/** Acceso del cliente al servicio (URL del panel + guía). Lo ve el cliente en su portal. */
+function AccessForm({ service, onSaved }: { service: Service; onSaved: (s: Service) => void }) {
+  const { toast } = useApp();
+  const [url, setUrl] = useState(service.access?.url ?? '');
+  const [label, setLabel] = useState(service.access?.label ?? '');
+  const [notes, setNotes] = useState(service.access?.notes ?? '');
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const next = await servicesApi.setAccess(service.id, { url: url.trim() || null, label: label.trim() || null, notes: notes.trim() || null }, service.version);
+      onSaved(next);
+      toast('Acceso actualizado', 'El cliente lo verá en su portal.');
+    } catch (e) {
+      toast('No se pudo guardar', errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <h3 style={{ margin: '16px 0 8px' }}>Acceso del cliente</h3>
+      <p className="sub" style={{ marginTop: 0 }}>URL del panel y guía que verá el cliente en su portal. Las credenciales se entregan por la Bóveda (enlace de un solo uso), no aquí.</p>
+      <label className="field full">URL del panel<input className="input" type="url" value={url} placeholder="https://panel.ejemplo.com" onChange={(e) => setUrl(e.target.value)} /></label>
+      <label className="field full">Etiqueta del botón<input className="input" value={label} placeholder="Acceder a tu servicio" onChange={(e) => setLabel(e.target.value)} /></label>
+      <label className="field full">Guía / notas<textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+      <button type="button" className="btn primary sm" disabled={busy} onClick={() => void save()}>{busy ? 'Guardando…' : 'Guardar acceso'}</button>
+    </>
   );
 }

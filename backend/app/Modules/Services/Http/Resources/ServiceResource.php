@@ -50,6 +50,8 @@ class ServiceResource extends JsonResource
             'starts_on' => $sub?->starts_on?->toDateString() ?? ($order['starts_on'] ?? null),
             'commercial_due_date' => $s->commercial_due_date?->toDateString(),
             'auto_renew' => $s->auto_renew,
+            // Acceso del cliente al servicio (URL del panel + guía); visible también en el portal.
+            'access' => $s->custom['access'] ?? null,
             'activated_at' => $s->activated_at?->toIso8601String(), 'suspended_at' => $s->suspended_at?->toIso8601String(),
             'cancelled_at' => $s->cancelled_at?->toIso8601String(),
             'subscription' => $sub === null ? null : $this->subscription($sub),

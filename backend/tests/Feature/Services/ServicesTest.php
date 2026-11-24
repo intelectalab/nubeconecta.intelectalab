@@ -155,4 +155,23 @@ final class ServicesTest extends SalesFlowTestCase
         // Un filtro por cliente en el portal no amplía el alcance.
         $this->assertCount(2, $this->getJson("/api/v1/portal/services?filter[customer_id]={$this->dniCustomer}")->assertOk()->json('data'));
     }
+
+    public function test_service_access_is_set_by_admin_and_shown_in_portal(): void
+    {
+        $service = $this->hostingService($this->approvedOrder());
+
+        // El admin configura el acceso del cliente (URL del panel + guía).
+        $this->patchJson("/api/v1/admin/services/{$service['id']}/access", [
+            'url' => 'https://panel.ejemplo.com', 'label' => 'Entrar al panel', 'notes' => 'Ingresa con tu correo.', 'version' => $service['version'],
+        ])->assertOk()->assertJsonPath('data.access.url', 'https://panel.ejemplo.com');
+
+        // Una URL inválida se rechaza (aún como admin).
+        $this->assertProblem($this->patchJson("/api/v1/admin/services/{$service['id']}/access", ['url' => 'no-es-url']), 422, 'validation_failed');
+
+        // El cliente lo ve en su portal.
+        $this->actAs($this->portalUser($this->rucCustomer, 'acceso@cliente-ruc.pe'));
+        $this->getJson("/api/v1/portal/services/{$service['id']}")->assertOk()
+            ->assertJsonPath('data.access.url', 'https://panel.ejemplo.com')
+            ->assertJsonPath('data.access.label', 'Entrar al panel');
+    }
 }
