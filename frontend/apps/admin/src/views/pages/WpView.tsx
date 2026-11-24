@@ -8,7 +8,7 @@ import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
 import { useViewState } from '../../app/storage';
 import { PageHead, Tabs } from '../../components/ui';
-import { FORMS, SCDEF, type BrandId } from '../../data';
+import { SCDEF, type BrandId } from '../../data';
 import WpSitios from './web-config/WpSitios';
 import WpGenerador from './web-config/WpGenerador';
 import WpWidget from './web-config/WpWidget';
@@ -27,9 +27,7 @@ export default function WpView({ param }: ViewProps) {
   const [scName, setScName] = useViewState('wp.scName', 'hub_planes');
   const [scVals, setScVals] = useViewState<ScVals>('wp.scVals', {});
   const [scBrand, setScBrand] = useViewState<BrandId>('wp.scBrand', gb);
-  const [formSel, setFormSel] = useViewState('wp.formSel', 'contacto');
-  const [ctBrand, setCtBrand] = useViewState<BrandId>('wp.ctBrand', gb);
-  const [legBrand, setLegBrand] = useViewState<BrandId>('wp.legBrand', gb);
+  const [, setCtBrand] = useViewState<BrandId>('wp.ctBrand', gb);
 
   /* Parámetro de ruta: pestaña o generador/<shortcode> */
   useEffect(() => {
@@ -44,7 +42,6 @@ export default function WpView({ param }: ViewProps) {
     if (brand === 'all') return;
     setScBrand(brand);
     setCtBrand(brand);
-    setLegBrand(brand);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brand]);
 
@@ -65,7 +62,7 @@ export default function WpView({ param }: ViewProps) {
             { id: 'sitios', label: 'Sitios conectados', count: nSites ?? undefined },
             { id: 'generador', label: 'Generador de shortcodes', count: Object.keys(SCDEF).length },
             { id: 'widget', label: 'Widget embebible' },
-            { id: 'formularios', label: 'Formularios', count: FORMS.length },
+            { id: 'formularios', label: 'Formularios' },
             { id: 'contacto', label: 'Contacto por marca' },
             { id: 'legales', label: 'Documentos legales' },
           ]}
@@ -74,9 +71,9 @@ export default function WpView({ param }: ViewProps) {
           {tab === 'sitios' ? <WpSitios onCount={setNSites} /> : null}
           {tab === 'generador' ? <WpGenerador name={scName} setName={setScName} vals={scVals} setVals={setScVals} brand={scBrand} setBrand={setScBrand} /> : null}
           {tab === 'widget' ? <WpWidget /> : null}
-          {tab === 'formularios' ? <WpFormularios sel={formSel} setSel={setFormSel} /> : null}
-          {tab === 'contacto' ? <WpContacto brand={ctBrand} setBrand={setCtBrand} /> : null}
-          {tab === 'legales' ? <WpLegales brand={legBrand} setBrand={setLegBrand} /> : null}
+          {tab === 'formularios' ? <WpFormularios /> : null}
+          {tab === 'contacto' ? <WpContacto /> : null}
+          {tab === 'legales' ? <WpLegales /> : null}
         </div>
       </section>
     </>

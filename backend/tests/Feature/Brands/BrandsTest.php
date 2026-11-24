@@ -141,4 +141,35 @@ final class BrandsTest extends IdentityTestCase
         $this->getJson("/api/v1/public/brand-theme-previews/{$preview}")->assertNotFound();
         $this->assertNull(app(\App\Shared\Audit\AuditLogger::class)->verify());
     }
+
+    public function test_brand_contact_points_crud_with_single_primary(): void
+    {
+        [, $brand] = $this->brand();
+
+        $ventas = $this->postJson('/api/v1/admin/brand-contact-points', [
+            'brand_id' => $brand, 'kind' => 'phone', 'value' => '+5115551234', 'label' => ['es' => 'Ventas'], 'is_primary' => true,
+        ])->assertCreated()->assertJsonPath('data.is_primary', true)->json('data.id');
+
+        // Un segundo teléfono principal desmarca al anterior (un solo principal por tipo).
+        $this->postJson('/api/v1/admin/brand-contact-points', [
+            'brand_id' => $brand, 'kind' => 'phone', 'value' => '+5115559999', 'label' => ['es' => 'Soporte'], 'is_primary' => true,
+        ])->assertCreated();
+        $this->assertSame(false, (bool) DB::table('brand_contact_points')->where('id', $ventas)->value('is_primary'));
+
+        // Formato de teléfono inválido → 422.
+        $this->assertProblem($this->postJson('/api/v1/admin/brand-contact-points', ['brand_id' => $brand, 'kind' => 'phone', 'value' => '555-1234']), 422, 'validation_failed');
+        // Correo válido.
+        $this->postJson('/api/v1/admin/brand-contact-points', ['brand_id' => $brand, 'kind' => 'email', 'value' => 'hola@marca.test'])->assertCreated();
+
+        // Listado filtrado por marca: 3 puntos.
+        $list = $this->getJson("/api/v1/admin/brand-contact-points?filter[brand_id]={$brand}")->assertOk()->json('data');
+        $this->assertCount(3, $list);
+
+        // Editar (con versión) y borrar.
+        $v = DB::table('brand_contact_points')->where('id', $ventas)->value('version');
+        $this->patchJson("/api/v1/admin/brand-contact-points/{$ventas}", ['value' => '+5115550000', 'version' => $v])->assertOk()->assertJsonPath('data.value', '+5115550000');
+        $this->deleteJson("/api/v1/admin/brand-contact-points/{$ventas}")->assertNoContent();
+        $this->assertCount(2, $this->getJson("/api/v1/admin/brand-contact-points?filter[brand_id]={$brand}")->json('data'));
+        $this->assertNull(app(\App\Shared\Audit\AuditLogger::class)->verify());
+    }
 }

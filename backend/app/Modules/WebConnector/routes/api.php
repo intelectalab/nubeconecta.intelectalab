@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Modules\WebConnector\Http\Controllers\LegalDocumentController;
+use App\Modules\WebConnector\Http\Controllers\WebFormController;
 use App\Modules\WebConnector\Http\Controllers\WebFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpCacheInvalidationController;
 use App\Modules\WebConnector\Http\Controllers\WpDomainAvailabilityController;
@@ -43,6 +45,26 @@ Route::prefix('admin/web-connector')->name('admin.web-connector.')->middleware([
     Route::patch('form-submissions/{id}', [WebFormSubmissionController::class, 'update'])->whereUuid('id')->middleware('permission:web_connector.form_submission.update')->name('form-submissions.update');
 
     Route::post('cache-invalidations/{id}/retry', [WpCacheInvalidationController::class, 'retry'])->whereUuid('id')->middleware(['permission:web_connector.cache_invalidation.create', 'idempotency:optional'])->name('cache-invalidations.retry');
+
+    // Definición de formularios embebibles (y sus campos).
+    Route::get('forms', [WebFormController::class, 'index'])->middleware('permission:web_connector.form.view')->name('forms.index');
+    Route::post('forms', [WebFormController::class, 'store'])->middleware(['permission:web_connector.form.create', 'idempotency:optional'])->name('forms.store');
+    Route::get('forms/{id}', [WebFormController::class, 'show'])->whereUuid('id')->middleware('permission:web_connector.form.view')->name('forms.show');
+    Route::patch('forms/{id}', [WebFormController::class, 'update'])->whereUuid('id')->middleware('permission:web_connector.form.update')->name('forms.update');
+    Route::delete('forms/{id}', [WebFormController::class, 'destroy'])->whereUuid('id')->middleware('permission:web_connector.form.delete')->name('forms.destroy');
+
+    // Documentos legales por marca y su flujo de versiones (borrador → publicada → reemplazada).
+    Route::get('legal-documents', [LegalDocumentController::class, 'index'])->middleware('permission:web_connector.legal_document.view')->name('legal-documents.index');
+    Route::post('legal-documents', [LegalDocumentController::class, 'store'])->middleware(['permission:web_connector.legal_document.create', 'idempotency:optional'])->name('legal-documents.store');
+    Route::prefix('legal-documents/{id}')->whereUuid('id')->name('legal-documents.')->group(function (): void {
+        Route::get('/', [LegalDocumentController::class, 'show'])->middleware('permission:web_connector.legal_document.view')->name('show');
+        Route::patch('/', [LegalDocumentController::class, 'update'])->middleware('permission:web_connector.legal_document.update')->name('update');
+        Route::delete('/', [LegalDocumentController::class, 'destroy'])->middleware('permission:web_connector.legal_document.delete')->name('destroy');
+        Route::post('versions', [LegalDocumentController::class, 'storeVersion'])->middleware(['permission:web_connector.legal_document.create', 'idempotency:optional'])->name('versions.store');
+        Route::patch('versions/{vid}', [LegalDocumentController::class, 'updateVersion'])->whereUuid('vid')->middleware('permission:web_connector.legal_document.update')->name('versions.update');
+        Route::delete('versions/{vid}', [LegalDocumentController::class, 'destroyVersion'])->whereUuid('vid')->middleware('permission:web_connector.legal_document.delete')->name('versions.destroy');
+        Route::post('versions/{vid}/publish', [LegalDocumentController::class, 'publishVersion'])->whereUuid('vid')->middleware('permission:web_connector.legal_document.approve')->name('versions.publish');
+    });
 });
 
 // API de lectura del plugin: primero el token del sitio (fija marca y organización), luego el límite por token.

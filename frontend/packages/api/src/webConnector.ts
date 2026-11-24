@@ -105,6 +105,112 @@ interface Envelope<T> {
 
 const enc = encodeURIComponent;
 
+export type WebFormStatus = 'draft' | 'active' | 'inactive';
+export type WebFormDestination = 'lead' | 'ticket' | 'email';
+export type WebFieldType = 'text' | 'textarea' | 'email' | 'phone' | 'select' | 'checkboxes' | 'file';
+export type WebFieldMapsTo = 'name' | 'email' | 'phone' | 'company' | 'subject' | 'message';
+
+export interface WebFormFieldDef {
+  id?: string;
+  key: string;
+  label: Record<string, string>;
+  help_text?: Record<string, string>;
+  field_type: WebFieldType;
+  is_required?: boolean;
+  options?: { value: string; label: Record<string, string> }[];
+  validation?: Record<string, unknown>;
+  maps_to?: WebFieldMapsTo | null;
+}
+
+export interface WebForm {
+  id: string;
+  brand_id: string;
+  code: string;
+  name: string;
+  status: WebFormStatus;
+  destination: WebFormDestination;
+  lead_channel_id: string | null;
+  ticket_type: string | null;
+  ticket_department: string | null;
+  notify_email: string | null;
+  owner_user_id: string | null;
+  consent_required: boolean;
+  consent_purpose: 'marketing' | 'privacy' | null;
+  consent_text: Record<string, string>;
+  captcha_required: boolean;
+  success_message: Record<string, string>;
+  redirect_url: string | null;
+  fields_count?: number;
+  fields?: WebFormFieldDef[];
+  version: number;
+}
+
+export interface WebFormInput {
+  brand_id: string;
+  code: string;
+  name: string;
+  status?: WebFormStatus;
+  destination: WebFormDestination;
+  notify_email?: string | null;
+  consent_required?: boolean;
+  consent_purpose?: 'marketing' | 'privacy' | null;
+  consent_text?: Record<string, string>;
+  success_message?: Record<string, string>;
+  redirect_url?: string | null;
+  fields: WebFormFieldDef[];
+}
+
+export type LegalKind = 'terms' | 'privacy' | 'refunds' | 'sla' | 'acceptable_use' | 'legal_notice';
+export type LegalVersionStatus = 'draft' | 'published' | 'superseded';
+
+export interface LegalVersion {
+  id: string;
+  version_number: number;
+  version_label: string;
+  body: string;
+  change_summary: string | null;
+  legal_reviewed_by: string | null;
+  legal_reviewed_at: string | null;
+  effective_at: string | null;
+  status: LegalVersionStatus;
+  published_at: string | null;
+  superseded_at: string | null;
+  version: number;
+}
+
+export interface LegalDocument {
+  id: string;
+  brand_id: string;
+  kind: LegalKind;
+  product_category_id: string | null;
+  locale: string;
+  title: string;
+  slug: string;
+  published_version_id: string | null;
+  published_label?: string | null;
+  effective_at?: string | null;
+  versions_count?: number;
+  versions?: LegalVersion[];
+  version: number;
+}
+
+export interface LegalDocumentInput {
+  brand_id: string;
+  kind: LegalKind;
+  locale?: string;
+  title: string;
+  slug: string;
+  version_label: string;
+  body: string;
+  change_summary?: string | null;
+}
+
+export interface LegalVersionInput {
+  version_label: string;
+  body: string;
+  change_summary?: string | null;
+}
+
 export function createWebConnectorApi(http: HttpClient) {
   const base = '/api/v1/admin/web-connector/form-submissions';
   const sitesBase = '/api/v1/admin/web-connector/sites';
@@ -138,6 +244,24 @@ export function createWebConnectorApi(http: HttpClient) {
       list: (params: ListParams & { filter?: WpCacheInvalidationFilters } = {}) => http.get<CursorPage<WpCacheInvalidation>>(`${cacheBase}${toQuery({ q: params.q, sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
       create: (input: WpCacheInvalidationInput) => http.post<Envelope<WpCacheInvalidation[]>>(cacheBase, input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
       retry: (id: string) => http.post<Envelope<WpCacheInvalidation>>(`${cacheBase}/${enc(id)}/retry`, {}, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    },
+    forms: {
+      list: (brandId?: string) => http.get<CursorPage<WebForm>>(`/api/v1/admin/web-connector/forms${toQuery({ filter: brandId ? { brand_id: brandId } : undefined, page: { size: 100 } })}`),
+      get: (id: string) => http.get<Envelope<WebForm>>(`/api/v1/admin/web-connector/forms/${enc(id)}`).then(unwrap),
+      create: (input: WebFormInput) => http.post<Envelope<WebForm>>('/api/v1/admin/web-connector/forms', input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+      update: (id: string, version: number, input: Partial<WebFormInput>) => http.patch<Envelope<WebForm>>(`/api/v1/admin/web-connector/forms/${enc(id)}`, { ...input, version }).then(unwrap),
+      remove: (id: string) => http.delete<void>(`/api/v1/admin/web-connector/forms/${enc(id)}`),
+    },
+    legalDocuments: {
+      list: (brandId?: string) => http.get<CursorPage<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents${toQuery({ filter: brandId ? { brand_id: brandId } : undefined, page: { size: 100 } })}`),
+      get: (id: string) => http.get<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}`).then(unwrap),
+      create: (input: LegalDocumentInput) => http.post<Envelope<LegalDocument>>('/api/v1/admin/web-connector/legal-documents', input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+      update: (id: string, version: number, input: { title?: string; slug?: string }) => http.patch<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}`, { ...input, version }).then(unwrap),
+      remove: (id: string) => http.delete<void>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}`),
+      createVersion: (id: string, input: LegalVersionInput) => http.post<Envelope<LegalDocument> & { meta: { version_id: string } }>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions`, input, { idempotencyKey: newIdempotencyKey() }),
+      updateVersion: (id: string, vid: string, version: number, input: Partial<LegalVersionInput> & { legal_reviewed_by?: string | null }) => http.patch<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}`, { ...input, version }).then(unwrap),
+      removeVersion: (id: string, vid: string) => http.delete<void>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}`),
+      publishVersion: (id: string, vid: string, version: number, input: { legal_reviewed_by: string; effective_at: string }) => http.post<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}/publish`, { ...input, version }, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
     },
   };
 }

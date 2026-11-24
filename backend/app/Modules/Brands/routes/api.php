@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Brands\Http\Controllers\BankAccountController;
+use App\Modules\Brands\Http\Controllers\BrandContactPointController;
 use App\Modules\Brands\Http\Controllers\BrandController;
 use App\Modules\Brands\Http\Controllers\BrandThemeController;
 use App\Modules\Brands\Http\Controllers\DocumentSeriesController;
@@ -30,6 +31,12 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     $crud('brands', BrandController::class, 'brands.brand');
     $crud('bank-accounts', BankAccountController::class, 'brands.bank_account');
     $crud('document-series', DocumentSeriesController::class, 'brands.document_series');
+
+    // Contacto por marca: leer con brands.brand.view, escribir con brands.brand.update.
+    Route::get('brand-contact-points', [BrandContactPointController::class, 'index'])->middleware('permission:brands.brand.view')->name('brand-contact-points.index');
+    Route::post('brand-contact-points', [BrandContactPointController::class, 'store'])->middleware('permission:brands.brand.update')->name('brand-contact-points.store');
+    Route::patch('brand-contact-points/{id}', [BrandContactPointController::class, 'update'])->whereUuid('id')->middleware('permission:brands.brand.update')->name('brand-contact-points.update');
+    Route::delete('brand-contact-points/{id}', [BrandContactPointController::class, 'destroy'])->whereUuid('id')->middleware('permission:brands.brand.update')->name('brand-contact-points.destroy');
 
     Route::get('brand-themes', [BrandThemeController::class, 'index'])->middleware('permission:brands.theme.view')->name('brand-themes.index');
     Route::post('brand-themes', [BrandThemeController::class, 'store'])->middleware('permission:brands.theme.create')->name('brand-themes.store');

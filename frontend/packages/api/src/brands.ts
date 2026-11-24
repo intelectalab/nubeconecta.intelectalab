@@ -46,6 +46,30 @@ export interface BrandThemeFilters { brand_id?: string }
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
+export type BrandContactKind = 'phone' | 'email' | 'whatsapp' | 'address' | 'hours';
+
+export interface BrandContactPoint {
+  id: string;
+  brand_id: string;
+  kind: BrandContactKind;
+  label: Record<string, string>;
+  value: string;
+  is_primary: boolean;
+  is_public: boolean;
+  position: number;
+  version: number;
+}
+
+export interface BrandContactPointInput {
+  brand_id: string;
+  kind: BrandContactKind;
+  value: string;
+  label?: Record<string, string>;
+  is_primary?: boolean;
+  is_public?: boolean;
+  position?: number;
+}
+
 export function createBrandsApi(http: HttpClient) {
   const brandsBase = '/api/v1/admin/brands';
   const themesBase = '/api/v1/admin/brand-themes';
@@ -70,6 +94,13 @@ export function createBrandsApi(http: HttpClient) {
       previewLink: (id: string) => http.post<Envelope<PreviewLinkResponse>>(`${versionBase(id)}/preview-link`, {}, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
       publish: (id: string) => http.post<Envelope<BrandThemeVersion>>(`${versionBase(id)}/publish`, {}, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
       revert: (id: string, change_note?: string | null) => http.post<Envelope<BrandThemeVersion>>(`${versionBase(id)}/revert`, { change_note }, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    },
+    /** Contacto por marca (teléfonos, correos, WhatsApp, dirección, horario). */
+    contactPoints: {
+      list: (brandId: string) => http.get<CursorPage<BrandContactPoint>>(`/api/v1/admin/brand-contact-points${toQuery({ filter: { brand_id: brandId }, page: { size: 100 } })}`),
+      create: (input: BrandContactPointInput) => http.post<Envelope<BrandContactPoint>>('/api/v1/admin/brand-contact-points', input).then(unwrap),
+      update: (id: string, version: number, input: Partial<BrandContactPointInput>) => http.patch<Envelope<BrandContactPoint>>(`/api/v1/admin/brand-contact-points/${enc(id)}`, { ...input, version }).then(unwrap),
+      remove: (id: string) => http.delete<void>(`/api/v1/admin/brand-contact-points/${enc(id)}`),
     },
   };
 }

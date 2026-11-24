@@ -3,242 +3,444 @@
  * pestañas «contacto» y «legales»; handlers ctF, ctSave, lgEdit, lgPub;
  * l.2487-2490 y l.2513-2518).
  */
-import { useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { type BrandContactKind, type BrandContactPoint, type BrandContactPointInput, type LegalDocument, type LegalKind, type LegalVersion } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { Icon } from '../../../components/Icon';
-import { Sheet } from '../../../components/Modal';
+import { Modal, Sheet } from '../../../components/Modal';
 import { Chip, Note } from '../../../components/ui';
-import { BR, BRANDS, CONTACT, LEGAL, NF0, TODAY, addD, diffD, fD, fromIso, iso, type BrandContact, type BrandId, type LegalDoc } from '../../../data';
-import { ContactPreview, MwFrame } from './previews';
-import { ScBox, SoonNote, copyText } from './shared';
+import { ScBox, copyText } from './shared';
+import { errorText, useCan, useLoad, useLookups } from '../clientes/shared';
+import { hub } from '../../../auth/client';
 
-const BRAND_OPTS = BRANDS.map((b) => (
-  <option key={b.id} value={b.id}>
-    {b.n}
-  </option>
-));
+const KIND_LABEL: Record<BrandContactKind, string> = { phone: 'Teléfono', email: 'Correo', whatsapp: 'WhatsApp', address: 'Dirección', hours: 'Horario' };
+const KINDS = Object.keys(KIND_LABEL) as BrandContactKind[];
+const KIND_PH: Record<BrandContactKind, string> = { phone: '+5115551234', whatsapp: '+519XXXXXXXX', email: 'ventas@marca.pe', address: 'Av. Ejemplo 123, Lima', hours: 'Lun–Vie 9:00–18:00' };
 
-export function WpContacto({ brand, setBrand }: { brand: BrandId; setBrand: (b: BrandId) => void }) {
-  const { toast, refresh } = useApp();
-  const c = CONTACT[brand];
-  const F = (k: keyof BrandContact, l: string) => (
-    <label className={`field${k === 'dir' || k === 'hor' ? ' full' : ''}`} htmlFor={'ct_' + k} key={k}>
-      {l}
-      <input
-        className="input"
-        id={'ct_' + k}
-        value={c[k]}
-        onChange={(e) => {
-          c[k] = e.target.value;
-          refresh();
-        }}
-      />
-    </label>
-  );
-  const save = () => {
-    if (!/^\+?[\d\s()]{7,}$/.test(c.wa)) {
-      toast('WhatsApp no válido', 'Use formato +51 9XX XXX XXX.', 'err');
-      return;
+export function WpContacto() {
+  const { toast } = useApp();
+  const can = useCan();
+  const { brands } = useLookups();
+  const [brandId, setBrandId] = useState('');
+  useEffect(() => {
+    if (!brandId && brands[0]) setBrandId(brands[0].id);
+  }, [brands, brandId]);
+  const res = useLoad(() => (brandId ? hub.brands.contactPoints.list(brandId).then((r) => r.data) : Promise.resolve([] as BrandContactPoint[])), [brandId]);
+  const points = res.data ?? [];
+  const canEdit = can('brands.brand.update');
+  const brand = brands.find((b) => b.id === brandId);
+  const [form, setForm] = useState<BrandContactPoint | 'new' | null>(null);
+
+  const remove = async (p: BrandContactPoint) => {
+    try {
+      await hub.brands.contactPoints.remove(p.id);
+      toast('Contacto eliminado');
+      res.reload();
+    } catch (e) {
+      toast('No se pudo', errorText(e), 'err');
     }
-    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(c.mail)) {
-      toast('Correo de ventas no válido', '', 'err');
-      return;
-    }
-    if (c.mail2 && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(c.mail2)) {
-      toast('Correo de soporte no válido', '', 'err');
-      return;
-    }
-    toast('Contacto guardado', `${BR[brand].n} · se actualizó en WordPress (caché invalidada)`);
   };
+
   return (
     <div className="card-b" style={{ paddingTop: 16 }}>
-      <SoonNote>La edición de contacto por marca llegará con el backend; los datos mostrados son de ejemplo.</SoonNote>
       <div className="grid g-2">
-        <div className="form-grid">
-          <label className="field full" htmlFor="ctB">
-            Marca
-            <select id="ctB" className="select" value={brand} onChange={(e) => setBrand(e.target.value as BrandId)}>
-              {BRAND_OPTS}
-            </select>
-          </label>
-          {F('tel', 'Teléfono principal')}
-          {F('tel2', 'Teléfono de soporte')}
-          {F('mail', 'Correo de ventas')}
-          {F('mail2', 'Correo de soporte')}
-          {F('wa', 'WhatsApp')}
-          {F('dir', 'Dirección')}
-          {F('hor', 'Horario')}
-          <div className="full">
-            <button type="button" className="btn primary" onClick={save}>
-              <Icon name="check" size="sm" />
-              Guardar contacto
-            </button>
+        <div className="stack">
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <label className="field" htmlFor="ctB" style={{ flex: 1, minWidth: 180 }}>
+              Marca
+              <select id="ctB" className="select" value={brandId} onChange={(e) => setBrandId(e.target.value)}>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </label>
+            {canEdit ? (
+              <button type="button" className="btn primary" disabled={!brandId} onClick={() => setForm('new')}>
+                <Icon name="plus" size="sm" /> Nuevo contacto
+              </button>
+            ) : null}
           </div>
+          {res.error ? (
+            <Note kind="warn">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note>
+          ) : res.loading ? (
+            <p className="sub">Cargando…</p>
+          ) : points.length === 0 ? (
+            <p className="sub">Sin puntos de contacto para esta marca. Agrega el primero.</p>
+          ) : (
+            <ul className="rows" style={{ marginTop: 8 }}>
+              {points.map((p) => (
+                <li key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="grow">
+                    <b>{KIND_LABEL[p.kind]}</b>
+                    {p.label?.es ? <span className="sub"> · {p.label.es}</span> : null}{' '}
+                    {p.is_primary ? <Chip kind="ok">Principal</Chip> : null}
+                    {!p.is_public ? <Chip kind="">Oculto en la web</Chip> : null}
+                    <div className="mono">{p.value}</div>
+                  </div>
+                  {canEdit ? (
+                    <>
+                      <button type="button" className="btn sm" onClick={() => setForm(p)}>Editar</button>
+                      <button type="button" className="btn sm danger" onClick={() => void remove(p)}>Quitar</button>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="stack">
-          <div>
-            <h3 className="fs">Vista previa</h3>
-            <MwFrame brand={brand}>
-              <ContactPreview brand={brand} />
-            </MwFrame>
-          </div>
           <div className="field">
             Shortcode
-            <ScBox code={`[hub_contacto marca="${brand}"]`} id="scCt" />
+            <ScBox code={`[hub_contacto marca="${brand?.code ?? ''}"]`} id="scCt" />
           </div>
+          <Note kind="warn" icon="info">El contacto marcado como <b>Principal</b> es el que muestra <code>[hub_contacto campo="…"]</code> sin etiqueta. Solo uno por tipo.</Note>
         </div>
       </div>
+      {form && brandId ? <ContactForm brandId={brandId} point={form === 'new' ? null : form} onClose={() => setForm(null)} onSaved={() => { setForm(null); res.reload(); }} /> : null}
     </div>
   );
 }
 
-export function WpLegales({ brand, setBrand }: { brand: BrandId; setBrand: (b: BrandId) => void }) {
-  const { toast, refresh, dialogs } = useApp();
-  const [edit, setEdit] = useState<LegalDoc | null>(null);
-  const [txt, setTxt] = useState('');
-  const L2 = LEGAL[brand];
+function ContactForm({ brandId, point, onClose, onSaved }: { brandId: string; point: BrandContactPoint | null; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [kind, setKind] = useState<BrandContactKind>(point?.kind ?? 'phone');
+  const [value, setValue] = useState(point?.value ?? '');
+  const [label, setLabel] = useState(point?.label?.es ?? '');
+  const [primary, setPrimary] = useState(point?.is_primary ?? false);
+  const [pub, setPub] = useState(point?.is_public ?? true);
+  const [busy, setBusy] = useState(false);
 
-  const openEdit = (d: LegalDoc) => {
-    setTxt(d.txt);
-    setEdit(d);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const v = kind === 'phone' || kind === 'whatsapp' ? value.replace(/\s/g, '') : value.trim();
+    const lbl: Record<string, string> = label.trim() ? { es: label.trim() } : {};
+    const input: BrandContactPointInput = { brand_id: brandId, kind, value: v, label: lbl, is_primary: primary, is_public: pub };
+    try {
+      if (point) await hub.brands.contactPoints.update(point.id, point.version, input);
+      else await hub.brands.contactPoints.create(input);
+      toast(point ? 'Contacto actualizado' : 'Contacto creado', 'Se refleja en las webs de la marca.');
+      onSaved();
+    } catch (err) {
+      toast('No se pudo guardar', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title={point ? 'Editar contacto' : 'Nuevo contacto'}>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <label className="field">Tipo*<select className="input" value={kind} onChange={(e) => setKind(e.target.value as BrandContactKind)}>{KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
+        <label className="field">Etiqueta<input className="input" value={label} placeholder="Ventas, Soporte…" onChange={(e) => setLabel(e.target.value)} /></label>
+        <label className="field full">Valor*<input required className="input" value={value} placeholder={KIND_PH[kind]} onChange={(e) => setValue(e.target.value)} /></label>
+        <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={primary} onChange={(e) => setPrimary(e.target.checked)} /> Principal (de su tipo)</label>
+        <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={pub} onChange={(e) => setPub(e.target.checked)} /> Visible en la web</label>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Guardar</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+const LEGAL_KIND_LABEL: Record<LegalKind, string> = {
+  terms: 'Términos y condiciones',
+  privacy: 'Política de privacidad',
+  refunds: 'Reembolsos y cancelaciones',
+  sla: 'Acuerdo de nivel de servicio (SLA)',
+  acceptable_use: 'Uso aceptable',
+  legal_notice: 'Aviso legal',
+};
+const LEGAL_KINDS = Object.keys(LEGAL_KIND_LABEL) as LegalKind[];
+const VSTATUS: Record<LegalVersion['status'], { label: string; kind: '' | 'ok' | 'warn' }> = {
+  draft: { label: 'Borrador', kind: 'warn' },
+  published: { label: 'Vigente', kind: 'ok' },
+  superseded: { label: 'Reemplazada', kind: '' },
+};
+const fDate = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+const slugify = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+export function WpLegales() {
+  const { toast } = useApp();
+  const can = useCan();
+  const canEdit = can('web_connector.legal_document.create') || can('web_connector.legal_document.update');
+  const { brands } = useLookups();
+  const [brandId, setBrandId] = useState('');
+  useEffect(() => {
+    if (!brandId && brands[0]) setBrandId(brands[0].id);
+  }, [brands, brandId]);
+  const res = useLoad(() => (brandId ? hub.webConnector.legalDocuments.list(brandId).then((r) => r.data) : Promise.resolve([] as LegalDocument[])), [brandId]);
+  const docs = res.data ?? [];
+  const brand = brands.find((b) => b.id === brandId);
+  const [newDoc, setNewDoc] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const remove = async (d: LegalDocument) => {
+    if (!window.confirm(`¿Eliminar «${d.title}» y todas sus versiones? Esta acción no se puede deshacer.`)) return;
+    try {
+      await hub.webConnector.legalDocuments.remove(d.id);
+      toast('Documento eliminado');
+      res.reload();
+    } catch (e) {
+      toast('No se pudo', errorText(e), 'err');
+    }
   };
-  const saveEdit = () => {
-    if (!edit) return;
-    if (txt.trim().length < 20) {
-      toast('Contenido muy corto', 'El documento debe tener al menos 20 caracteres.', 'err');
+
+  return (
+    <div className="card-b" style={{ paddingTop: 16 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 14 }}>
+        <label className="field" htmlFor="lgB" style={{ minWidth: 200 }}>
+          Marca
+          <select id="lgB" className="select" value={brandId} onChange={(e) => setBrandId(e.target.value)}>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </label>
+        <span style={{ flex: 1 }} />
+        {can('web_connector.legal_document.create') ? (
+          <button type="button" className="btn primary" disabled={!brandId} onClick={() => setNewDoc(true)}>
+            <Icon name="plus" size="sm" /> Nuevo documento
+          </button>
+        ) : null}
+      </div>
+
+      {res.error ? (
+        <Note kind="warn">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note>
+      ) : res.loading ? (
+        <p className="sub">Cargando…</p>
+      ) : docs.length === 0 ? (
+        <p className="sub">Esta marca aún no tiene documentos legales. Crea el primero con «Nuevo documento».</p>
+      ) : (
+        <div className="tw">
+          <table className="t">
+            <thead>
+              <tr><th>Documento</th><th>Tipo</th><th>Versión vigente</th><th>Vigente desde</th><th>Shortcode</th><th className="r">Acciones</th></tr>
+            </thead>
+            <tbody>
+              {docs.map((d) => {
+                const code = `[hub_documento_legal doc="${d.slug}" marca="${brand?.code ?? ''}"]`;
+                const hasDraft = (d.versions ?? []).some((v) => v.status === 'draft');
+                return (
+                  <tr key={d.id}>
+                    <td>
+                      <b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="contract" size="sm" />{d.title}</b>
+                      {hasDraft ? <> <Chip kind="warn">Borrador sin publicar</Chip></> : null}
+                    </td>
+                    <td className="sub">{LEGAL_KIND_LABEL[d.kind]}</td>
+                    <td>{d.published_label ? <span className="mono">{d.published_label}</span> : <span className="sub">Sin versión vigente</span>}</td>
+                    <td className="num">{fDate(d.effective_at)}</td>
+                    <td>
+                      <button type="button" className="btn sm ghost mono" title="Copiar shortcode" onClick={() => copyText(code, toast)}>
+                        [hub_documento_legal doc="{d.slug}"]
+                      </button>
+                    </td>
+                    <td className="r nw">
+                      <button type="button" className="btn sm" onClick={() => setOpenId(d.id)}>{canEdit ? <><Icon name="edit" size="sm" /> Gestionar</> : 'Ver'}</button>{' '}
+                      {can('web_connector.legal_document.delete') ? <button type="button" className="btn sm danger" onClick={() => void remove(d)}>Quitar</button> : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {newDoc && brandId ? <NewDocModal brandId={brandId} onClose={() => setNewDoc(false)} onSaved={(id) => { setNewDoc(false); res.reload(); setOpenId(id); }} /> : null}
+      {openId ? <DocSheet id={openId} readOnly={!canEdit} onClose={() => setOpenId(null)} onChanged={() => res.reload()} /> : null}
+    </div>
+  );
+}
+
+function NewDocModal({ brandId, onClose, onSaved }: { brandId: string; onClose: () => void; onSaved: (id: string) => void }) {
+  const { toast } = useApp();
+  const [kind, setKind] = useState<LegalKind>('terms');
+  const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [label, setLabel] = useState('2026-01');
+  const [body, setBody] = useState('<p></p>');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const s = (slugTouched ? slug : slugify(title)).trim();
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)) {
+      toast('Identificador inválido', 'Usa minúsculas, números y guiones (ej. terminos-y-condiciones).', 'err');
       return;
     }
-    edit.txt = txt;
-    edit.st = 'Borrador pendiente';
-    toast('Borrador guardado', edit.n);
-    setEdit(null);
-    refresh();
-  };
-  const publish = (d: LegalDoc) => {
-    const [M, m] = d.v.slice(1).split('.').map(Number);
-    dialogs.form({
-      title: 'Publicar versión nueva',
-      sub: `${d.n} · ${BR[brand].n}`,
-      fields: [
-        { id: 'v', label: 'Versión', value: `v${M}.${m + 1}` },
-        { id: 'd', label: 'Vigente desde', type: 'date', value: iso(addD(TODAY, 15)), req: true },
-        { id: 'a', label: 'Pedir aceptación a clientes', type: 'select', options: [['si', 'Sí, en el próximo ingreso al portal'], ['no', 'No (cambio menor)']], value: 'si' },
-        { id: 'c', label: 'Resumen de cambios', type: 'textarea', full: true },
-      ],
-      submit: 'Publicar',
-      validate: (v) => (!/^v\d+\.\d+$/.test(v.v) ? 'Formato de versión: v1.2' : diffD(fromIso(v.d), TODAY) < 0 ? 'La vigencia no puede ser anterior a hoy.' : d.hist.some((h) => h.v === v.v) || v.v === d.v ? 'Esa versión ya existe.' : null),
-      onSubmit: (v) => {
-        d.hist.unshift({ v: v.v, date: new Date() });
-        d.v = v.v;
-        d.vig = fromIso(v.d);
-        d.st = 'Publicado';
-        if (v.a === 'si') d.acc = 0;
-        toast('Versión publicada', `${d.n} ${v.v} · ${v.a === 'si' ? '0 de ' + d.tot + ' clientes la aceptaron aún' : 'sin pedir aceptación'}`);
-        refresh();
-      },
-    });
+    setBusy(true);
+    try {
+      const doc = await hub.webConnector.legalDocuments.create({ brand_id: brandId, kind, title: title.trim(), slug: s, version_label: label.trim(), body });
+      toast('Documento creado', 'Se creó con un primer borrador. Edítalo y publícalo cuando esté listo.');
+      onSaved(doc.id);
+    } catch (err) {
+      toast('No se pudo crear', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title="Nuevo documento legal">
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <label className="field">Tipo*<select className="input" value={kind} onChange={(e) => setKind(e.target.value as LegalKind)}>{LEGAL_KINDS.map((k) => <option key={k} value={k}>{LEGAL_KIND_LABEL[k]}</option>)}</select></label>
+        <label className="field">Título*<input required className="input" value={title} onChange={(e) => { setTitle(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }} placeholder="Términos y condiciones" /></label>
+        <label className="field">Identificador (shortcode)*<input required className="input mono" value={slugTouched ? slug : slugify(title)} onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }} placeholder="terminos-y-condiciones" /></label>
+        <label className="field">Etiqueta de la primera versión*<input required className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="2026-01" /></label>
+        <label className="field full">Contenido (borrador)<textarea className="input" rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder="HTML sencillo: <p>…</p>, <ul>, <strong>…" /></label>
+        <Note icon="info">Se guarda como borrador. Publícalo desde «Gestionar» para que entre en vigencia; publicar exige la revisión legal y la fecha de vigencia.</Note>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Crear documento</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+function DocSheet({ id, readOnly, onClose, onChanged }: { id: string; readOnly: boolean; onClose: () => void; onChanged: () => void }) {
+  const { toast } = useApp();
+  const can = useCan();
+  const canApprove = can('web_connector.legal_document.approve');
+  const res = useLoad(() => hub.webConnector.legalDocuments.get(id), [id]);
+  const doc = res.data;
+  const [verEdit, setVerEdit] = useState<LegalVersion | 'new' | null>(null);
+  const [publishVer, setPublishVer] = useState<LegalVersion | null>(null);
+
+  const reload = () => { res.reload(); onChanged(); };
+
+  const removeVersion = async (v: LegalVersion) => {
+    if (!window.confirm(`¿Eliminar el borrador «${v.version_label}»?`)) return;
+    try {
+      await hub.webConnector.legalDocuments.removeVersion(id, v.id);
+      toast('Borrador eliminado');
+      reload();
+    } catch (e) {
+      toast('No se pudo', errorText(e), 'err');
+    }
   };
 
   return (
     <>
-      <div className="card-b" style={{ paddingTop: 16, paddingBottom: 0 }}><SoonNote>La edición y publicación de documentos legales llegará con el backend; los datos mostrados son de ejemplo.</SoonNote></div>
-      <div className="toolbar">
-        <label className="field" htmlFor="lgB">
-          Marca
-          <select id="lgB" className="select" value={brand} onChange={(e) => setBrand(e.target.value as BrandId)}>
-            {BRAND_OPTS}
-          </select>
-        </label>
-        <span className="count">Clientes activos de la marca: {L2[0].tot}</span>
-      </div>
-      <div className="tw">
-        <table className="t">
-          <thead>
-            <tr>
-              <th>Documento</th>
-              <th>Versión</th>
-              <th>Vigente desde</th>
-              <th style={{ minWidth: 200 }}>Aceptación de la versión vigente</th>
-              <th>Shortcode</th>
-              <th className="r">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {L2.map((d) => {
-              const p = d.tot ? Math.round((d.acc / d.tot) * 100) : 0;
-              const code = `[hub_documento_legal doc="${d.id}" marca="${brand}"]`;
-              return (
-                <tr key={d.id}>
-                  <td>
-                    <b>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="contract" size="sm" />{d.n}</span>
-                    </b>
-                    {d.st !== 'Publicado' ? (
-                      <>
-                        {' '}
-                        <Chip kind="warn">{d.st}</Chip>
-                      </>
-                    ) : null}
-                  </td>
-                  <td className="mono">{d.v}</td>
-                  <td className="num">{fD(d.vig)}</td>
-                  <td>
-                    <div className="cap">
-                      <div className="cap-top">
-                        <span className="num">
-                          <b>{NF0.format(d.acc)}</b> de {NF0.format(d.tot)} clientes
-                        </span>
-                        <span className="num">{p} %</span>
-                      </div>
-                      <div className="bar thin" role="img" aria-label={`${p} % de aceptación`}>
-                        <i className={p >= 90 ? 'l1' : p >= 60 ? 'l2' : 'l3'} style={{ width: p + '%' }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <button type="button" className="btn sm ghost mono" title="Copiar shortcode" onClick={() => copyText(code, toast)}>
-                      [hub_documento_legal doc="{d.id}"]
-                    </button>
-                  </td>
-                  <td className="r nw">
-                    <button type="button" className="btn sm" onClick={() => openEdit(d)}>
-                      <Icon name="edit" size="sm" />
-                      Editar
-                    </button>{' '}
-                    <button type="button" className="btn sm primary" onClick={() => publish(d)}>
-                      <Icon name="upload" size="sm" />
-                      Publicar versión nueva
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <Sheet
-        open={!!edit}
-        onClose={() => setEdit(null)}
-        title="Editar documento"
-        sub={edit ? `${edit.n} · ${BR[brand].n} · ${edit.v}` : undefined}
-        initialFocus="#lgTxt"
-        footer={
+      <Sheet open onClose={onClose} title={doc ? doc.title : 'Documento legal'} sub={doc ? `${LEGAL_KIND_LABEL[doc.kind]} · [hub_documento_legal doc="${doc.slug}"]` : undefined}>
+        {res.error ? (
+          <Note kind="warn">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note>
+        ) : !doc ? (
+          <p className="sub">Cargando…</p>
+        ) : (
           <>
-            <button type="button" className="btn" onClick={() => setEdit(null)}>
-              Cancelar
-            </button>
-            <button type="button" className="btn primary" onClick={saveEdit}>
-              Guardar borrador
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <h3 className="fs" style={{ margin: 0 }}>Versiones</h3>
+              {!readOnly ? <button type="button" className="btn sm" onClick={() => setVerEdit('new')}><Icon name="plus" size="sm" /> Nueva versión</button> : null}
+            </div>
+            <ul className="rows">
+              {(doc.versions ?? []).map((v) => (
+                <li key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="grow">
+                    <b className="mono">{v.version_label}</b> <Chip kind={VSTATUS[v.status].kind}>{VSTATUS[v.status].label}</Chip>
+                    <div className="sub">
+                      {v.status === 'published' ? `Vigente desde ${fDate(v.effective_at)}` : v.status === 'superseded' ? `Reemplazada ${fDate(v.superseded_at)}` : 'Sin publicar'}
+                      {v.legal_reviewed_by ? ` · Revisó: ${v.legal_reviewed_by}` : ''}
+                    </div>
+                    {v.change_summary ? <div className="sub">{v.change_summary}</div> : null}
+                  </div>
+                  {!readOnly && v.status === 'draft' ? (
+                    <>
+                      <button type="button" className="btn sm" onClick={() => setVerEdit(v)}>Editar</button>
+                      {canApprove ? <button type="button" className="btn sm primary" onClick={() => setPublishVer(v)}><Icon name="upload" size="sm" /> Publicar</button> : null}
+                      {can('web_connector.legal_document.delete') ? <button type="button" className="btn sm danger" onClick={() => void removeVersion(v)}>Quitar</button> : null}
+                    </>
+                  ) : (
+                    <button type="button" className="btn sm" onClick={() => setVerEdit(v)}>Ver</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {!canApprove ? <Note kind="warn" icon="info" style={{ marginTop: 10 }}>No tienes permiso para publicar (requiere aprobación legal). Puedes dejar el borrador listo para quien apruebe.</Note> : null}
           </>
-        }
-      >
-        <label className="field" htmlFor="lgTxt">
-          Contenido
-          <textarea className="input" id="lgTxt" rows={16} value={txt} onChange={(e) => setTxt(e.target.value)} />
-        </label>
-        <Note>Se guarda como borrador. Publique una versión nueva para que entre en vigencia y se pida aceptación a los clientes.</Note>
+        )}
       </Sheet>
+      {verEdit && doc ? <VersionEditor docId={id} version={verEdit === 'new' ? null : verEdit} readOnly={readOnly || (verEdit !== 'new' && verEdit.status !== 'draft')} onClose={() => setVerEdit(null)} onSaved={() => { setVerEdit(null); reload(); }} /> : null}
+      {publishVer ? <PublishModal docId={id} version={publishVer} onClose={() => setPublishVer(null)} onPublished={() => { setPublishVer(null); reload(); }} /> : null}
     </>
+  );
+}
+
+function VersionEditor({ docId, version, readOnly, onClose, onSaved }: { docId: string; version: LegalVersion | null; readOnly: boolean; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [label, setLabel] = useState(version?.version_label ?? '');
+  const [body, setBody] = useState(version?.body ?? '<p></p>');
+  const [summary, setSummary] = useState(version?.change_summary ?? '');
+  const [reviewer, setReviewer] = useState(version?.legal_reviewed_by ?? '');
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!label.trim()) { toast('Falta la etiqueta', 'Dale una etiqueta a la versión (ej. 2026-06).', 'err'); return; }
+    setBusy(true);
+    try {
+      if (version) {
+        await hub.webConnector.legalDocuments.updateVersion(docId, version.id, version.version, { version_label: label.trim(), body, change_summary: summary.trim() || null, legal_reviewed_by: reviewer.trim() || null });
+      } else {
+        await hub.webConnector.legalDocuments.createVersion(docId, { version_label: label.trim(), body, change_summary: summary.trim() || null });
+      }
+      toast(version ? 'Versión guardada' : 'Borrador creado');
+      onSaved();
+    } catch (e) {
+      toast('No se pudo guardar', errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title={version ? (readOnly ? 'Ver versión' : 'Editar versión') : 'Nueva versión'}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>{readOnly ? 'Cerrar' : 'Cancelar'}</button>
+          {!readOnly ? <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>Guardar borrador</button> : null}
+        </>
+      }
+    >
+      <label className="field">Etiqueta de la versión<input className="input" value={label} disabled={readOnly} onChange={(e) => setLabel(e.target.value)} placeholder="2026-06" /></label>
+      <label className="field">Resumen de cambios<input className="input" value={summary} disabled={readOnly} onChange={(e) => setSummary(e.target.value)} placeholder="Qué cambió respecto a la versión anterior" /></label>
+      <label className="field">Revisado por (asesoría legal)<input className="input" value={reviewer} disabled={readOnly} onChange={(e) => setReviewer(e.target.value)} placeholder="Estudio jurídico / abogado" /></label>
+      <label className="field">Contenido<textarea className="input" rows={16} value={body} disabled={readOnly} onChange={(e) => setBody(e.target.value)} /></label>
+      <Note icon="info">El contenido se sanea al guardar: solo se conservan etiquetas de texto seguras (sin scripts ni estilos).</Note>
+    </Sheet>
+  );
+}
+
+function PublishModal({ docId, version, onClose, onPublished }: { docId: string; version: LegalVersion; onClose: () => void; onPublished: () => void }) {
+  const { toast } = useApp();
+  const [reviewer, setReviewer] = useState(version.legal_reviewed_by ?? '');
+  const [effective, setEffective] = useState(new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10));
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!reviewer.trim()) { toast('Falta la revisión legal', 'Indica quién validó el texto.', 'err'); return; }
+    setBusy(true);
+    try {
+      await hub.webConnector.legalDocuments.publishVersion(docId, version.id, version.version, { legal_reviewed_by: reviewer.trim(), effective_at: effective });
+      toast('Versión publicada', `${version.version_label} entra en vigencia el ${fDate(effective)}. Reemplaza a la anterior.`);
+      onPublished();
+    } catch (err) {
+      toast('No se pudo publicar', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title="Publicar versión" >
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <p className="sub">Vas a publicar <b className="mono">{version.version_label}</b>. Pasará a ser la versión vigente y la anterior quedará como reemplazada.</p>
+        <label className="field full">Revisado por (asesoría legal)*<input required className="input" value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="Estudio jurídico / abogado" /></label>
+        <label className="field">Vigente desde*<input required type="date" className="input" value={effective} onChange={(e) => setEffective(e.target.value)} /></label>
+        <Note kind="warn" icon="info">Una versión publicada ya no se puede editar. El carrito registra qué versión aceptó cada cliente, por eso cada cambio es una versión nueva.</Note>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}><Icon name="upload" size="sm" /> Publicar</button></div>
+      </form>
+    </Modal>
   );
 }
