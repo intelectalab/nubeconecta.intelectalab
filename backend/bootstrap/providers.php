@@ -29,4 +29,5 @@ return [
     App\Modules\Files\FilesServiceProvider::class,
     App\Modules\Notifications\NotificationsServiceProvider::class,
     App\Modules\Tenancy\TenancyServiceProvider::class,
+    App\Modules\Vault\VaultServiceProvider::class,
 ];
