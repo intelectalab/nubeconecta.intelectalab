@@ -5,7 +5,7 @@
  * Respeta el filtro global de marca y la moneda de visualización.
  */
 import { useMemo, useState } from 'react';
-import { api, type Attention, type Cashflow, type CashflowSeries, type DashboardSummary } from '@hub/api';
+import { api, type Attention, type Cashflow, type CashflowSeries, type DashboardSummary, type HostingNode } from '@hub/api';
 import { useApp, useMoney } from '../../app/context';
 import { useSession } from '../../auth/session';
 import { filterParam } from '../../app/filterParam';
@@ -16,7 +16,7 @@ import { Icon, SevIcon } from '../../components/Icon';
 import { DualMoney } from '../../components/Money';
 import { CapBar, ClientLink, DayChip, EmptyState, KpiCard, Legend, Note, PageHead } from '../../components/ui';
 import {
-  BR, MES, MESL, NF0, NF2, NODES, SEV, TODAY,
+  BR, MES, MESL, NF0, NF2, SEV, TODAY,
   compact, diffD, fD, fDL, fDom, fSvc, money, moneyRaw,
 } from '../../data';
 import type { MoneyPair, Sev } from '../../data';
@@ -44,12 +44,15 @@ export default function InicioView(_props: ViewProps) {
   const act = useActions();
   // TODO: filtrar por marca cuando el selector use brand_id reales
   const summary = useLoad<DashboardSummary>(() => api.dashboard.summary(), [dataVersion]);
+  const nodesRes = useLoad(() => api.inventory.hostingNodes.list({ size: 100, sort: 'hostname' }), [dataVersion]);
+  const nodes = useMemo(() => (nodesRes.data?.data ?? []).filter((n) => n.status !== 'retired'), [nodesRes.data]);
 
   const D = useMemo(() => {
-    const avg = Math.round(NODES.reduce((a, n) => a + n.p, 0) / NODES.length);
-    const hot = NODES.filter((n) => n.p >= 85).length;
-    return { avg, hot };
-  }, []);
+    const pcts = nodes.map(nodePct).filter((p): p is number => p !== null);
+    const avg = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : null;
+    const hot = pcts.filter((p) => p >= 85).length;
+    return { avg, hot, count: nodes.length };
+  }, [nodes]);
 
   const mrr = summary.data?.mrr?.reduce<MoneyPair>((pair, item) => {
     pair[item.currency] = item.amount_minor / 100;
@@ -153,15 +156,13 @@ export default function InicioView(_props: ViewProps) {
         <KpiCard
           label="Uso de nodos de hosting"
           icon="server"
-          value={
-            <>
-              {D.avg} % <small>promedio</small>
-            </>
-          }
+          value={D.avg === null ? <>—</> : <>{D.avg} % <small>promedio</small></>}
           meta={
-            <>
-              {D.hot ? <span className="delta-dn">{D.hot} nodos sobre 85 %</span> : 'Sin nodos críticos'} · {NODES.length} nodos · datos de ejemplo
-            </>
+            D.count === 0 ? 'Sin nodos registrados' : (
+              <>
+                {D.hot ? <span className="delta-dn">{D.hot} nodos sobre 85 %</span> : 'Sin nodos críticos'} · {D.count} nodos
+              </>
+            )
           }
           to="infra"
         />
@@ -206,7 +207,7 @@ export default function InicioView(_props: ViewProps) {
         </section>
       </div>
       <div style={{ height: 16 }} />
-      <Note icon="info" style={{ marginBottom: 16 }}>Capacidad de nodos, Renovaciones próximas y el uso de nodos de hosting usan datos de ejemplo; se conectarán cuando exista su backend.</Note>
+      <Note icon="info" style={{ marginBottom: 16 }}>Renovaciones próximas usa datos de ejemplo; se conectará cuando exista su panel de vencimientos.</Note>
       <div className="grid g-2e">
         <section className="card" aria-labelledby="hCap">
           <div className="card-h">
@@ -223,18 +224,26 @@ export default function InicioView(_props: ViewProps) {
             />
           </div>
           <div className="card-b" style={{ display: 'grid', gap: 14 }}>
-            {NODES.map((n) => (
-              <CapBar
-                key={n.id}
-                p={n.p}
-                label={
-                  <>
-                    <b className="mono">{n.id}</b> <span style={{ color: 'var(--muted)' }}>· {n.kind}</span>
-                  </>
-                }
-                detail={`${n.acc[0]}/${n.acc[1]} cuentas`}
-              />
-            ))}
+            {nodesRes.loading && !nodesRes.data ? (
+              <p style={{ color: 'var(--muted)' }}>—</p>
+            ) : nodesRes.error ? (
+              <Note kind="warn">No se pudo cargar: {errorText(nodesRes.error)} <button type="button" className="btn sm" onClick={nodesRes.reload}>Reintentar</button></Note>
+            ) : nodes.length === 0 ? (
+              <EmptyState title="Sin nodos" text="No hay nodos de hosting registrados." />
+            ) : (
+              nodes.map((n) => (
+                <CapBar
+                  key={n.id}
+                  p={nodePct(n) ?? 0}
+                  label={
+                    <>
+                      <b className="mono">{n.hostname}</b> <span style={{ color: 'var(--muted)' }}>· {n.kind === 'own_vps' ? 'VPS propio' : 'reseller'}</span>
+                    </>
+                  }
+                  detail={capDetail(n)}
+                />
+              ))
+            )}
           </div>
           <div className="card-f">
             <a className="btn ghost sm" href="#infra">
@@ -294,6 +303,21 @@ export default function InicioView(_props: ViewProps) {
       </div>
     </>
   );
+}
+
+/** Utilización del nodo: el mayor de cuentas y disco (datos reales de hosting_nodes); null si no hay métricas. */
+function nodePct(n: HostingNode): number | null {
+  const pcts: number[] = [];
+  if (n.accounts_limit && n.accounts_used != null) pcts.push((n.accounts_used / n.accounts_limit) * 100);
+  if (n.disk_quota_mb && n.disk_used_mb != null) pcts.push((n.disk_used_mb / n.disk_quota_mb) * 100);
+  return pcts.length ? Math.min(100, Math.round(Math.max(...pcts))) : null;
+}
+
+function capDetail(n: HostingNode): string {
+  const parts: string[] = [];
+  if (n.accounts_used != null || n.accounts_limit != null) parts.push(`${n.accounts_used ?? 0}/${n.accounts_limit ?? '∞'} cuentas`);
+  if (n.disk_used_mb != null && n.disk_quota_mb) parts.push(`${Math.round(n.disk_used_mb / 1024)}/${Math.round(n.disk_quota_mb / 1024)} GB`);
+  return parts.join(' · ') || 'Sin métricas de capacidad';
 }
 
 const fmtCur = (v: number, c: string, int?: boolean): string => (c === 'PEN' || c === 'USD' ? moneyRaw(v, c, int) : `${c} ${NF2.format(v)}`);
