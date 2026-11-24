@@ -8,7 +8,7 @@ export type RouteId =
   | 'crm' | 'solicitudes' | 'cotizaciones' | 'contratos' | 'catalogo'
   | 'cobranza' | 'facturas' | 'reportes'
   | 'tickets' | 'reclamos' | 'ayuda'
-  | 'infra' | 'monitoreo' | 'proveedores' | 'cloud' | 'correo' | 'boveda'
+  | 'infra' | 'monitoreo' | 'proveedores' | 'cloud' | 'correo' | 'boveda' | 'respaldos'
   | 'wp'
   | 'plataforma'
   | 'ajustes' | 'apariencia' | 'acceso-portal' | 'plantillas' | 'seguridad' | 'roles';
@@ -57,6 +57,7 @@ export const ROUTE_META: Record<RouteId, RouteMeta> = {
   cloud: { t: 'Cloud', g: 'Infraestructura', ic: 'cloud' },
   correo: { t: 'Correo y SSL', g: 'Infraestructura', ic: 'mail' },
   boveda: { t: 'Bóveda', g: 'Infraestructura', ic: 'key' },
+  respaldos: { t: 'Respaldos', g: 'Infraestructura', ic: 'restore' },
   wp: { t: 'WordPress y shortcodes', g: 'Web', ic: 'browser' },
   plataforma: { t: 'Inquilinos (SaaS)', g: 'Plataforma', ic: 'building' },
   ajustes: { t: 'Cobranza y SLA', g: 'Configuración', ic: 'sliders' },

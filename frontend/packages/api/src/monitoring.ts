@@ -92,6 +92,67 @@ export interface IncidentFilters {
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
+export type BackupResponsibility = 'company' | 'provider' | 'customer';
+export type BackupFrequency = 'hourly' | 'daily' | 'weekly' | 'monthly';
+export type BackupRunStatus = 'running' | 'succeeded' | 'failed' | 'partial';
+
+export interface BackupPolicy {
+  id: string;
+  resource_id: string;
+  service_id: string | null;
+  name: string;
+  responsibility: BackupResponsibility;
+  frequency: BackupFrequency;
+  retention_days: number;
+  rpo_minutes: number | null;
+  rto_minutes: number | null;
+  encrypted: boolean;
+  destination: string | null;
+  is_active: boolean;
+  responsible_user_id: string | null;
+  version: number;
+  created_at?: string;
+  resource?: { id: string; name: string; type: string } | null;
+  service?: { id: string; label: string | null; code: string } | null;
+}
+export interface BackupPolicyInput {
+  resource_id: string;
+  service_id?: string | null;
+  name: string;
+  responsibility?: BackupResponsibility;
+  frequency: BackupFrequency;
+  retention_days: number;
+  rpo_minutes?: number | null;
+  rto_minutes?: number | null;
+  encrypted?: boolean;
+  destination?: string | null;
+  is_active?: boolean;
+  responsible_user_id?: string | null;
+}
+export interface BackupRun {
+  id: string;
+  backup_policy_id: string;
+  policy?: { id: string; name: string } | null;
+  status: BackupRunStatus;
+  started_at: string | null;
+  finished_at: string | null;
+  size_bytes: number | null;
+  location: string | null;
+  error: string | null;
+  external_id: string | null;
+  version: number;
+  created_at?: string;
+}
+export interface BackupRunInput {
+  backup_policy_id: string;
+  status: BackupRunStatus;
+  started_at: string;
+  finished_at?: string | null;
+  size_bytes?: number | null;
+  location?: string | null;
+  error?: string | null;
+}
+
 export function createMonitoringApi(http: HttpClient) {
   const monitors = '/api/v1/admin/monitors';
   const incidents = '/api/v1/admin/incidents';
@@ -113,5 +174,14 @@ export function createMonitoringApi(http: HttpClient) {
     updateIncident: (id: string, version: number, input: IncidentUpdateInput) => http.patch<Envelope<Incident>>(`${incidents}/${enc(id)}`, { ...input, version }).then(unwrap),
     changeIncidentStatus: (id: string, version: number, status: IncidentStatus) => http.post<Envelope<Incident>>(`${incidents}/${enc(id)}/status`, { status, version }).then(unwrap),
     removeIncident: (id: string, version: number) => http.delete<void>(`${incidents}/${enc(id)}`, { version }),
+
+    listBackupPolicies: (params: ListParams & { filter?: { resource_id?: string; service_id?: string; is_active?: string; frequency?: string; responsibility?: string } } = {}) =>
+      http.get<CursorPage<BackupPolicy>>(`/api/v1/admin/backup-policies${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
+    createBackupPolicy: (input: BackupPolicyInput) => http.post<Envelope<BackupPolicy>>('/api/v1/admin/backup-policies', input).then(unwrap),
+    updateBackupPolicy: (id: string, version: number, input: Partial<BackupPolicyInput>) => http.patch<Envelope<BackupPolicy>>(`/api/v1/admin/backup-policies/${enc(id)}`, { ...input, version }).then(unwrap),
+    removeBackupPolicy: (id: string) => http.delete<void>(`/api/v1/admin/backup-policies/${enc(id)}`),
+    listBackupRuns: (params: ListParams & { filter?: { backup_policy_id?: string; status?: string } } = {}) =>
+      http.get<CursorPage<BackupRun>>(`/api/v1/admin/backup-runs${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
+    createBackupRun: (input: BackupRunInput) => http.post<Envelope<BackupRun>>('/api/v1/admin/backup-runs', input).then(unwrap),
   };
 }
