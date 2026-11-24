@@ -13,7 +13,7 @@ import { useViewState } from '../../../app/storage';
 import { href } from '../../../app/routeMeta';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
-import { Sheet } from '../../../components/Modal';
+import { Modal, Sheet } from '../../../components/Modal';
 import { Chip, EmptyState, Kv, Note, PageHead, SearchBox, Select, Toolbar } from '../../../components/ui';
 import { displayName, downloadBlob, errorText, fDate, fDateTime, isUuid, moneyMinor, useCan, useLoad } from '../clientes/shared';
 import { FISCAL_CHIP, INVOICE_CHIP, invoiceNumber, invoicesApi, MVP_INVOICE_STATUSES } from './shared';
@@ -184,6 +184,7 @@ export function InvoiceSheet({ id, onClose, onChanged }: { id: string; onClose: 
   const [reason, setReason] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [preview, setPreview] = useState(false);
   const idem = useRef({ issue: newIdempotencyKey(), void: newIdempotencyKey() });
   const i = res.data;
 
@@ -241,6 +242,10 @@ export function InvoiceSheet({ id, onClose, onChanged }: { id: string; onClose: 
       footer={
         i ? (
           <>
+            <button type="button" className="btn" onClick={() => setPreview(true)}>
+              <Icon name="eye" size="sm" />
+              Previsualizar
+            </button>
             <button type="button" className="btn" onClick={() => void download()}>
               <Icon name="download" size="sm" />
               Descargar
@@ -390,8 +395,26 @@ export function InvoiceSheet({ id, onClose, onChanged }: { id: string; onClose: 
           <div className="err" role="alert">
             {msg}
           </div>
+          {preview ? <InvoicePreview src={invoicesApi.documentPath(i.id)} name={invoiceNumber(i)} onDownload={() => void download()} onClose={() => setPreview(false)} /> : null}
         </>
       )}
     </Sheet>
+  );
+}
+
+/** Pop-up de previsualización del comprobante (HTML imprimible del backend) en un iframe del mismo origen. */
+function InvoicePreview({ src, name, onDownload, onClose }: { src: string; name: string; onDownload: () => void; onClose: () => void }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  return (
+    <Modal open wide bare onClose={onClose} title={`Previsualización · ${name}`}>
+      <div className="modal-b" style={{ padding: 0 }}>
+        <iframe ref={ref} src={src} title={`Comprobante ${name}`} style={{ width: '100%', height: '70vh', border: 0, background: '#fff' }} />
+      </div>
+      <div className="modal-f">
+        <button type="button" className="btn" onClick={() => ref.current?.contentWindow?.print()}><Icon name="print" size="sm" /> Imprimir</button>
+        <button type="button" className="btn" onClick={onDownload}><Icon name="download" size="sm" /> Descargar</button>
+        <button type="button" className="btn primary" onClick={onClose}>Cerrar</button>
+      </div>
+    </Modal>
   );
 }

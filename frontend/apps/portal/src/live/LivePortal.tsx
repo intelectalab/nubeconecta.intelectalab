@@ -646,11 +646,33 @@ function InvoicesPage({ openInvoice, go }: { openInvoice: (id: string) => void; 
   );
 }
 
+/** Pop-up de previsualización del comprobante (HTML imprimible del backend) en un iframe del mismo origen. */
+function DocPreview({ src, name, onDownload, onClose }: { src: string; name: string; onDownload: () => void; onClose: () => void }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  return (
+    <div role="dialog" aria-label={`Previsualización ${name}`} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.5)', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, width: 'min(900px, 100%)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.35)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}>
+          <b>Previsualización · {name}</b>
+          <button type="button" className="btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+        <iframe ref={ref} src={src} title={`Comprobante ${name}`} style={{ flex: 1, width: '100%', minHeight: '62vh', border: 0, background: '#fff' }} />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
+          <button type="button" className="btn" onClick={() => ref.current?.contentWindow?.print()}>Imprimir</button>
+          <button type="button" className="btn" onClick={onDownload}>Descargar</button>
+          <button type="button" className="btn primary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- P-PRT-08 Detalle de comprobante, pagos y voucher ---------- */
 function InvoicePage({ id, back, canPay }: { id: string; back: () => void; canPay: boolean }) {
   const res = useLoad(() => hub.billing.portalGet(id), [id]);
   const i = res.data;
   const [msg, setMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
   const payable = !!i && ['issued', 'partially_paid', 'overdue'].includes(i.status) && i.balance_minor > 0;
   const doc = async () => {
     if (!i) return;
@@ -668,14 +690,20 @@ function InvoicePage({ id, back, canPay }: { id: string; back: () => void; canPa
         lead={i ? `Emitido el ${fDate(i.issue_date)} · vence el ${fDate(i.due_date)}` : undefined}
         actions={
           i ? (
-            <button type="button" className="btn" onClick={() => void doc()}>
-              <Icon name="file" className="sm" /> Descargar
-            </button>
+            <span style={{ display: 'inline-flex', gap: 6 }}>
+              <button type="button" className="btn" onClick={() => setPreview(true)}>
+                <Icon name="eye" className="sm" /> Previsualizar
+              </button>
+              <button type="button" className="btn" onClick={() => void doc()}>
+                <Icon name="file" className="sm" /> Descargar
+              </button>
+            </span>
           ) : null
         }
       />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
       {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+      {preview && i ? <DocPreview src={hub.billing.portalDocumentPath(i.id)} name={i.number ?? 'comprobante'} onDownload={() => void doc()} onClose={() => setPreview(false)} /> : null}
       {i ? (
         <>
           <div className="detail">
