@@ -48,6 +48,7 @@ final class CustomerController
 
     public function store(Request $request): JsonResponse
     {
+        app(\App\Shared\Organization\PlanLimits::class)->assertCanAdd('customers');
         $customer = $this->customers->create($request->validate($this->customers->rules(null)));
 
         return (new CustomerResource($customer->refresh()))->response()->setStatusCode(201);

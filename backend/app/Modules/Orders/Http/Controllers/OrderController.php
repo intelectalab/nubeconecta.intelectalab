@@ -85,7 +85,19 @@ final class OrderController
     public function approve(Request $request, string $id): OrderResource
     {
         $data = $request->validate(['version' => ['sometimes', 'integer']]);
-        $order = $this->orders->approve(Order::query()->findOrFail($id), isset($data['version']) ? (int) $data['version'] : null);
+        $order = Order::query()->findOrFail($id);
+
+        // Fase 3 SaaS: aprobar un pedido provisiona un servicio por línea (salvo setup_fee
+        // o líneas ya ligadas a un servicio). Si excediera el tope del plan, no se aprueba.
+        $newServices = (int) \Illuminate\Support\Facades\DB::table('order_items')
+            ->where('organization_id', $order->organization_id)->where('order_id', $order->id)
+            ->whereNull('service_id')->whereRaw("coalesce(config->>'kind','') <> 'setup_fee'")
+            ->count();
+        if ($newServices > 0) {
+            app(\App\Shared\Organization\PlanLimits::class)->assertCanAdd('services', $newServices, $order->organization_id);
+        }
+
+        $order = $this->orders->approve($order, isset($data['version']) ? (int) $data['version'] : null);
 
         return new OrderResource($order->load(['items', 'customer']));
     }

@@ -10,7 +10,10 @@ use App\Modules\Identity\Models\Role;
 use App\Modules\Identity\Services\Totp;
 use App\Modules\Tenancy\Models\SaasPlan;
 use App\Modules\Tenancy\Services\TenantProvisioner;
+use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
+use App\Shared\Organization\PlanLimits;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Identity\IdentityTestCase;
 
 /**
@@ -113,6 +116,58 @@ final class TenancyTest extends IdentityTestCase
         $this->actingAs($admin);
         // admin tiene tenancy.* denegado por el seeder.
         $this->assertProblem($this->getJson('/api/v1/admin/tenancy/tenants'), 403, 'forbidden');
+    }
+
+    public function test_plan_limits_are_enforced_from_real_usage(): void
+    {
+        $this->actingAs($this->operatorSuperadmin);
+        $plan = $this->postJson('/api/v1/admin/tenancy/plans', [
+            'code' => 'solo', 'name' => 'Solo', 'price_minor' => 1000, 'currency' => 'PEN',
+            'max_staff_users' => 1, 'max_customers' => 5, 'max_services' => 10,
+        ])->assertCreated()->json('data');
+
+        [$admin] = $this->provisionTenant('hosting-lim', 'adminlim@hostinglim.test');
+        $tid = $admin->organization_id;
+        DB::table('organizations')->where('id', $tid)->update(['saas_plan_id' => $plan['id']]);
+
+        $limits = app(PlanLimits::class);
+        // El admin provisionado ya ocupa el único cupo de staff del plan.
+        $this->assertSame(1, $limits->usage($tid)['staff_users']);
+        try {
+            $limits->assertCanAdd('staff_users', 1, $tid);
+            $this->fail('Se esperaba plan_limit_reached al exceder el tope de staff.');
+        } catch (ProblemException $e) {
+            $this->assertSame(422, $e->status);
+            $this->assertSame('plan_limit_reached', $e->problemCode);
+        }
+        // Clientes: 0 de 5 → permitido.
+        $limits->assertCanAdd('customers', 1, $tid);
+        // La organización operadora no tiene plan → ilimitada.
+        $opId = (string) Organization::query()->where('is_operator', true)->value('id');
+        $limits->assertCanAdd('staff_users', 999, $opId);
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_expired_subscription_is_suspended_and_can_be_renewed(): void
+    {
+        [$admin] = $this->provisionTenant('hosting-exp', 'adminexp@hostingexp.test');
+        $tid = $admin->organization_id;
+        // Venció ayer.
+        DB::table('organizations')->where('id', $tid)->update([
+            'saas_renewal_date' => now()->subDay()->toDateString(), 'saas_status' => 'active', 'status' => 'active',
+        ]);
+
+        $this->artisan('tenancy:expire-subscriptions')->assertSuccessful();
+        $this->assertDatabaseHas('organizations', ['id' => $tid, 'status' => 'suspended', 'saas_status' => 'suspended']);
+
+        // El operador renueva → vuelve a activo con la nueva fecha.
+        $this->actingAs($this->operatorSuperadmin);
+        $future = now()->addMonth()->toDateString();
+        $this->postJson("/api/v1/admin/tenancy/tenants/{$tid}/renew", ['saas_renewal_date' => $future])
+            ->assertOk()
+            ->assertJsonPath('data.saas_status', 'active')
+            ->assertJsonPath('data.saas_renewal_date', $future);
+        $this->assertDatabaseHas('organizations', ['id' => $tid, 'status' => 'active', 'saas_status' => 'active']);
     }
 
     /**

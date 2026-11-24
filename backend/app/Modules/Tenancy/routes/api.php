@@ -20,6 +20,7 @@ Route::prefix('admin/tenancy')->name('admin.tenancy.')
         Route::post('tenants/{id}/suspend', [TenantController::class, 'suspend'])->whereUuid('id')->middleware('permission:tenancy.tenant.update')->name('tenants.suspend');
         Route::post('tenants/{id}/reactivate', [TenantController::class, 'reactivate'])->whereUuid('id')->middleware('permission:tenancy.tenant.update')->name('tenants.reactivate');
         Route::patch('tenants/{id}/plan', [TenantController::class, 'changePlan'])->whereUuid('id')->middleware('permission:tenancy.tenant.update')->name('tenants.plan');
+        Route::post('tenants/{id}/renew', [TenantController::class, 'renew'])->whereUuid('id')->middleware('permission:tenancy.tenant.update')->name('tenants.renew');
 
         Route::get('plans', [SaasPlanController::class, 'index'])->middleware('permission:tenancy.plan.view')->name('plans.index');
         Route::post('plans', [SaasPlanController::class, 'store'])->middleware('permission:tenancy.plan.manage')->name('plans.store');

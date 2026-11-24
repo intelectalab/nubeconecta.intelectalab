@@ -9,6 +9,7 @@ use App\Modules\Tenancy\Http\Resources\TenantResource;
 use App\Modules\Tenancy\Services\TenantProvisioner;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Http\Problem\ProblemException;
+use App\Shared\Organization\PlanLimits;
 use App\Shared\Pagination\CursorPagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,14 @@ final class TenantController
 
     public function index(Request $request): JsonResponse
     {
-        $query = Organization::query()->where('is_operator', false)->with('saasPlan');
+        // Uso por inquilino en una sola consulta (subconsultas correlacionadas, sin N+1).
+        $query = Organization::query()->where('is_operator', false)->with('saasPlan')
+            ->select('organizations.*')
+            ->addSelect([
+                'usage_staff' => DB::table('users')->selectRaw('count(*)')->whereColumn('users.organization_id', 'organizations.id')->where('type', 'staff')->whereNull('deleted_at'),
+                'usage_customers' => DB::table('customers')->selectRaw('count(*)')->whereColumn('customers.organization_id', 'organizations.id')->whereNull('deleted_at'),
+                'usage_services' => DB::table('services')->selectRaw('count(*)')->whereColumn('services.organization_id', 'organizations.id')->whereNull('deleted_at'),
+            ]);
 
         return CursorPagination::respond($query, $request, ['created_at', 'name', 'slug', 'status'], TenantResource::class);
     }
@@ -39,9 +47,20 @@ final class TenantController
     public function show(string $id): TenantResource
     {
         $org = Organization::query()->where('is_operator', false)->with('saasPlan')->findOrFail($id);
-        $org->setAttribute('usage', $this->usage($org->id));
+        $org->setAttribute('usage', app(PlanLimits::class)->usage($org->id));
 
         return new TenantResource($org);
+    }
+
+    /** Renueva la suscripción: nueva fecha de vencimiento y reactiva al inquilino. */
+    public function renew(Request $request, string $id): TenantResource
+    {
+        $data = $request->validate(['saas_renewal_date' => ['required', 'date', 'after:today']]);
+        $org = $this->tenant($id);
+        $org->forceFill(['status' => 'active', 'saas_status' => 'active', 'saas_renewal_date' => $data['saas_renewal_date']])->save();
+        $this->audit->record('tenant.renewed', 'organization', $org->id, null, ['saas_renewal_date' => $data['saas_renewal_date']]);
+
+        return new TenantResource($org->refresh()->load('saasPlan'));
     }
 
     public function store(Request $request): JsonResponse
@@ -125,15 +144,5 @@ final class TenantController
     private function operatorOrgId(): string
     {
         return app(\App\Shared\Organization\CurrentOrganization::class)->id();
-    }
-
-    /** @return array<string, int> */
-    private function usage(string $orgId): array
-    {
-        return [
-            'staff_users' => (int) DB::table('users')->where('organization_id', $orgId)->where('type', 'staff')->whereNull('deleted_at')->count(),
-            'customers' => (int) DB::table('users')->where('organization_id', $orgId)->where('type', 'customer')->whereNull('deleted_at')->count(),
-            'services' => (int) DB::table('services')->where('organization_id', $orgId)->whereNull('deleted_at')->count(),
-        ];
     }
 }

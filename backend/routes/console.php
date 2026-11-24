@@ -19,3 +19,6 @@ Schedule::job(new App\Modules\Billing\Jobs\GenerateRenewalInvoices, 'billing')->
 
 // Cobranza (M-BIL §9): vencidos y avisos de la secuencia (RN-BIL-031), sin recargo por mora (D-04).
 Schedule::job(new App\Modules\Billing\Jobs\RunDunningSequence, 'billing')->dailyAt('07:00')->onOneServer()->withoutOverlapping();
+
+// Multitenancy Fase 3: suspende inquilinos con la suscripción SaaS vencida.
+Schedule::command('tenancy:expire-subscriptions')->dailyAt('02:00')->onOneServer()->withoutOverlapping();

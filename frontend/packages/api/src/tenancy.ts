@@ -35,6 +35,17 @@ export interface SaasPlanInput {
 export type TenantStatus = 'active' | 'suspended';
 export type SaasStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
 
+export interface PlanLimits {
+  staff_users: number | null;
+  customers: number | null;
+  services: number | null;
+}
+export interface PlanUsage {
+  staff_users: number;
+  customers: number;
+  services: number;
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -45,9 +56,13 @@ export interface Tenant {
   is_operator: boolean;
   saas_status: SaasStatus | null;
   saas_renewal_date: string | null;
-  plan: { id: string; code: string; name: string } | null;
-  /** Uso solo en el detalle (getTenant); null en el listado. */
-  usage: { staff_users: number; customers: number; services: number } | null;
+  /** Días hasta la renovación (negativo = vencido); null si no tiene fecha. */
+  renewal_in_days: number | null;
+  plan: { id: string; code: string; name: string; limits: PlanLimits } | null;
+  /** Topes del plan (null = ilimitado / sin plan). */
+  limits: PlanLimits;
+  /** Uso actual del inquilino (lista y detalle); null si no se calculó. */
+  usage: PlanUsage | null;
   version: number;
   created_at: string | null;
 }
@@ -95,6 +110,7 @@ export function createTenancyApi(http: HttpClient) {
     suspendTenant: (id: string) => http.post<Envelope<Tenant>>(`${tenants}/${enc(id)}/suspend`, {}).then(unwrap),
     reactivateTenant: (id: string) => http.post<Envelope<Tenant>>(`${tenants}/${enc(id)}/reactivate`, {}).then(unwrap),
     changeTenantPlan: (id: string, planId: string) => http.patch<Envelope<Tenant>>(`${tenants}/${enc(id)}/plan`, { saas_plan_id: planId }).then(unwrap),
+    renewTenant: (id: string, renewalDate: string) => http.post<Envelope<Tenant>>(`${tenants}/${enc(id)}/renew`, { saas_renewal_date: renewalDate }).then(unwrap),
 
     listPlans: () => http.get<Envelope<SaasPlan[]>>(plans).then(unwrap),
     createPlan: (input: SaasPlanInput) => http.post<Envelope<SaasPlan>>(plans, input).then(unwrap),

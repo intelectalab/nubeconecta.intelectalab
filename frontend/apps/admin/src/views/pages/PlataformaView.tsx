@@ -54,6 +54,7 @@ function TenantsTab() {
   const [form, setForm] = useState(false);
   const [created, setCreated] = useState<TenantCreated | null>(null);
   const [planFor, setPlanFor] = useState<Tenant | null>(null);
+  const [renewFor, setRenewFor] = useState<Tenant | null>(null);
 
   const toggleStatus = (t: Tenant) => {
     const suspend = t.status === 'active';
@@ -76,13 +77,14 @@ function TenantsTab() {
   const cols: Column<Tenant>[] = [
     { key: 'name', header: 'Inquilino', render: (t) => <div><strong>{t.name}</strong><div className="muted sm">{t.slug}</div></div>, sort: (t) => t.name },
     { key: 'plan', header: 'Plan', render: (t) => t.plan?.name ?? '—' },
+    { key: 'usage', header: 'Uso (staff / clientes / servicios)', render: (t) => <UsageCell t={t} /> },
     { key: 'saas', header: 'Suscripción', render: (t) => (t.saas_status ? <Chip kind={SAAS_CHIP[t.saas_status]}>{SAAS_LABEL[t.saas_status]}</Chip> : '—') },
-    { key: 'renewal', header: 'Renovación', render: (t) => fDate(t.saas_renewal_date), sort: (t) => t.saas_renewal_date ?? '' },
-    { key: 'created', header: 'Alta', render: (t) => fDate(t.created_at), sort: (t) => t.created_at ?? '' },
+    { key: 'renewal', header: 'Renovación', render: (t) => <RenewalCell t={t} />, sort: (t) => t.saas_renewal_date ?? '' },
     {
       key: 'actions', header: '', align: 'r', render: (t) => (canUpdate ? (
         <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
           <button className="btn sm" onClick={() => setPlanFor(t)} disabled={activePlans.length === 0}>Plan</button>
+          <button className="btn sm" onClick={() => setRenewFor(t)}>Renovar</button>
           <button className={`btn sm${t.status === 'active' ? ' danger' : ''}`} onClick={() => toggleStatus(t)}>{t.status === 'active' ? 'Suspender' : 'Reactivar'}</button>
         </div>
       ) : null),
@@ -102,7 +104,56 @@ function TenantsTab() {
       {form ? <TenantForm plans={activePlans} onClose={() => setForm(false)} onCreated={(c) => { setForm(false); setCreated(c); res.reload(); }} /> : null}
       {created ? <CredentialsModal created={created} onClose={() => setCreated(null)} /> : null}
       {planFor ? <PlanChangeModal tenant={planFor} plans={activePlans} onClose={() => setPlanFor(null)} onSaved={() => { setPlanFor(null); res.reload(); }} /> : null}
+      {renewFor ? <RenewModal tenant={renewFor} onClose={() => setRenewFor(null)} onSaved={() => { setRenewFor(null); res.reload(); }} /> : null}
     </div>
+  );
+}
+
+/** Uso vs tope del plan; marca en rojo la métrica que alcanzó o superó su límite. */
+function UsageCell({ t }: { t: Tenant }) {
+  if (!t.usage) return <>—</>;
+  const cell = (used: number, lim: number | null) => {
+    const over = lim !== null && used >= lim;
+    return <span style={over ? { color: 'var(--danger, #c0392b)', fontWeight: 600 } : undefined}>{used}/{limit(lim)}</span>;
+  };
+  return <span>{cell(t.usage.staff_users, t.limits.staff_users)} · {cell(t.usage.customers, t.limits.customers)} · {cell(t.usage.services, t.limits.services)}</span>;
+}
+
+/** Fecha de renovación con aviso de vencido / por vencer. */
+function RenewalCell({ t }: { t: Tenant }) {
+  if (!t.saas_renewal_date) return <>—</>;
+  const d = t.renewal_in_days;
+  const chip = d === null ? null : d < 0 ? <Chip kind="danger">vencido</Chip> : d <= 7 ? <Chip kind="warn">en {d} d</Chip> : null;
+  return <span>{fDate(t.saas_renewal_date)} {chip}</span>;
+}
+
+function RenewModal({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [date, setDate] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await tenancy.renewTenant(tenant.id, date);
+      toast('Suscripción renovada');
+      onSaved();
+    } catch (err) {
+      toast('No se pudo', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title="Renovar suscripción" sub={tenant.name}>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <Note icon="info">Fija una nueva fecha de vencimiento y reactiva al inquilino si estaba suspendido. El cobro se gestiona aparte.</Note>
+        <label className="field full">Nueva fecha de vencimiento*<input required type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy || !date}>Renovar</button></div>
+      </form>
+    </Modal>
   );
 }
 

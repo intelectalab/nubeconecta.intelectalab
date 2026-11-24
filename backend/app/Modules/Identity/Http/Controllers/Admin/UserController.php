@@ -65,6 +65,9 @@ final class UserController
             'role_ids.*' => ['uuid'],
         ]);
         $this->assertEmailFree($data['email']);
+        if ($data['type'] === 'staff') {
+            app(\App\Shared\Organization\PlanLimits::class)->assertCanAdd('staff_users');
+        }
 
         $user = DB::transaction(function () use ($data): User {
             $user = new User(Arr::only($data, ['name', 'email', 'type', 'locale', 'timezone']));
