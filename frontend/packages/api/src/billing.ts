@@ -267,6 +267,29 @@ export interface DunningEvent {
   detail: { offset_days?: number; channels?: string[]; recipient?: string | null; delivery?: string; template?: string | null };
 }
 
+export type PaymentPromiseStatus = 'open' | 'kept' | 'broken';
+export interface PaymentPromise {
+  id: string;
+  invoice_id: string;
+  customer_id: string;
+  promised_date: string | null;
+  amount_minor: number | null;
+  currency: Currency | null;
+  status: PaymentPromiseStatus;
+  resolved_at: string | null;
+  notes: string | null;
+  invoice: { id: string; number: string | null; status: InvoiceStatus; balance_minor: number; currency: Currency } | null;
+  customer: { id: string; legal_name: string; trade_name: string | null } | null;
+  version: number;
+  created_at: string | null;
+}
+export interface PaymentPromiseInput {
+  invoice_id: string;
+  promised_date: string;
+  amount_minor?: number | null;
+  notes?: string | null;
+}
+
 export interface PortalSummary {
   services: { active: number; suspended: number; pending: number };
   debt: { currency: Currency; balance_minor: number; overdue_minor: number; invoices: number }[];
@@ -371,6 +394,12 @@ function createPaymentsApi(http: HttpClient) {
     paymentProof: (id: string) => http.getBlob(`${admin}/${enc(id)}/proof`, '*/*'),
     aging: (filter: { customer_id?: string; currency?: Currency | '' } = {}) => http.get<DebtAging>(`/api/v1/admin/collections/aging${toQuery({ filter })}`),
     dunningEvents: (filter: { invoice_id?: string; status?: string } = {}) => http.get<Envelope<DunningEvent[]>>(`/api/v1/admin/collections/dunning-events${toQuery({ filter })}`).then(unwrap),
+    promises: (params: { filter?: { status?: PaymentPromiseStatus | ''; invoice_id?: string; customer_id?: string }; q?: string; cursor?: string | null; size?: number } = {}) =>
+      http.get<CursorPage<PaymentPromise>>(`/api/v1/admin/collections/promises${toQuery({ filter: params.filter, q: params.q, page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
+    createPromise: (input: PaymentPromiseInput, idempotencyKey = newIdempotencyKey()) =>
+      http.post<Envelope<PaymentPromise>>('/api/v1/admin/collections/promises', input, { idempotencyKey }).then(unwrap),
+    resolvePromise: (id: string, status: 'kept' | 'broken', version: number, notes?: string, idempotencyKey = newIdempotencyKey()) =>
+      http.post<Envelope<PaymentPromise>>(`/api/v1/admin/collections/promises/${enc(id)}/resolve`, { status, version, notes }, { idempotencyKey }).then(unwrap),
 
     portalSummary: () => http.get<Envelope<PortalSummary>>('/api/v1/portal/summary').then(unwrap),
     portalPaymentMethods: () => http.get<Envelope<PaymentMethodOption[]>>('/api/v1/portal/payment-methods').then(unwrap),

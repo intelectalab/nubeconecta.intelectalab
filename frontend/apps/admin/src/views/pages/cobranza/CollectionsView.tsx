@@ -4,12 +4,13 @@
  * P-BIL-12 antigüedad de deuda y avisos de la secuencia de cobranza.
  * Sin recargo por mora (D-04) ni suspensión automática.
  */
-import { useEffect, useRef, useState } from 'react';
-import { AGING_LABELS, isProblem, newIdempotencyKey, PAYMENT_STATUS_LABELS, paymentStatusLabel, type AgingBucket, type Payment, type PaymentStatus } from '@hub/api';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AGING_LABELS, isProblem, newIdempotencyKey, PAYMENT_STATUS_LABELS, paymentStatusLabel, type AgingBucket, type Invoice, type Payment, type PaymentPromise, type PaymentPromiseStatus, type PaymentStatus } from '@hub/api';
 import { useApp } from '../../../app/context';
 import { href } from '../../../app/routeMeta';
 import { DataTable, type Column } from '../../../components/DataTable';
 import { Icon } from '../../../components/Icon';
+import { Modal } from '../../../components/Modal';
 import { Chip, EmptyState, Note, PageHead, SearchBox, Select, Tabs, Toolbar } from '../../../components/ui';
 import { displayName, downloadBlob, errorText, fDate, fDateTime, moneyMinor, useCan, useLoad } from '../clientes/shared';
 import { paymentChip, paymentsApi, VIA_LABELS } from './shared';
@@ -17,8 +18,13 @@ import { paymentChip, paymentsApi, VIA_LABELS } from './shared';
 /** Estados de dunning_events (CollectionsController). */
 const DUNNING_STATUS_LABELS: Record<string, string> = { scheduled: 'Programado', done: 'Enviado', failed: 'Falló', skipped: 'Omitido', cancelled: 'Cancelado' };
 
-type Tab = 'vouchers' | 'pagos' | 'antiguedad' | 'avisos';
-const TABS: Tab[] = ['vouchers', 'pagos', 'antiguedad', 'avisos'];
+type Tab = 'vouchers' | 'pagos' | 'compromisos' | 'antiguedad' | 'avisos';
+const TABS: Tab[] = ['vouchers', 'pagos', 'compromisos', 'antiguedad', 'avisos'];
+const PROMISE_STATUS: Record<PaymentPromiseStatus, { label: string; kind: 'warn' | 'ok' | 'danger' }> = {
+  open: { label: 'Vigente', kind: 'warn' },
+  kept: { label: 'Cumplido', kind: 'ok' },
+  broken: { label: 'Incumplido', kind: 'danger' },
+};
 const BUCKETS: AgingBucket[] = ['current', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'];
 /** Montos alineados con cifras tabulares. */
 const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
@@ -36,12 +42,13 @@ export default function CollectionsView({ param }: { param?: string | null }) {
         tabs={[
           { id: 'vouchers', label: 'Vouchers por validar' },
           { id: 'pagos', label: 'Pagos' },
+          ...(can('billing.payment_promise.view') ? [{ id: 'compromisos' as Tab, label: 'Compromisos' }] : []),
           { id: 'antiguedad', label: 'Antigüedad de deuda' },
           ...(can('billing.dunning_event.view') ? [{ id: 'avisos' as Tab, label: 'Avisos' }] : []),
         ]}
         style={{ marginBottom: 12 }}
       />
-      {tab === 'vouchers' ? <PaymentsTab fixedStatus="reported" /> : tab === 'pagos' ? <PaymentsTab /> : tab === 'antiguedad' ? <AgingTab /> : <NoticesTab />}
+      {tab === 'vouchers' ? <PaymentsTab fixedStatus="reported" /> : tab === 'pagos' ? <PaymentsTab /> : tab === 'compromisos' ? <PromisesTab /> : tab === 'antiguedad' ? <AgingTab /> : <NoticesTab />}
     </>
   );
 }
@@ -220,6 +227,163 @@ function PaymentsTab({ fixedStatus }: { fixedStatus?: PaymentStatus }) {
         </>
       )}
     </section>
+  );
+}
+
+function PromisesTab() {
+  const { toast } = useApp();
+  const can = useCan();
+  const canCreate = can('billing.payment_promise.create');
+  const canUpdate = can('billing.payment_promise.update');
+  const [status, setStatus] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [qDeb, setQDeb] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => { setCursor(null); setQDeb(q.trim()); }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const res = useLoad(() => paymentsApi.promises({ filter: { status: status as PaymentPromiseStatus | '' }, q: qDeb || undefined, cursor, size: 25 }), [status, qDeb, cursor]);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+
+  const resolve = async (p: PaymentPromise, kind: 'kept' | 'broken') => {
+    if (!window.confirm(kind === 'kept' ? '¿Marcar el compromiso como cumplido?' : '¿Marcar el compromiso como incumplido?')) return;
+    setBusy(true);
+    try {
+      await paymentsApi.resolvePromise(p.id, kind, p.version);
+      toast(kind === 'kept' ? 'Compromiso cumplido' : 'Compromiso incumplido', '', kind === 'kept' ? 'ok' : 'warn');
+      res.reload();
+    } catch (e) {
+      toast('No se pudo', errorText(e), 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const columns: Column<PaymentPromise>[] = [
+    { key: 'i', header: 'Comprobante', className: 'nw', render: (p) => <>{p.invoice?.number ? <a className="rowlink mono" href={href('facturas')}>{p.invoice.number}</a> : <span className="mono">—</span>}<div className="sub">{p.invoice ? INVOICE_STATUS_LABEL(p.invoice.status) : ''}</div></> },
+    { key: 'c', header: 'Cliente', minWidth: 160, render: (p) => (p.customer ? <a className="rowlink" href={href('cliente', p.customer.id)}>{p.customer.trade_name || p.customer.legal_name}</a> : '—') },
+    { key: 'd', header: 'Fecha prometida', className: 'nw', render: (p) => fDate(p.promised_date) },
+    { key: 'a', header: 'Monto', align: 'r', className: 'nw strong', render: (p) => <span style={NUM}>{p.amount_minor != null && p.currency ? moneyMinor(p.amount_minor, p.currency) : '—'}</span> },
+    { key: 's', header: 'Estado', render: (p) => <><Chip kind={PROMISE_STATUS[p.status].kind}>{PROMISE_STATUS[p.status].label}</Chip>{p.resolved_at ? <div className="sub">{fDate(p.resolved_at)}</div> : null}</> },
+    { key: 'n', header: 'Notas', minWidth: 160, render: (p) => p.notes ? <span className="sub">{p.notes}</span> : <span className="sub">—</span> },
+    {
+      key: 'x', header: 'Acciones', align: 'r',
+      render: (p) => (canUpdate && p.status === 'open' ? (
+        <span style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+          <button type="button" className="btn sm primary" disabled={busy} onClick={() => void resolve(p, 'kept')}>Cumplido</button>
+          <button type="button" className="btn sm danger" disabled={busy} onClick={() => void resolve(p, 'broken')}>Incumplido</button>
+        </span>
+      ) : null),
+    },
+  ];
+
+  return (
+    <section className="card">
+      <div className="card-h">
+        <h2 style={{ margin: 0, fontSize: 15 }}>Compromisos de pago</h2>
+        <span className="sub">Acuerdos del cliente para pagar un comprobante en una fecha (seguimiento de cobranza)</span>
+      </div>
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <SearchBox value={q} onChange={setQ} label="Buscar compromisos" placeholder="Cliente o comprobante" />
+        <Select value={status} onChange={(v) => { setStatus(v); setCursor(null); }} label="Estado" options={[['', 'Todos'], ['open', 'Vigentes'], ['kept', 'Cumplidos'], ['broken', 'Incumplidos']]} />
+        {canCreate ? <button type="button" className="btn sm primary" onClick={() => setCreating(true)}><Icon name="plus" size="sm" /> Nuevo compromiso</button> : null}
+        <button type="button" className="btn sm" onClick={res.reload}><Icon name="refresh" size="sm" /> Actualizar</button>
+      </Toolbar>
+      {res.error ? (
+        <div className="card-b"><Note kind="warn" icon="tri" role="alert">No se pudo cargar: {errorText(res.error)} <button type="button" className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
+      ) : !res.loading && !rows.length ? (
+        <EmptyState title="Sin compromisos" text="Registra un compromiso cuando un cliente acuerde pagar un comprobante en una fecha." />
+      ) : (
+        <>
+          <DataTable columns={columns} rows={rows} rowKey={(p) => p.id} caption="Compromisos de pago" />
+          <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>Anterior</button>
+            <button type="button" className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>Siguiente</button>
+          </div>
+        </>
+      )}
+      {creating ? <CreatePromiseModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); res.reload(); }} /> : null}
+    </section>
+  );
+}
+
+const INVOICE_STATUS_LABEL = (s: string): string => ({ issued: 'Emitido', partially_paid: 'Pagado parcial', overdue: 'Vencido' } as Record<string, string>)[s] ?? s;
+
+function CreatePromiseModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [q, setQ] = useState('');
+  const [qDeb, setQDeb] = useState('');
+  const [picked, setPicked] = useState<Invoice | null>(null);
+  const [date, setDate] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const maxDate = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+  useEffect(() => {
+    const t = setTimeout(() => setQDeb(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const search = useLoad(() => (qDeb ? paymentsApi.list({ q: qDeb, filter: { has_balance: 'true' }, size: 8 }).then((r) => r.data) : Promise.resolve([] as Invoice[])), [qDeb]);
+  const results = search.data ?? [];
+
+  const pick = (inv: Invoice) => {
+    setPicked(inv);
+    setAmount(String((inv.balance_minor / 100).toFixed(2)));
+  };
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!picked || !date) return;
+    setBusy(true);
+    try {
+      await paymentsApi.createPromise({ invoice_id: picked.id, promised_date: date, amount_minor: amount.trim() ? Math.round(Number(amount) * 100) : null, notes: notes.trim() || null });
+      toast('Compromiso registrado', `${picked.number ?? ''} · vence ${fDate(date)}`);
+      onSaved();
+    } catch (err) {
+      toast('No se pudo registrar', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title="Nuevo compromiso de pago" sub="Elige el comprobante con saldo y la fecha acordada">
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        {picked ? (
+          <div className="field full" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+            <span><b className="mono">{picked.number ?? '—'}</b> · {moneyMinor(picked.balance_minor, picked.currency)} de saldo</span>
+            <button type="button" className="btn sm" onClick={() => setPicked(null)}>Cambiar</button>
+          </div>
+        ) : (
+          <>
+            <label className="field full">Comprobante con saldo*<input className="input" value={q} placeholder="Buscar por número o cliente…" onChange={(e) => setQ(e.target.value)} /></label>
+            {qDeb ? (
+              search.loading ? <p className="sub">Buscando…</p>
+              : results.length === 0 ? <p className="sub">Sin comprobantes con saldo para «{qDeb}».</p>
+              : (
+                <ul className="rows full">
+                  {results.map((inv) => (
+                    <li key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="grow"><b className="mono">{inv.number ?? '—'}</b> <span className="sub">· {INVOICE_STATUS_LABEL(inv.status)}</span><div className="sub">{moneyMinor(inv.balance_minor, inv.currency)} de saldo</div></div>
+                      <button type="button" className="btn sm" onClick={() => pick(inv)}>Elegir</button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+          </>
+        )}
+        <label className="field">Fecha prometida*<input required type="date" className="input" value={date} max={maxDate} onChange={(e) => setDate(e.target.value)} /></label>
+        <label className="field">Monto (opcional, por defecto el saldo)<input className="input" type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+        <label className="field full">Notas<textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Acordado por teléfono, etc." /></label>
+        <Note icon="info">El plazo máximo es 30 días. No altera la mora ni la suspensión; es un registro de seguimiento.</Note>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy || !picked || !date}>Registrar compromiso</button></div>
+      </form>
+    </Modal>
   );
 }
 

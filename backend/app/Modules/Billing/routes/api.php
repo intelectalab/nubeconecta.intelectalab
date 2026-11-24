@@ -7,6 +7,7 @@ use App\Modules\Billing\Http\Controllers\CollectionsController;
 use App\Modules\Billing\Http\Controllers\InvoiceController;
 use App\Modules\Billing\Http\Controllers\MercadoPagoWebhookController;
 use App\Modules\Billing\Http\Controllers\PaymentController;
+use App\Modules\Billing\Http\Controllers\PaymentPromiseController;
 use App\Modules\Billing\Http\Controllers\Portal\PortalCardPaymentController;
 use App\Modules\Billing\Http\Controllers\Portal\PortalInvoiceController;
 use App\Modules\Billing\Http\Controllers\Portal\PortalPaymentController;
@@ -42,6 +43,11 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     // Cobranza (P-BIL-01/12).
     Route::get('collections/aging', [CollectionsController::class, 'aging'])->middleware('permission:billing.invoice.view')->name('collections.aging');
     Route::get('collections/dunning-events', [CollectionsController::class, 'dunningEvents'])->middleware('permission:billing.dunning_event.view')->name('collections.dunning-events');
+
+    // Compromisos de pago (seguimiento de cobranza; no afectan mora ni suspensión, D-04).
+    Route::get('collections/promises', [PaymentPromiseController::class, 'index'])->middleware('permission:billing.payment_promise.view')->name('collections.promises.index');
+    Route::post('collections/promises', [PaymentPromiseController::class, 'store'])->middleware(['permission:billing.payment_promise.create', 'idempotency:optional'])->name('collections.promises.store');
+    Route::post('collections/promises/{id}/resolve', [PaymentPromiseController::class, 'resolve'])->whereUuid('id')->middleware('permission:billing.payment_promise.update')->name('collections.promises.resolve');
 });
 
 Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
