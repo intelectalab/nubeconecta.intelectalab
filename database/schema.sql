@@ -67,12 +67,16 @@ CREATE TABLE organizations (
     saas_plan_id      uuid NULL,   -- FK a saas_plans (se agrega tras definir la tabla)
     saas_status       text NULL CHECK (saas_status IS NULL OR saas_status IN ('trial','active','suspended','cancelled')),
     saas_renewal_date date NULL,
+    -- Multitenancy Fase 2: subdominio del inquilino (<subdomain>.<base>); resuelve
+    -- la organización por host antes del login (branding por inquilino).
+    subdomain         text NULL CHECK (subdomain IS NULL OR subdomain ~ '^[a-z0-9][a-z0-9-]{0,40}$'),
     version         integer NOT NULL DEFAULT 1 CHECK (version >= 1),   -- concurrencia optimista: PATCH con versión vieja responde 409
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
     created_by uuid NULL, updated_by uuid NULL,
     deleted_at timestamptz NULL
 );
 COMMENT ON TABLE organizations IS 'Empresa operadora dueña de los datos. Hoy existe una sola fila; prepara el sistema para SaaS (docs/00 §19).';
+CREATE UNIQUE INDEX organizations_subdomain_uq ON organizations (subdomain) WHERE subdomain IS NOT NULL AND deleted_at IS NULL;
 
 -- Planes SaaS que la empresa operadora vende a sus inquilinos (multitenancy Fase 1).
 CREATE TABLE saas_plans (

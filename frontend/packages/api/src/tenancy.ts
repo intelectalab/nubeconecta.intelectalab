@@ -39,6 +39,7 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  subdomain: string | null;
   country: string;
   status: TenantStatus;
   is_operator: boolean;
@@ -54,6 +55,7 @@ export interface Tenant {
 export interface TenantInput {
   name: string;
   slug: string;
+  subdomain?: string | null;
   country?: string;
   saas_plan_id?: string | null;
   saas_renewal_date?: string | null;

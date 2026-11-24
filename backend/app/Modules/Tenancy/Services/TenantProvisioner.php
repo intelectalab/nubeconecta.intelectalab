@@ -42,6 +42,7 @@ final class TenantProvisioner
                 $organization = Organization::query()->create([
                     'name' => $data['name'],
                     'slug' => $data['slug'],
+                    'subdomain' => $data['subdomain'] ?? null,
                     'country' => $data['country'] ?? 'PE',
                     'is_operator' => false,
                     'saas_plan_id' => $data['saas_plan_id'] ?? null,

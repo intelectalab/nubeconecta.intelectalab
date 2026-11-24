@@ -25,6 +25,13 @@ return [
         'slug' => env('HUB_ORGANIZATION_SLUG', 'hub'),
     ],
 
+    // Multitenancy Fase 2: dominio base para subdominios por inquilino. Si está
+    // vacío, la resolución por host queda desactivada (hasta configurar DNS
+    // wildcard + certificado). Host `<subdomain>.<base_domain>` → su organización.
+    'tenancy' => [
+        'base_domain' => env('HUB_TENANT_BASE_DOMAIN'),
+    ],
+
     // Errores RFC 9457: base del URI `type` de cada problema.
     'problem_base_uri' => rtrim((string) env('HUB_PROBLEM_BASE_URI', 'https://hub.example/problems'), '/'),
 

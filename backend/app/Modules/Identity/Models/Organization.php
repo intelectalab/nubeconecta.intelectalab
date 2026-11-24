@@ -23,7 +23,7 @@ class Organization extends Model
 
     protected $fillable = [
         'name', 'slug', 'country', 'default_currency', 'default_locale', 'default_timezone',
-        'is_operator', 'saas_plan_id', 'saas_status', 'saas_renewal_date',
+        'is_operator', 'saas_plan_id', 'saas_status', 'saas_renewal_date', 'subdomain',
     ];
 
     protected function casts(): array

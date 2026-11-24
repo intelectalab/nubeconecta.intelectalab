@@ -22,6 +22,7 @@ final class TenantResource extends JsonResource
             'slug' => $org->slug,
             'country' => $org->country,
             'status' => $org->status,              // active | suspended (operativo)
+            'subdomain' => $org->subdomain,
             'is_operator' => $org->is_operator,
             'saas_status' => $org->saas_status,    // trial | active | suspended | cancelled
             'saas_renewal_date' => $org->saas_renewal_date?->toDateString(),

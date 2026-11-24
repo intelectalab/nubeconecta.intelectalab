@@ -49,6 +49,7 @@ final class TenantController
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'slug' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9\-]+$/', Rule::unique('organizations', 'slug')->whereNull('deleted_at')],
+            'subdomain' => ['nullable', 'string', 'max:41', 'regex:/^[a-z0-9][a-z0-9-]{0,40}$/', Rule::unique('organizations', 'subdomain')->whereNull('deleted_at')],
             'country' => ['sometimes', 'string', 'size:2'],
             'saas_plan_id' => ['nullable', 'uuid', Rule::exists('saas_plans', 'id')->where(fn ($q) => $q->where('organization_id', $this->operatorOrgId())->where('status', 'active')->whereNull('deleted_at'))],
             'saas_renewal_date' => ['nullable', 'date'],

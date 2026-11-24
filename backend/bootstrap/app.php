@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Identity\Http\Middleware\EnsureActiveSession;
 use App\Modules\Identity\Http\Middleware\EnsureUserType;
+use App\Modules\Identity\Http\Middleware\ResolveTenantFromHost;
 use App\Modules\Identity\Http\Middleware\SetCurrentOrganization;
 use App\Modules\Tenancy\Http\Middleware\EnsureOperator;
 use App\Shared\Http\Middleware\AssignRequestId;
@@ -39,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // cuando su origen está en SANCTUM_STATEFUL_DOMAINS (docs/00 §2).
         $middleware->statefulApi();
 
-        $middleware->api(prepend: [AssignRequestId::class, SetLocaleFromHeader::class, App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite::class]);
+        $middleware->api(prepend: [AssignRequestId::class, SetLocaleFromHeader::class, ResolveTenantFromHost::class, App\Modules\WebConnector\Http\Middleware\AuthenticateWpSite::class]);
 
         // Contratos para los módulos (backend/README.md, "Contratos compartidos").
         $middleware->alias([

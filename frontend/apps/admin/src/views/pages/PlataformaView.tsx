@@ -110,6 +110,7 @@ function TenantForm({ plans, onClose, onCreated }: { plans: SaasPlan[]; onClose:
   const { toast } = useApp();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [subdomain, setSubdomain] = useState('');
   const [country, setCountry] = useState('PE');
   const [planId, setPlanId] = useState('');
   const [renewal, setRenewal] = useState('');
@@ -124,7 +125,7 @@ function TenantForm({ plans, onClose, onCreated }: { plans: SaasPlan[]; onClose:
     setBusy(true);
     try {
       const created = await tenancy.createTenant({
-        name, slug: slug || slugify(name), country,
+        name, slug: slug || slugify(name), subdomain: subdomain || null, country,
         saas_plan_id: planId || null, saas_renewal_date: renewal || null,
         admin_name: adminName, admin_email: adminEmail,
       });
@@ -142,6 +143,7 @@ function TenantForm({ plans, onClose, onCreated }: { plans: SaasPlan[]; onClose:
       <form className="modal-b" onSubmit={(e) => void submit(e)}>
         <label className="field">Nombre*<input required className="input" value={name} onChange={(e) => { setName(e.target.value); if (!slug) setSlug(''); }} /></label>
         <label className="field">Identificador (slug)*<input required className="input" value={slug} placeholder={slugify(name) || 'mi-inquilino'} pattern="[a-z0-9\-]+" onChange={(e) => setSlug(e.target.value)} /></label>
+        <label className="field">Subdominio<input className="input" value={subdomain} placeholder="hostinga" pattern="[a-z0-9][a-z0-9-]*" onChange={(e) => setSubdomain(e.target.value.toLowerCase())} /></label>
         <label className="field">País<select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>{COUNTRY_OPTIONS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select></label>
         <label className="field">Plan<select className="input" value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">— Sin plan —</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <label className="field">Renovación<input className="input" type="date" value={renewal} onChange={(e) => setRenewal(e.target.value)} /></label>
