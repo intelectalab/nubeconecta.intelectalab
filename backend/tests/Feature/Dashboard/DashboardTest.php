@@ -69,6 +69,31 @@ final class DashboardTest extends IdentityTestCase
         ]);
     }
 
+    public function test_renewals_lists_upcoming_services_and_domains_ordered(): void
+    {
+        $this->service('active', now()->addDays(10)->toDateString(), $this->brand, 'monthly', 9500, 'PEN');
+        $this->service('active', now()->addDays(120)->toDateString(), $this->brand, 'monthly', 500, 'PEN'); // fuera de ventana
+        DB::table('domains')->insert([
+            'id' => (string) Str::uuid(), 'organization_id' => $this->org, 'name' => 'cliente-dash', 'tld' => 'pe',
+            'customer_id' => $this->customer, 'holder' => 'customer', 'status' => 'active',
+            'registry_expires_at' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $data = $this->getJson('/api/v1/admin/dashboard/renewals')->assertOk()->json('data');
+        $this->assertCount(2, $data, 'solo los que vencen en 30 días');
+        // Orden por fecha: el dominio (5 días) antes que el servicio (10 días).
+        $this->assertSame('domain', $data[0]['kind']);
+        $this->assertSame('cliente-dash.pe', $data[0]['label']);
+        $this->assertTrue($data[0]['mono']);
+        $this->assertNull($data[0]['amount_minor']);
+        $this->assertSame(5, $data[0]['days_until']);
+        $this->assertSame('service', $data[1]['kind']);
+        $this->assertSame(9500, $data[1]['amount_minor']);
+        $this->assertSame('PEN', $data[1]['currency']);
+        $this->assertSame(10, $data[1]['days_until']);
+        $this->assertSame($this->customer, $data[1]['customer']['id']);
+    }
+
     private function invoice(string $status, string $dueDate, int $total, int $balance): void
     {
         $n = ++$this->seq;

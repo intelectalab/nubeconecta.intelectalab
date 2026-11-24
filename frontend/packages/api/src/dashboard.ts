@@ -24,6 +24,20 @@ export interface DashboardSummary {
   tickets?: DashboardTickets;
 }
 
+/** Un vencimiento próximo (GET /api/v1/admin/dashboard/renewals): servicio o dominio. */
+export interface DashboardRenewal {
+  kind: 'service' | 'domain';
+  id: string;
+  date: string;
+  label: string;
+  mono: boolean;
+  customer: { id: string; name: string } | null;
+  amount_minor: number | null;
+  currency: Currency | null;
+  auto_renew: boolean;
+  days_until: number;
+}
+
 /** Contadores de "Atención hoy" (GET /api/v1/admin/attention); cada clave se omite sin el permiso. */
 export interface Attention {
   payments_to_validate?: number;
@@ -43,6 +57,9 @@ export function createDashboardApi(http: HttpClient) {
     summary: (brandId?: string) =>
       http.get<Envelope<DashboardSummary>>(`/api/v1/admin/dashboard${toQuery({ brand_id: brandId || undefined })}`).then((r) => r.data),
     attention: () => http.get<Envelope<Attention>>('/api/v1/admin/attention').then((r) => r.data),
+    /** Vencimientos próximos (servicios + dominios) para el panel de inicio. `brandId` acota los servicios. */
+    renewals: (brandId?: string) =>
+      http.get<Envelope<DashboardRenewal[]>>(`/api/v1/admin/dashboard/renewals${toQuery({ brand_id: brandId || undefined })}`).then((r) => r.data),
     /** Valores REALES de un subconjunto de indicadores (GET /api/v1/admin/kpis), por id de KPI; cada clave se omite sin el permiso de su fuente. */
     kpis: () => http.get<Envelope<KpiValues>>('/api/v1/admin/kpis').then((r) => r.data),
     /** Serie mensual REAL (12 meses) de un KPI de flujo (GET /api/v1/admin/kpis/series); 404 `no_series` si es de stock o la moneda no es PEN. */

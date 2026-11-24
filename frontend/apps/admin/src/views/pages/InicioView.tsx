@@ -10,14 +10,14 @@ import { useApp, useMoney } from '../../app/context';
 import { useSession } from '../../auth/session';
 import { filterParam } from '../../app/filterParam';
 import { useActions } from '../../app/actions';
-import type { RouteId } from '../../app/routeMeta';
+import { href, type RouteId } from '../../app/routeMeta';
 import type { ViewProps } from '../../app/routes';
 import { Icon, SevIcon } from '../../components/Icon';
 import { DualMoney } from '../../components/Money';
-import { CapBar, ClientLink, DayChip, EmptyState, KpiCard, Legend, Note, PageHead } from '../../components/ui';
+import { CapBar, DayChip, EmptyState, KpiCard, Legend, Note, PageHead } from '../../components/ui';
 import {
-  BR, MES, MESL, NF0, NF2, SEV, TODAY,
-  compact, diffD, fD, fDL, fDom, fSvc, money, moneyRaw,
+  BR, MES, MESL, NF0, NF2, SEV,
+  compact, fD, fDL, moneyRaw,
 } from '../../data';
 import type { MoneyPair, Sev } from '../../data';
 import { useWidth } from './operacion-kpi/charts';
@@ -38,7 +38,7 @@ const COB_VENCIDAS = LIVE ? 'antiguedad' : 'vencidas';
 const COB_PRONTO = LIVE ? 'antiguedad' : 'pronto';
 
 export default function InicioView(_props: ViewProps) {
-  const { brand, cur, navigate, dataVersion } = useApp();
+  const { brand, navigate, dataVersion } = useApp();
   const { user } = useSession();
   const m = useMoney();
   const act = useActions();
@@ -86,20 +86,8 @@ export default function InicioView(_props: ViewProps) {
   }, [attention.data]);
   const pending = att.filter((x) => x.n > 0).length;
 
-  const renewals = useMemo(() => {
-    const it: { n: number; d: Date; t: string; c: string; m: string; mono?: boolean; key: string }[] = [];
-    fSvc(brand)
-      .filter((s) => s.st === 'Activo' && s.cy === 'Anual')
-      .forEach((s) => {
-        const n = diffD(s.due, TODAY);
-        if (n >= 0 && n <= 30) it.push({ n, d: s.due, t: `${s.t} ${s.plan}`, c: s.cid, m: money(s.price, s.cur, cur), key: s.id });
-      });
-    fDom(brand).forEach((d) => {
-      const n = diffD(d.real, TODAY);
-      if (n >= 0 && n <= 30) it.push({ n, d: d.real, t: d.d, c: d.cid, m: d.reg, mono: true, key: d.id });
-    });
-    return it.sort((a, b) => a.n - b.n);
-  }, [brand, cur, dataVersion]);
+  const renewalsRes = useLoad(() => api.dashboard.renewals(), [dataVersion]);
+  const renewals = renewalsRes.data ?? [];
 
   const fdl = fDL(new Date());
   const hour = new Date().getHours();
@@ -259,7 +247,11 @@ export default function InicioView(_props: ViewProps) {
             </h2>
             <span className="sub">próximos 30 días</span>
           </div>
-          {!renewals.length ? (
+          {renewalsRes.error ? (
+            <Note kind="warn" role="alert" style={{ margin: 12 }}>No se pudo cargar: {errorText(renewalsRes.error)} <button type="button" className="btn sm" onClick={renewalsRes.reload}>Reintentar</button></Note>
+          ) : renewalsRes.loading && !renewalsRes.data ? (
+            <p style={{ margin: 16, color: 'var(--muted)' }}>—</p>
+          ) : !renewals.length ? (
             <EmptyState title="Sin renovaciones" text="No hay renovaciones en los próximos 30 días." />
           ) : (
             <>
@@ -276,15 +268,15 @@ export default function InicioView(_props: ViewProps) {
                   </thead>
                   <tbody>
                     {renewals.slice(0, 8).map((x) => (
-                      <tr key={x.key}>
-                        <td className="nw num">{fD(x.d)}</td>
-                        <td className={x.mono ? 'mono' : ''} style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.t}</td>
+                      <tr key={`${x.kind}-${x.id}`}>
+                        <td className="nw num">{fD(new Date(x.date + 'T00:00:00'))}</td>
+                        <td className={x.mono ? 'mono' : ''} style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.label}</td>
                         <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <ClientLink cid={x.c} />
+                          {x.customer ? <a className="rowlink" href={href('cliente', x.customer.id)}>{x.customer.name}</a> : <span className="sub">—</span>}
                         </td>
-                        <td className="r nw">{x.m}</td>
+                        <td className="r nw">{x.amount_minor != null && x.currency ? m.money(x.amount_minor / 100, x.currency, true) : '—'}</td>
                         <td className="nw">
-                          <DayChip n={x.n} />
+                          <DayChip n={x.days_until} />
                         </td>
                       </tr>
                     ))}
