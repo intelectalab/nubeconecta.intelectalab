@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Domains\Http\Controllers\DomainContactController;
 use App\Modules\Domains\Http\Controllers\DomainController;
+use App\Modules\Domains\Http\Controllers\Portal\PortalDomainController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,4 +25,10 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('domains/{id}/contacts', [DomainContactController::class, 'store'])->whereUuid('id')->middleware(['permission:domains.domain_contact.update', 'idempotency:optional'])->name('domains.contacts.store');
     Route::patch('domains/{id}/contacts/{contact}', [DomainContactController::class, 'update'])->whereUuid('id')->whereUuid('contact')->middleware(['permission:domains.domain_contact.update', 'permission:domains.domain_contact.view'])->name('domains.contacts.update');
     Route::delete('domains/{id}/contacts/{contact}', [DomainContactController::class, 'destroy'])->whereUuid('id')->whereUuid('contact')->middleware('permission:domains.domain_contact.update')->name('domains.contacts.destroy');
+});
+
+// Portal del cliente: sus propios dominios (solo lectura).
+Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
+    Route::get('domains', [PortalDomainController::class, 'index'])->middleware('permission:portal.domain.view')->name('domains.index');
+    Route::get('domains/{id}', [PortalDomainController::class, 'show'])->whereUuid('id')->middleware('permission:portal.domain.view')->name('domains.show');
 });

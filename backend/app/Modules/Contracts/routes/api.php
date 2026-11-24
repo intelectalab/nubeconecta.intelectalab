@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Contracts\Http\Controllers\ContractController;
+use App\Modules\Contracts\Http\Controllers\Portal\PortalContractController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff'])->group(function (): void {
@@ -18,4 +19,10 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('contracts/{id}/expire', [ContractController::class, 'expire'])->whereUuid('id')->middleware('permission:contracts.contract.update')->name('contracts.expire');
     Route::post('contracts/{id}/addenda', [ContractController::class, 'addendum'])->whereUuid('id')->middleware('permission:contracts.contract.update')->name('contracts.addenda.store');
     Route::delete('contracts/{id}', [ContractController::class, 'destroy'])->whereUuid('id')->middleware('permission:contracts.contract.delete')->name('contracts.destroy');
+});
+
+// Portal del cliente: sus propios contratos (solo lectura).
+Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
+    Route::get('contracts', [PortalContractController::class, 'index'])->middleware('permission:portal.contract.view')->name('contracts.index');
+    Route::get('contracts/{id}', [PortalContractController::class, 'show'])->whereUuid('id')->middleware('permission:portal.contract.view')->name('contracts.show');
 });

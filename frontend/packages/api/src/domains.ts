@@ -117,6 +117,21 @@ export interface DomainContactInput {
 }
 export type DomainContactUpdateInput = Partial<DomainContactInput>;
 
+/** Dominio en el portal del cliente (solo lectura, sin datos de registrador/proveedor). */
+export interface PortalDomain {
+  id: string;
+  name: string;
+  tld: string;
+  status: DomainStatus;
+  registered_at: string | null;
+  registry_expires_at: string | null;
+  commercial_due_date: string | null;
+  days_remaining: number | null;
+  auto_renew: boolean;
+  nameservers: string[];
+  service: { code: string; label: string; status: string } | null;
+}
+
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
@@ -138,5 +153,10 @@ export function createDomainsApi(http: HttpClient) {
     updateContact: (id: string, contactId: string, version: number, input: DomainContactUpdateInput) =>
       http.patch<Envelope<DomainContact>>(`${base}/${enc(id)}/contacts/${enc(contactId)}`, { ...input, version }).then(unwrap),
     removeContact: (id: string, contactId: string) => http.delete<void>(`${base}/${enc(id)}/contacts/${enc(contactId)}`),
+
+    /** Portal del cliente: sus propios dominios (solo lectura). */
+    portalList: (p: { size?: number; cursor?: string | null; sort?: string } = {}) =>
+      http.get<CursorPage<PortalDomain>>(`/api/v1/portal/domains${toQuery({ sort: p.sort, page: { size: p.size, cursor: p.cursor ?? undefined } })}`),
+    portalGet: (id: string) => http.get<Envelope<PortalDomain>>(`/api/v1/portal/domains/${enc(id)}`).then(unwrap),
   };
 }

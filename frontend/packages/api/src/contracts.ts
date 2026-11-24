@@ -71,6 +71,22 @@ export interface ContractFilters {
   currency?: ContractCurrency | '';
 }
 
+/** Contrato en el portal del cliente (solo lectura; condiciones comerciales propias). */
+export interface PortalContract {
+  id: string;
+  kind: ContractKind;
+  status: ContractStatus;
+  starts_on: string | null;
+  ends_on: string | null;
+  currency: string;
+  management_fee_percent: number | null;
+  management_fee_min_minor: number | null;
+  included_hours: number | null;
+  current_version: number;
+  brand: { name: string } | null;
+  created_at: string | null;
+}
+
 interface Envelope<T> { data: T }
 const enc = encodeURIComponent;
 
@@ -91,5 +107,10 @@ export function createContractsApi(http: HttpClient) {
     expire: (id: string, version: number) => http.post<Envelope<Contract>>(`${base}/${enc(id)}/expire`, { version }).then(unwrap),
     addendum: (id: string, version: number, input: AddendumInput) => http.post<Envelope<Contract>>(`${base}/${enc(id)}/addenda`, { ...input, version }).then(unwrap),
     remove: (id: string, version: number) => http.delete<void>(`${base}/${enc(id)}`, { version }),
+
+    /** Portal del cliente: sus propios contratos (solo lectura; sin borradores internos). */
+    portalList: (params: ListParams = {}) =>
+      http.get<CursorPage<PortalContract>>(`/api/v1/portal/contracts${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
+    portalGet: (id: string) => http.get<Envelope<PortalContract>>(`/api/v1/portal/contracts/${enc(id)}`).then(unwrap),
   };
 }

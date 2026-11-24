@@ -48,13 +48,15 @@ import {
   type PortalComplaintType,
   type PortalComplaintCurrency,
   type PortalKbArticle,
+  type PortalDomain,
+  type PortalContract,
 } from '@hub/api';
 import { hub } from '../auth/client';
 import { Alert, Card, CardBody, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
 import { RichOut } from '../components/richOut';
 
-export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ayuda' | 'ticket-detalle';
-export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ayuda', 'ticket-detalle'];
+export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ayuda' | 'ticket-detalle' | 'dominios' | 'contratos';
+export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ayuda', 'ticket-detalle', 'dominios', 'contratos'];
 
 const MONEY: Record<string, Intl.NumberFormat> = {
   PEN: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }),
@@ -187,6 +189,8 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
   if (route === 'usuarios') return <ContactsPage />;
   if (route === 'seguridad') return <SecurityPage />;
   if (route === 'pagar') return <PaymentsPage go={go} />;
+  if (route === 'dominios') return <DomainsPage />;
+  if (route === 'contratos') return <ContractsPage />;
   return invoiceId ? <InvoicePage id={invoiceId} back={() => setInvoiceId(null)} canPay={can('portal.payment.create')} /> : <InvoicesPage openInvoice={setInvoiceId} go={go} />;
 }
 
@@ -484,6 +488,87 @@ function ServicePage({ id, back }: { id: string; back: () => void }) {
 }
 
 /* ---------- P-PRT-07 Comprobantes ---------- */
+const DOMAIN_TONE: Record<PortalDomain['status'], Tone> = { active: 'ok', expired: 'danger', redemption: 'danger', pending_transfer: 'warn', transferred_out: '', not_found: '' };
+const DOMAIN_LABEL: Record<PortalDomain['status'], string> = { active: 'Activo', expired: 'Vencido', redemption: 'En redención', pending_transfer: 'Transferencia pendiente', transferred_out: 'Transferido', not_found: 'No encontrado' };
+
+function DomainsPage() {
+  const res = useLoad(() => hub.domains.portalList({ size: 100 }), []);
+  const rows: PortalDomain[] = res.data?.data ?? [];
+  return (
+    <div style={{ display: 'grid', gap: 20 }}>
+      <PageHead title="Mis dominios" lead="Tus dominios registrados y su vencimiento." />
+      {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+      <Card title="Dominios" icon="globe" sub={res.data ? `${rows.length} dominio(s)` : undefined}>
+        {res.loading ? (
+          <Loading inCard />
+        ) : !rows.length ? (
+          <Empty icon="globe">
+            <b>Sin dominios</b>
+            Aún no hay dominios en tu cuenta.
+          </Empty>
+        ) : (
+          <Table cols={[{ label: 'Dominio' }, { label: 'Estado' }, { label: 'Vence' }, { label: 'Días' }, { label: 'Renovación' }]}>
+            {rows.map((d) => (
+              <tr key={d.id}>
+                <td>
+                  <b style={{ display: 'block', fontSize: 13.5 }}>{d.name}</b>
+                  <small className="sub mono">.{d.tld}</small>
+                </td>
+                <td>
+                  <Chip tone={DOMAIN_TONE[d.status]}>{DOMAIN_LABEL[d.status]}</Chip>
+                </td>
+                <td className="num">{fDate(d.registry_expires_at)}</td>
+                <td className="num">{d.days_remaining === null ? '—' : `${d.days_remaining} d`}</td>
+                <td>{d.auto_renew ? 'Automática' : 'Manual'}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+const CONTRACT_TONE: Record<PortalContract['status'], Tone> = { draft: '', in_review: '', approved: 'info', sent: 'info', signed_active: 'ok', expired: 'warn', terminated: 'danger' };
+const CONTRACT_LABEL: Record<PortalContract['status'], string> = { draft: 'Borrador', in_review: 'En revisión', approved: 'Aprobado', sent: 'Enviado', signed_active: 'Vigente', expired: 'Vencido', terminated: 'Terminado' };
+const CONTRACT_KIND: Record<PortalContract['kind'], string> = { contract: 'Contrato', terms: 'Términos' };
+
+function ContractsPage() {
+  const res = useLoad(() => hub.contracts.portalList({ size: 100 }), []);
+  const rows: PortalContract[] = res.data?.data ?? [];
+  return (
+    <div style={{ display: 'grid', gap: 20 }}>
+      <PageHead title="Mis contratos y acuerdos" lead="Tus contratos vigentes y documentos firmados." />
+      {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+      <Card title="Contratos" icon="file" sub={res.data ? `${rows.length} contrato(s)` : undefined}>
+        {res.loading ? (
+          <Loading inCard />
+        ) : !rows.length ? (
+          <Empty icon="file">
+            <b>Sin contratos</b>
+            Aún no tienes contratos activos.
+          </Empty>
+        ) : (
+          <Table cols={[{ label: 'Tipo' }, { label: 'Marca' }, { label: 'Estado' }, { label: 'Desde' }, { label: 'Hasta' }, { label: 'Versión', right: true }]}>
+            {rows.map((c) => (
+              <tr key={c.id}>
+                <td>{CONTRACT_KIND[c.kind]}</td>
+                <td>{c.brand?.name ?? '—'}</td>
+                <td>
+                  <Chip tone={CONTRACT_TONE[c.status]}>{CONTRACT_LABEL[c.status]}</Chip>
+                </td>
+                <td className="num">{fDate(c.starts_on)}</td>
+                <td className="num">{fDate(c.ends_on)}</td>
+                <td className="r num">v{c.current_version}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function InvoicesPage({ openInvoice, go }: { openInvoice: (id: string) => void; go: (r: LiveRoute) => void }) {
   const [filter, setFilter] = useState<'pend' | 'all'>('pend');
   const [cursor, setCursor] = useState<string | null>(null);
