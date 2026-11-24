@@ -53,7 +53,8 @@
         "identity.role.*",
         "identity.permission.*",
         "identity.security_policy.*",
-        "customers.customer.impersonate"
+        "customers.customer.impersonate",
+        "tenancy.*"
       ],
       "restrictions": [
         { "code": "no_self_validation", "description": "No valida un pago (billing.payment.validate) que registró él mismo; si es el único usuario disponible, la validación queda en auditoría con motivo obligatorio." },

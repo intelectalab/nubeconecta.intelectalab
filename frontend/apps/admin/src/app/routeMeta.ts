@@ -10,9 +10,10 @@ export type RouteId =
   | 'tickets' | 'reclamos' | 'ayuda'
   | 'infra' | 'monitoreo' | 'proveedores' | 'cloud' | 'correo' | 'boveda'
   | 'wp'
+  | 'plataforma'
   | 'ajustes' | 'apariencia' | 'acceso-portal' | 'plantillas' | 'seguridad' | 'roles';
 
-export type GroupName = 'Operación' | 'Comercial' | 'Finanzas' | 'Soporte' | 'Infraestructura' | 'Web' | 'Configuración';
+export type GroupName = 'Operación' | 'Comercial' | 'Finanzas' | 'Soporte' | 'Infraestructura' | 'Web' | 'Plataforma' | 'Configuración';
 
 export interface RouteMeta {
   /** Título (menú, documento y cabecera) */
@@ -27,7 +28,7 @@ export interface RouteMeta {
   hidden?: boolean;
 }
 
-export const GROUPS: GroupName[] = ['Operación', 'Comercial', 'Finanzas', 'Soporte', 'Infraestructura', 'Web', 'Configuración'];
+export const GROUPS: GroupName[] = ['Operación', 'Comercial', 'Finanzas', 'Soporte', 'Infraestructura', 'Web', 'Plataforma', 'Configuración'];
 
 export const ROUTE_META: Record<RouteId, RouteMeta> = {
   inicio: { t: 'Inicio', g: 'Operación', ic: 'home' },
@@ -57,6 +58,7 @@ export const ROUTE_META: Record<RouteId, RouteMeta> = {
   correo: { t: 'Correo y SSL', g: 'Infraestructura', ic: 'mail' },
   boveda: { t: 'Bóveda', g: 'Infraestructura', ic: 'key' },
   wp: { t: 'WordPress y shortcodes', g: 'Web', ic: 'browser' },
+  plataforma: { t: 'Inquilinos (SaaS)', g: 'Plataforma', ic: 'building' },
   ajustes: { t: 'Cobranza y SLA', g: 'Configuración', ic: 'sliders' },
   apariencia: { t: 'Apariencia', g: 'Configuración', ic: 'palette' },
   'acceso-portal': { t: 'Acceso del portal', g: 'Configuración', ic: 'lock' },

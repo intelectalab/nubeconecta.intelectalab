@@ -62,8 +62,12 @@ return [
     */
 
     'providers' => [
+        // 'eloquent-tenant': resuelve al usuario del login/sesión sin el filtro
+        // global por organización (multitenancy Fase 1, Opción A). Registrado en
+        // AppServiceProvider::boot. El aislamiento lo garantiza el scope global en
+        // el resto del sistema una vez fijada la organización del usuario.
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'eloquent-tenant',
             'model' => env('AUTH_MODEL', User::class),
         ],
 

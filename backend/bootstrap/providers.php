@@ -28,4 +28,5 @@ return [
     App\Modules\Finance\FinanceServiceProvider::class,
     App\Modules\Files\FilesServiceProvider::class,
     App\Modules\Notifications\NotificationsServiceProvider::class,
+    App\Modules\Tenancy\TenancyServiceProvider::class,
 ];

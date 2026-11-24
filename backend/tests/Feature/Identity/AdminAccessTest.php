@@ -155,7 +155,9 @@ final class AdminAccessTest extends IdentityTestCase
         $superadmin = Role::query()->where('code', 'superadmin')->firstOrFail();
         $this->assertSame($nonPortal, $superadmin->permissions()->count());
         // admin operativo = todos menos los crown jewels reservados a superadmin.
-        $reserved = ['identity.role.view', 'identity.role.create', 'identity.role.update', 'identity.role.delete', 'identity.permission.view', 'identity.security_policy.view', 'identity.security_policy.update', 'customers.customer.impersonate'];
+        // Crown jewels reservados a superadmin + gestión de la plataforma SaaS (tenancy.*),
+        // que solo el operador/superadmin usa (multitenancy Fase 1).
+        $reserved = ['identity.role.view', 'identity.role.create', 'identity.role.update', 'identity.role.delete', 'identity.permission.view', 'identity.security_policy.view', 'identity.security_policy.update', 'customers.customer.impersonate', 'tenancy.tenant.view', 'tenancy.tenant.create', 'tenancy.tenant.update', 'tenancy.plan.view', 'tenancy.plan.manage'];
         $admin = Role::query()->where('code', 'admin')->firstOrFail();
         $this->assertSame($nonPortal - count($reserved), $admin->permissions()->count());
         $this->assertSame(0, $admin->permissions()->whereIn('code', $reserved)->count());

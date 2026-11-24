@@ -50,7 +50,8 @@ final class CreateAdminCommand extends Command
         $organization = Organization::ensureDefault();
         $current->set($organization->id);
 
-        if (User::query()->whereRaw('lower(email) = ?', [$email])->exists()) {
+        // Multitenancy Fase 1: el correo es único en todo el sistema.
+        if (User::query()->withoutGlobalScope('organization')->whereRaw('lower(email) = ?', [$email])->exists()) {
             $this->error("Ya existe un usuario con el correo {$email}.");
 
             return self::FAILURE;

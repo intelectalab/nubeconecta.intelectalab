@@ -28,7 +28,10 @@ final class LoginService
         // La auditoría del fallo se confirma aunque la petición termine en error.
         $result = DB::transaction(function () use ($email, $password): User|string {
             /** @var User|null $user */
-            $user = User::query()->whereRaw('lower(email) = ?', [mb_strtolower(trim($email))])->lockForUpdate()->first();
+            // Multitenancy Fase 1 (Opción A): se busca el correo en TODAS las
+            // organizaciones (sin el filtro global). El correo es único en todo el
+            // sistema, así que identifica al usuario y de ahí sale su inquilino.
+            $user = User::query()->withoutGlobalScope('organization')->whereRaw('lower(email) = ?', [mb_strtolower(trim($email))])->lockForUpdate()->first();
 
             if ($user === null) {
                 Hash::check($password, self::dummyHash()); // mismo costo que un usuario real: no enumera
@@ -41,6 +44,15 @@ final class LoginService
                 $this->audit->record('user.login_failed', 'user', $user->id, null, null, ['reason' => 'locked'], actor: ['type' => 'user', 'id' => $user->id]);
 
                 return 'locked';
+            }
+
+            // Multitenancy Fase 1: si el inquilino está suspendido, ninguno de sus
+            // usuarios puede iniciar sesión (respuesta idéntica a credencial inválida).
+            if (DB::table('organizations')->where('id', $user->organization_id)->value('status') === 'suspended') {
+                Hash::check($password, self::dummyHash());
+                $this->audit->record('user.login_failed', 'user', $user->id, null, null, ['reason' => 'tenant_suspended'], actor: ['type' => 'user', 'id' => $user->id]);
+
+                return 'tenant_suspended';
             }
 
             $valid = $user->password_hash !== null && Hash::check($password, $user->password_hash);

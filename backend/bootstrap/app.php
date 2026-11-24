@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Modules\Identity\Http\Middleware\EnsureActiveSession;
 use App\Modules\Identity\Http\Middleware\EnsureUserType;
+use App\Modules\Identity\Http\Middleware\SetCurrentOrganization;
+use App\Modules\Tenancy\Http\Middleware\EnsureOperator;
 use App\Shared\Http\Middleware\AssignRequestId;
 use App\Shared\Http\Middleware\Idempotency;
 use App\Shared\Http\Middleware\RequirePermission;
@@ -46,8 +48,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'idempotency' => Idempotency::class,
             'session.active' => EnsureActiveSession::class,
             'user.type' => EnsureUserType::class,
+            'tenant.scope' => SetCurrentOrganization::class,
+            'operator' => EnsureOperator::class,
         ]);
-        $middleware->group('hub.auth', ['auth:sanctum', 'session.active']);
+        // tenant.scope va entre auth:sanctum y session.active: fija la organización
+        // del usuario autenticado para que el filtro global aísle sus datos antes de
+        // que session.active consulte user_sessions (scopeado). Multitenancy Fase 1.
+        $middleware->group('hub.auth', ['auth:sanctum', 'tenant.scope', 'session.active']);
 
         // La API nunca redirige a una pantalla de login: responde 401 problem+json.
         $middleware->redirectGuestsTo(fn (Request $request) => ProblemRenderer::shouldRender($request) ? null : '/');

@@ -13,6 +13,7 @@ use App\Modules\Identity\Services\PasswordService;
 use App\Modules\Identity\Services\SecurityPolicy;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Authorization\ImpersonationState;
+use App\Shared\Organization\CurrentOrganization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -30,6 +31,7 @@ final class AuthController
         private readonly AuthSessionManager $sessions,
         private readonly SecurityPolicy $policy,
         private readonly AuditLogger $audit,
+        private readonly CurrentOrganization $organization,
     ) {}
 
     public function login(Request $request, LoginService $login): JsonResponse
@@ -40,6 +42,11 @@ final class AuthController
         ]);
 
         $user = $login->attempt($data['email'], $data['password']);
+
+        // Multitenancy Fase 1: el login resolvió al usuario sin scope; fijamos su
+        // organización para que el resto del request (sesión, me, permisos) aísle
+        // correctamente sus datos.
+        $this->organization->set($user->organization_id);
 
         if ($user->hasMfa()) {
             $request->session()->put(AuthSessionManager::MFA_PENDING_KEY, [
@@ -64,14 +71,19 @@ final class AuthController
         ]);
 
         $pending = $request->session()->get(AuthSessionManager::MFA_PENDING_KEY);
+        // Multitenancy Fase 1: el usuario pendiente puede ser de cualquier inquilino;
+        // se resuelve sin el filtro global (su id es único en todo el sistema).
         $user = is_array($pending) && ($pending['expires_at'] ?? 0) > now()->getTimestamp()
-            ? User::query()->find($pending['user_id'])
+            ? User::query()->withoutGlobalScope('organization')->find($pending['user_id'])
             : null;
 
         if ($user === null || ! $user->isActive() || ! $user->hasMfa()) {
             $request->session()->forget(AuthSessionManager::MFA_PENDING_KEY);
             throw ValidationException::withMessages(['code' => [__('problems.invalid_credentials')]]);
         }
+
+        // Fijada la organización del usuario antes de crear la sesión y el payload.
+        $this->organization->set($user->organization_id);
 
         // Incremento atómico (Redis INCR): cuenta el intento ANTES de verificar y decide
         // con el valor devuelto, cerrando la carrera entre comprobar y registrar — varios

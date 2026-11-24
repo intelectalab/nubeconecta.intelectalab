@@ -3,6 +3,56 @@
   "count": 641,
   "permissions": [
     {
+      "code": "tenancy.tenant.view",
+      "module_key": "tenancy",
+      "module": "TEN",
+      "entity": "tenant",
+      "action": "view",
+      "description": "Ver los inquilinos (organizaciones cliente) de la plataforma SaaS, su plan, estado y uso.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "tenancy.tenant.create",
+      "module_key": "tenancy",
+      "module": "TEN",
+      "entity": "tenant",
+      "action": "create",
+      "description": "Dar de alta un inquilino nuevo (crea su organización, sus roles de sistema y su primer administrador).",
+      "scope": "staff",
+      "operations": 1
+    },
+    {
+      "code": "tenancy.tenant.update",
+      "module_key": "tenancy",
+      "module": "TEN",
+      "entity": "tenant",
+      "action": "update",
+      "description": "Suspender, reactivar o cambiar el plan de un inquilino.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
+      "code": "tenancy.plan.view",
+      "module_key": "tenancy",
+      "module": "TEN",
+      "entity": "plan",
+      "action": "view",
+      "description": "Ver los planes de la suscripción SaaS que la operadora ofrece a los inquilinos.",
+      "scope": "staff",
+      "operations": 2
+    },
+    {
+      "code": "tenancy.plan.manage",
+      "module_key": "tenancy",
+      "module": "TEN",
+      "entity": "plan",
+      "action": "manage",
+      "description": "Crear, editar o archivar los planes de la suscripción SaaS.",
+      "scope": "staff",
+      "operations": 3
+    },
+    {
       "code": "assistant.conversation.update",
       "module_key": "assistant",
       "module": "AIA",

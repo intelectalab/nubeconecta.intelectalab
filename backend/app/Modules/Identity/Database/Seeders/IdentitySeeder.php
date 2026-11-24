@@ -33,12 +33,43 @@ final class IdentitySeeder extends Seeder
 
             $catalog = Permission::query()->pluck('id', 'code')->all();
             $organization = Organization::ensureDefault();
-            app(CurrentOrganization::class)->set($organization->id);
-
-            foreach ($roles['roles'] as $definition) {
-                $this->seedRole($organization->id, $definition, $catalog);
+            // Multitenancy Fase 1: la organización por defecto es la operadora.
+            if (! $organization->is_operator) {
+                $organization->forceFill(['is_operator' => true])->save();
             }
+            $this->seedRolesForOrganization($organization->id, $roles['roles'], $catalog);
         });
+    }
+
+    /**
+     * Siembra los roles de sistema de una organización (inquilino) ya existente.
+     * El catálogo de permisos es global y debe estar sembrado antes (run()).
+     * Lo usa el módulo Tenancy al crear un inquilino (multitenancy Fase 1).
+     * Idempotente.
+     */
+    public function seedRolesFor(string $organizationId): void
+    {
+        $seeds = rtrim((string) config('hub.seeds_path'), '/\\');
+        $roles = self::json("{$seeds}/roles.json")['roles'];
+        $catalog = Permission::query()->pluck('id', 'code')->all();
+        if ($catalog === []) {
+            throw new RuntimeException('Siembra el catálogo de permisos (IdentitySeeder::run) antes de los roles del inquilino.');
+        }
+
+        DB::transaction(fn () => $this->seedRolesForOrganization($organizationId, $roles, $catalog));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $roles
+     * @param  array<string, string>  $catalog  code => id
+     */
+    private function seedRolesForOrganization(string $organizationId, array $roles, array $catalog): void
+    {
+        app(CurrentOrganization::class)->set($organizationId);
+
+        foreach ($roles as $definition) {
+            $this->seedRole($organizationId, $definition, $catalog);
+        }
     }
 
     /** @param list<array<string, mixed>> $permissions */

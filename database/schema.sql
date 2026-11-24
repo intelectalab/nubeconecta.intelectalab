@@ -61,12 +61,39 @@ CREATE TABLE organizations (
     default_locale   text NOT NULL DEFAULT 'es',
     default_timezone text NOT NULL DEFAULT 'America/Lima',
     status           text NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended')),
+    -- Multitenancy Fase 1: suscripción SaaS por inquilino. is_operator marca la
+    -- organización operadora (dueña de los planes y de las vistas de plataforma).
+    is_operator       boolean NOT NULL DEFAULT false,
+    saas_plan_id      uuid NULL,   -- FK a saas_plans (se agrega tras definir la tabla)
+    saas_status       text NULL CHECK (saas_status IS NULL OR saas_status IN ('trial','active','suspended','cancelled')),
+    saas_renewal_date date NULL,
     version         integer NOT NULL DEFAULT 1 CHECK (version >= 1),   -- concurrencia optimista: PATCH con versión vieja responde 409
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
     created_by uuid NULL, updated_by uuid NULL,
     deleted_at timestamptz NULL
 );
 COMMENT ON TABLE organizations IS 'Empresa operadora dueña de los datos. Hoy existe una sola fila; prepara el sistema para SaaS (docs/00 §19).';
+
+-- Planes SaaS que la empresa operadora vende a sus inquilinos (multitenancy Fase 1).
+CREATE TABLE saas_plans (
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id  uuid NOT NULL REFERENCES organizations(id),   -- operadora dueña del plan
+    code             text NOT NULL,
+    name             text NOT NULL,
+    price_minor      bigint NOT NULL DEFAULT 0 CHECK (price_minor >= 0),
+    currency         char(3) NOT NULL DEFAULT 'PEN' CHECK (currency IN ('PEN','USD')),
+    max_staff_users  integer NULL CHECK (max_staff_users IS NULL OR max_staff_users > 0),   -- NULL = sin límite
+    max_customers    integer NULL CHECK (max_customers   IS NULL OR max_customers   > 0),
+    max_services     integer NULL CHECK (max_services    IS NULL OR max_services    > 0),
+    status           text NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
+    version          integer NOT NULL DEFAULT 1 CHECK (version >= 1),
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    created_by uuid NULL, updated_by uuid NULL,
+    deleted_at timestamptz NULL,
+    UNIQUE (organization_id, code)
+);
+COMMENT ON TABLE saas_plans IS 'Planes de la suscripción SaaS (precio y límites) que la operadora ofrece a los inquilinos; multitenancy Fase 1.';
+ALTER TABLE organizations ADD CONSTRAINT organizations_saas_plan_id_fkey FOREIGN KEY (saas_plan_id) REFERENCES saas_plans(id);
 
 CREATE TABLE users (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,6 +124,10 @@ CREATE TABLE users (
     CHECK (mfa_method IS DISTINCT FROM 'totp' OR mfa_secret IS NOT NULL)
 );
 CREATE UNIQUE INDEX users_org_email_uq ON users (organization_id, lower(email)) WHERE deleted_at IS NULL;
+-- Multitenancy Fase 1 (Opción A): el correo es único en TODO el sistema, no solo
+-- por organización. Permite resolver el inquilino desde el correo en el login
+-- (sin subdominio). Un mismo correo no puede pertenecer a dos inquilinos.
+CREATE UNIQUE INDEX users_global_email_uq ON users (lower(email)) WHERE deleted_at IS NULL;
 CREATE INDEX ON users (organization_id, type, status);
 COMMENT ON TABLE users IS 'Usuarios del personal y de clientes (portal). Segundo factor por aplicación TOTP o por código al correo, obligatorio u opcional según la política de seguridad administrable (security.*).';
 

@@ -227,7 +227,10 @@ final class UserController
 
     private function assertEmailFree(string $email): void
     {
-        if (User::query()->whereRaw('lower(email) = ?', [mb_strtolower($email)])->exists()) {
+        // Multitenancy Fase 1 (Opción A): el correo es único en TODO el sistema,
+        // así que la comprobación ignora el filtro por organización (coincide con
+        // el índice users_global_email_uq y da un error limpio, no un fallo de BD).
+        if (User::query()->withoutGlobalScope('organization')->whereRaw('lower(email) = ?', [mb_strtolower($email)])->exists()) {
             throw ValidationException::withMessages(['email' => [__('validation.unique', ['attribute' => 'email'])]]);
         }
     }

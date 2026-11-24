@@ -33,6 +33,7 @@ const CloudView = lazy(() => import('../views/pages/CloudView'));
 const CorreoView = lazy(() => import('../views/pages/CorreoView'));
 const BovedaView = lazy(() => import('../views/pages/BovedaView'));
 const WpView = lazy(() => import('../views/pages/WpView'));
+const PlataformaView = lazy(() => import('../views/pages/PlataformaView'));
 const AjustesView = lazy(() => import('../views/pages/AjustesView'));
 const AparienciaView = lazy(() => import('../views/pages/AparienciaView'));
 const AccesoPortalView = lazy(() => import('../views/pages/AccesoPortalView'));
@@ -85,6 +86,7 @@ export const VIEWS: Record<RouteId, LazyExoticComponent<ComponentType<ViewProps>
   correo: CorreoView,
   boveda: BovedaView,
   wp: WpView,
+  plataforma: PlataformaView,
   ajustes: AjustesView,
   apariencia: AparienciaView,
   'acceso-portal': AccesoPortalView,
