@@ -50,13 +50,16 @@ import {
   type PortalKbArticle,
   type PortalDomain,
   type PortalContract,
+  type RestoreRequest,
+  type RestoreRequestStatus,
+  type RestoreTargetKind,
 } from '@hub/api';
 import { hub } from '../auth/client';
 import { Alert, Card, CardBody, Chip, DetailHead, Empty, Field, FormGrid, Hello, Kpi, Kpis, Kv, Loading, Note, PageHead, Pager, Seg, Table, type Tone } from '../components/ui';
 import { RichOut } from '../components/richOut';
 
-export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ayuda' | 'ticket-detalle' | 'dominios' | 'contratos';
-export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ayuda', 'ticket-detalle', 'dominios', 'contratos'];
+export type LiveRoute = 'resumen' | 'servicios' | 'servicio-detalle' | 'facturas' | 'pagar' | 'perfil' | 'usuarios' | 'seguridad' | 'soporte' | 'ayuda' | 'ticket-detalle' | 'dominios' | 'contratos' | 'respaldos';
+export const LIVE_ROUTES: LiveRoute[] = ['resumen', 'servicios', 'servicio-detalle', 'facturas', 'pagar', 'perfil', 'usuarios', 'seguridad', 'soporte', 'ayuda', 'ticket-detalle', 'dominios', 'contratos', 'respaldos'];
 
 const MONEY: Record<string, Intl.NumberFormat> = {
   PEN: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }),
@@ -191,6 +194,7 @@ export function LivePortal({ route, go, can, userName }: { route: LiveRoute; go:
   if (route === 'pagar') return <PaymentsPage go={go} />;
   if (route === 'dominios') return <DomainsPage />;
   if (route === 'contratos') return <ContractsPage />;
+  if (route === 'respaldos') return <RestoresPage canCreate={can('portal.restore_request.create')} />;
   return invoiceId ? <InvoicePage id={invoiceId} back={() => setInvoiceId(null)} canPay={can('portal.payment.create')} /> : <InvoicesPage openInvoice={setInvoiceId} go={go} />;
 }
 
@@ -570,6 +574,110 @@ function ContractsPage() {
                 <td className="num">{fDate(c.starts_on)}</td>
                 <td className="num">{fDate(c.ends_on)}</td>
                 <td className="r num">v{c.current_version}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+const RESTORE_TARGET: Record<RestoreTargetKind, string> = { website: 'Sitio web', database: 'Base de datos', mailbox: 'Buzón', full_account: 'Cuenta completa' };
+const RESTORE_TONE: Record<RestoreRequestStatus, Tone> = { requested: 'warn', approved: 'info', rejected: 'danger', in_progress: 'info', completed: 'ok', failed: 'danger', cancelled: '' };
+const RESTORE_LABEL: Record<RestoreRequestStatus, string> = { requested: 'Solicitada', approved: 'Aprobada', rejected: 'Rechazada', in_progress: 'En proceso', completed: 'Completada', failed: 'Fallida', cancelled: 'Cancelada' };
+
+function RestoresPage({ canCreate }: { canCreate: boolean }) {
+  const res = useLoad(() => hub.monitoring.portalListRestoreRequests({ size: 50 }), []);
+  const services = useLoad(() => (canCreate ? hub.services.portalList({ size: 100 }) : Promise.resolve(null)), [canCreate]);
+  const rows: RestoreRequest[] = res.data?.data ?? [];
+  const svcRows = services.data?.data ?? [];
+
+  const [open, setOpen] = useState(false);
+  const [serviceId, setServiceId] = useState('');
+  const [kind, setKind] = useState<RestoreTargetKind>('website');
+  const [name, setName] = useState('');
+  const [point, setPoint] = useState('');
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: Tone; text: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!serviceId || !name.trim() || !point || !confirm) { setMsg({ tone: 'danger', text: 'Completa el servicio, el objetivo, la fecha y confirma la sobrescritura.' }); return; }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await hub.monitoring.portalCreateRestoreRequest({ service_id: serviceId, target_kind: kind, target_name: name.trim(), restore_point_at: new Date(point).toISOString(), overwrite_confirmed: true });
+      setMsg({ tone: 'ok', text: 'Solicitud enviada. Abrimos un ticket y el equipo la revisará.' });
+      setOpen(false); setServiceId(''); setName(''); setPoint(''); setConfirm(false);
+      res.reload();
+    } catch (err) {
+      setMsg({ tone: 'danger', text: isProblem(err) ? err.detail || err.title : 'No se pudo enviar la solicitud.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const cancel = async (r: RestoreRequest) => {
+    if (!window.confirm(`¿Cancelar la solicitud ${r.code}?`)) return;
+    try { await hub.monitoring.portalCancelRestoreRequest(r.id, r.version); res.reload(); } catch (err) { setMsg({ tone: 'danger', text: isProblem(err) ? err.detail || err.title : 'No se pudo cancelar.' }); }
+  };
+
+  return (
+    <div style={{ display: 'grid', gap: 20 }}>
+      <PageHead title="Respaldos y restauraciones" lead="Solicita restaurar un servicio a un punto anterior en el tiempo; el equipo revisa y ejecuta cada pedido." />
+      {msg ? <Alert tone={msg.tone} text={msg.text} /> : null}
+      {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+
+      {canCreate ? (
+        <Card title="Solicitar una restauración" icon="restore" actions={<button type="button" className="btn sm" onClick={() => setOpen((o) => !o)}>{open ? 'Cerrar' : 'Nueva solicitud'}</button>}>
+          {open ? (
+            <form onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
+              <FormGrid>
+                <Field label="Servicio *">
+                  <select className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)} required>
+                    <option value="">Elige un servicio…</option>
+                    {svcRows.map((s) => <option key={s.id} value={s.id}>{s.label || s.code}</option>)}
+                  </select>
+                </Field>
+                <Field label="Qué restaurar *">
+                  <select className="input" value={kind} onChange={(e) => setKind(e.target.value as RestoreTargetKind)}>
+                    {(Object.keys(RESTORE_TARGET) as RestoreTargetKind[]).map((k) => <option key={k} value={k}>{RESTORE_TARGET[k]}</option>)}
+                  </select>
+                </Field>
+                <Field label="Nombre (carpeta, base de datos o buzón) *">
+                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="public_html, mi_base, correo@dominio…" required />
+                </Field>
+                <Field label="Restaurar al punto *">
+                  <input className="input" type="datetime-local" value={point} max={new Date().toISOString().slice(0, 16)} onChange={(e) => setPoint(e.target.value)} required />
+                </Field>
+              </FormGrid>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14 }}>
+                <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
+                Entiendo que restaurar <b>sobrescribe</b> el contenido actual del objetivo con el del punto elegido.
+              </label>
+              <div><button className="btn primary" disabled={busy}>{busy ? 'Enviando…' : 'Enviar solicitud'}</button></div>
+            </form>
+          ) : (
+            <p style={{ margin: 0, color: 'var(--muted)' }}>Restaurar sobrescribe el contenido actual. Cada solicitud abre un ticket de soporte para su seguimiento.</p>
+          )}
+        </Card>
+      ) : null}
+
+      <Card title="Mis solicitudes de restauración" icon="archive" sub={res.data ? `${rows.length} solicitud(es)` : undefined}>
+        {res.loading ? <Loading inCard /> : !rows.length ? (
+          <Empty icon="archive"><b>Sin solicitudes</b>Aún no has solicitado ninguna restauración.</Empty>
+        ) : (
+          <Table cols={[{ label: 'Código' }, { label: 'Servicio' }, { label: 'Objetivo' }, { label: 'Punto' }, { label: 'Estado' }, { label: '', right: true }]}>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td className="mono">{r.code}{r.ticket ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.ticket.number}</div> : null}</td>
+                <td>{r.service?.label ?? r.service?.code ?? '—'}</td>
+                <td>{RESTORE_TARGET[r.target_kind]}<div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.target_name}</div></td>
+                <td className="num">{fDate(r.restore_point_at)}</td>
+                <td><Chip tone={RESTORE_TONE[r.status]}>{RESTORE_LABEL[r.status]}</Chip>{r.rejection_reason ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.rejection_reason}</div> : null}</td>
+                <td className="r">{(r.status === 'requested' || r.status === 'approved') ? <button type="button" className="btn sm" onClick={() => void cancel(r)}>Cancelar</button> : null}</td>
               </tr>
             ))}
           </Table>

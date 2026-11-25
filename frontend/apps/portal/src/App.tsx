@@ -1343,7 +1343,7 @@ export default function App() {
           )}
 
           {/* VISTA 9: RESPALDOS AUTOMÁTICOS */}
-          {route === 'respaldos' && (
+          {!live && route === 'respaldos' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>

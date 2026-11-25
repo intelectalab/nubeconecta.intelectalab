@@ -228,5 +228,11 @@ export function createMonitoringApi(http: HttpClient) {
     approveRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/approve`, { version }).then(unwrap),
     rejectRestoreRequest: (id: string, version: number, reason: string) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/reject`, { version, reason }).then(unwrap),
     cancelRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/cancel`, { version }).then(unwrap),
+
+    // Portal del cliente.
+    portalListRestoreRequests: (params: ListParams = {}) =>
+      http.get<CursorPage<RestoreRequest>>(`/api/v1/portal/restore-requests${toQuery({ page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
+    portalCreateRestoreRequest: (input: RestoreRequestInput) => http.post<Envelope<RestoreRequest>>('/api/v1/portal/restore-requests', input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    portalCancelRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/portal/restore-requests/${enc(id)}/cancel`, { version }).then(unwrap),
   };
 }
