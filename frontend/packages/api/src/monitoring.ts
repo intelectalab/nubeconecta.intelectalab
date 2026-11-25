@@ -153,6 +153,43 @@ export interface BackupRunInput {
   error?: string | null;
 }
 
+export type RestoreTargetKind = 'website' | 'database' | 'mailbox' | 'full_account';
+export type RestoreRequestStatus = 'requested' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+export interface RestoreRequest {
+  id: string;
+  code: string;
+  customer_id: string;
+  service_id: string;
+  hosting_account_id: string | null;
+  target_kind: RestoreTargetKind;
+  target_name: string;
+  restore_point_at: string | null;
+  requested_via: 'portal' | 'support';
+  requested_by: string;
+  overwrite_confirmed: boolean;
+  status: RestoreRequestStatus;
+  ticket_id: string;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  execution_mode: 'api' | 'assisted' | null;
+  started_at: string | null;
+  completed_at: string | null;
+  result_notes: string | null;
+  service?: { id: string; label: string | null; code: string } | null;
+  ticket?: { id: string; number: string; status: string } | null;
+  customer?: { id: string; legal_name: string; trade_name: string | null } | null;
+  version: number;
+  created_at?: string;
+}
+export interface RestoreRequestInput {
+  service_id: string;
+  hosting_account_id?: string | null;
+  target_kind: RestoreTargetKind;
+  target_name: string;
+  restore_point_at: string;
+  overwrite_confirmed: boolean;
+}
+
 export function createMonitoringApi(http: HttpClient) {
   const monitors = '/api/v1/admin/monitors';
   const incidents = '/api/v1/admin/incidents';
@@ -183,5 +220,13 @@ export function createMonitoringApi(http: HttpClient) {
     listBackupRuns: (params: ListParams & { filter?: { backup_policy_id?: string; status?: string } } = {}) =>
       http.get<CursorPage<BackupRun>>(`/api/v1/admin/backup-runs${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
     createBackupRun: (input: BackupRunInput) => http.post<Envelope<BackupRun>>('/api/v1/admin/backup-runs', input).then(unwrap),
+
+    listRestoreRequests: (params: ListParams & { filter?: { status?: string; customer_id?: string; service_id?: string } } = {}) =>
+      http.get<CursorPage<RestoreRequest>>(`/api/v1/admin/restore-requests${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined }, filter: params.filter })}`),
+    getRestoreRequest: (id: string) => http.get<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}`).then(unwrap),
+    createRestoreRequest: (input: RestoreRequestInput) => http.post<Envelope<RestoreRequest>>('/api/v1/admin/restore-requests', input, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    approveRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/approve`, { version }).then(unwrap),
+    rejectRestoreRequest: (id: string, version: number, reason: string) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/reject`, { version, reason }).then(unwrap),
+    cancelRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/cancel`, { version }).then(unwrap),
   };
 }

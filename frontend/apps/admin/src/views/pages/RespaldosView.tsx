@@ -7,10 +7,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   type BackupFrequency, type BackupPolicy, type BackupPolicyInput, type BackupResponsibility,
-  type BackupRun, type BackupRunStatus,
+  type BackupRun, type BackupRunStatus, type RestoreRequest, type RestoreRequestStatus, type RestoreTargetKind,
 } from '@hub/api';
 import { useApp } from '../../app/context';
 import type { ViewProps } from '../../app/routes';
+import { href } from '../../app/routeMeta';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
@@ -19,8 +20,14 @@ import { errorText, fDateTime, useCan, useLoad, useLookups } from './clientes/sh
 import { hub } from '../../auth/client';
 
 const mon = hub.monitoring;
-type Tab = 'politicas' | 'corridas';
-const TABS: TabDef<Tab>[] = [{ id: 'politicas', label: 'Políticas' }, { id: 'corridas', label: 'Corridas' }];
+type Tab = 'politicas' | 'corridas' | 'restauraciones';
+const TABS: TabDef<Tab>[] = [{ id: 'politicas', label: 'Políticas' }, { id: 'corridas', label: 'Corridas' }, { id: 'restauraciones', label: 'Restauraciones' }];
+
+const RTARGET: Record<RestoreTargetKind, string> = { website: 'Sitio web', database: 'Base de datos', mailbox: 'Buzón', full_account: 'Cuenta completa' };
+const RSTATUS: Record<RestoreRequestStatus, { label: string; kind: 'ok' | 'danger' | 'warn' | 'info' | '' }> = {
+  requested: { label: 'Solicitada', kind: 'warn' }, approved: { label: 'Aprobada', kind: 'info' }, rejected: { label: 'Rechazada', kind: 'danger' },
+  in_progress: { label: 'En proceso', kind: 'info' }, completed: { label: 'Completada', kind: 'ok' }, failed: { label: 'Fallida', kind: 'danger' }, cancelled: { label: 'Cancelada', kind: '' },
+};
 
 const FREQ: Record<BackupFrequency, string> = { hourly: 'Cada hora', daily: 'Diaria', weekly: 'Semanal', monthly: 'Mensual' };
 const RESP: Record<BackupResponsibility, string> = { company: 'Empresa', provider: 'Proveedor', customer: 'Cliente' };
@@ -36,8 +43,65 @@ export default function RespaldosView({ param }: ViewProps) {
     <>
       <PageHead crumbs={[['Infraestructura', 'infra'], ['Respaldos']]} title="Respaldos" sub="Políticas de respaldo por recurso y registro de corridas (modo manual; la ejecución automática por API llega después)." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} label="Secciones de respaldos" style={{ marginBottom: 12 }} />
-      {tab === 'politicas' ? <PoliciesTab /> : <RunsTab />}
+      {tab === 'politicas' ? <PoliciesTab /> : tab === 'corridas' ? <RunsTab /> : <RestoresTab />}
     </>
+  );
+}
+
+/* ------------------------------ Restauraciones ------------------------------ */
+
+function RestoresTab() {
+  const { toast } = useApp();
+  const can = useCan();
+  const canApprove = can('monitoring.restore_request.approve');
+  const canUpdate = can('monitoring.restore_request.update');
+  const [status, setStatus] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const res = useLoad(() => mon.listRestoreRequests({ size: 25, cursor, filter: { status: status || undefined } }), [status, cursor]);
+  const rows = res.data?.data ?? [];
+  const meta = res.data?.meta;
+
+  const act = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true);
+    try { await fn(); toast(ok); res.reload(); } catch (e) { toast('No se pudo', errorText(e), 'err'); } finally { setBusy(false); }
+  };
+  const approve = (r: RestoreRequest) => { if (window.confirm(`¿Aprobar la restauración ${r.code}?`)) void act(() => mon.approveRestoreRequest(r.id, r.version), 'Restauración aprobada'); };
+  const reject = (r: RestoreRequest) => { const reason = window.prompt('Motivo del rechazo (lo verá el cliente):'); if (reason && reason.trim()) void act(() => mon.rejectRestoreRequest(r.id, r.version, reason.trim()), 'Restauración rechazada'); };
+  const cancel = (r: RestoreRequest) => { if (window.confirm(`¿Cancelar la restauración ${r.code}?`)) void act(() => mon.cancelRestoreRequest(r.id, r.version), 'Restauración cancelada'); };
+
+  const cols: Column<RestoreRequest>[] = [
+    { key: 'code', header: 'Código', className: 'nw', render: (r) => <><b className="mono">{r.code}</b>{r.ticket ? <div className="sub mono">{r.ticket.number}</div> : null}</> },
+    { key: 'c', header: 'Cliente', minWidth: 150, render: (r) => (r.customer ? <a className="rowlink" href={href('cliente', r.customer.id)}>{r.customer.trade_name || r.customer.legal_name}</a> : '—') },
+    { key: 'svc', header: 'Servicio', render: (r) => r.service?.label ?? r.service?.code ?? '—' },
+    { key: 't', header: 'Objetivo', render: (r) => <>{RTARGET[r.target_kind]}<div className="sub">{r.target_name}</div></> },
+    { key: 'pt', header: 'Punto', className: 'nw', render: (r) => fDateTime(r.restore_point_at) },
+    { key: 'v', header: 'Origen', render: (r) => (r.requested_via === 'portal' ? 'Portal' : 'Soporte') },
+    { key: 's', header: 'Estado', render: (r) => <><Chip kind={RSTATUS[r.status].kind}>{RSTATUS[r.status].label}</Chip>{r.rejection_reason ? <div className="sub">{r.rejection_reason}</div> : null}</> },
+    { key: 'x', header: '', align: 'r', render: (r) => (
+      <span style={{ display: 'inline-flex', gap: 5, justifyContent: 'flex-end' }}>
+        {r.status === 'requested' && canApprove ? <><button className="btn sm primary" disabled={busy} onClick={() => approve(r)}>Aprobar</button><button className="btn sm" disabled={busy} onClick={() => reject(r)}>Rechazar</button></> : null}
+        {(r.status === 'requested' || r.status === 'approved') && canUpdate ? <button className="btn sm danger" disabled={busy} onClick={() => cancel(r)}>Cancelar</button> : null}
+      </span>
+    ) },
+  ];
+
+  return (
+    <div className="card">
+      <Toolbar count={res.loading ? 'Cargando…' : `${rows.length}${meta?.has_more ? '+' : ''} en esta página`}>
+        <Select value={status} onChange={(v) => { setStatus(v); setCursor(null); }} label="Estado" options={[['', 'Todas'], ...(Object.keys(RSTATUS) as RestoreRequestStatus[]).map((s): [string, string] => [s, RSTATUS[s].label])]} />
+        <button className="btn sm" onClick={res.reload}><Icon name="refresh" size="sm" /> Actualizar</button>
+      </Toolbar>
+      {res.error ? <div className="card-b"><Note kind="warn">No se pudo cargar: {errorText(res.error)} <button className="btn sm" onClick={res.reload}>Reintentar</button></Note></div>
+        : !res.loading && !rows.length ? <div className="card-b"><EmptyState title="Sin solicitudes" text="Las solicitudes de restauración del portal y de soporte aparecerán aquí." icon="restore" /></div>
+          : <>
+              <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} caption="Solicitudes de restauración" />
+              <div className="card-b" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button className="btn sm" disabled={res.loading || !meta?.prev_cursor} onClick={() => setCursor(meta?.prev_cursor ?? null)}>Anterior</button>
+                <button className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>Siguiente</button>
+              </div>
+            </>}
+    </div>
   );
 }
 
