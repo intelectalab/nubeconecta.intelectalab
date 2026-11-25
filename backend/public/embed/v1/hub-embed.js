@@ -39,6 +39,22 @@
     cache[url] = p;
     return p;
   }
+  function parse(r) {
+    return r.json().then(function (body) {
+      if (!r.ok) { var e = new Error((body && (body.detail || body.title)) || ('HTTP ' + r.status)); e.status = r.status; e.body = body; throw e; }
+      return body && body.data;
+    });
+  }
+  function post(path, body, headers) {
+    var h = { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Accept: 'application/json' };
+    if (headers) { for (var k in headers) h[k] = headers[k]; }
+    return fetch(API + path, { method: 'POST', headers: h, credentials: 'omit', body: JSON.stringify(body) }).then(parse);
+  }
+  function getFresh(path) {
+    return fetch(API + path, { headers: { Authorization: 'Bearer ' + KEY, Accept: 'application/json' }, credentials: 'omit' }).then(parse);
+  }
+  function uuid() { return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }); }
+  function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(LANG === 'en' ? 'en-US' : 'es-PE', { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) { return String(iso); } }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function money(amountMinor, currency) {
     if (amountMinor == null) return '';
@@ -336,6 +352,94 @@
         rows.forEach(function (p) { grid.appendChild(promoCard(p)); });
         wrap.appendChild(grid);
       }).catch(function (e) { fail(wrap, e); });
+    },
+    'libro-reclamaciones': function (div, wrap) {
+      wrap.innerHTML = '';
+      function field(labelText, control, hint) {
+        var f = el('div', 'hub-field'); var id = 'f' + Math.random().toString(36).slice(2, 8); control.id = id;
+        var lab = el('label', null, labelText); lab.setAttribute('for', id); f.appendChild(lab); f.appendChild(control);
+        if (hint) f.appendChild(el('small', 'hub-tag', hint)); return f;
+      }
+      function input(name, type) { var i = el('input', 'hub-input'); i.name = name; i.type = type || 'text'; return i; }
+      function select(name, opts) { var s = el('select', 'hub-select'); s.name = name; opts.forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; s.appendChild(op); }); return s; }
+      function area(name) { var t = el('textarea', 'hub-textarea'); t.name = name; t.rows = 4; return t; }
+
+      var form = el('form'); form.setAttribute('novalidate', 'novalidate');
+      var typeSel = select('complaint_type', [['claim', 'Reclamo (disconformidad con el servicio)'], ['grievance', 'Queja (malestar con la atención)']]);
+      var docSel = select('consumer_document_type', [['dni', 'DNI'], ['ce', 'Carné de extranjería'], ['passport', 'Pasaporte'], ['ruc', 'RUC']]);
+      var name = input('consumer_name'), docNum = input('consumer_document_number'), email = input('consumer_email', 'email');
+      var phone = input('consumer_phone', 'tel'), address = input('consumer_address');
+      var minor = input('is_minor', 'checkbox'), guardian = input('guardian_name');
+      var serviceDesc = input('service_description'), detail = area('detail'), reqText = area('consumer_request');
+      var amount = input('amount', 'number'); amount.min = '0'; amount.step = '0.01';
+      var currency = select('currency', [['PEN', 'Soles (S/)'], ['USD', 'Dólares (US$)']]);
+      var hp = input('website'); hp.className = 'sr'; hp.tabIndex = -1; hp.setAttribute('autocomplete', 'off'); hp.setAttribute('aria-hidden', 'true');
+
+      form.appendChild(field('Tipo', typeSel));
+      form.appendChild(field('Nombre completo', name));
+      var r1 = el('div', 'hub-row'); r1.appendChild(field('Tipo de documento', docSel)); r1.appendChild(field('Número de documento', docNum)); form.appendChild(r1);
+      var r2 = el('div', 'hub-row'); r2.appendChild(field('Correo electrónico', email)); r2.appendChild(field('Teléfono (opcional)', phone)); form.appendChild(r2);
+      form.appendChild(field('Dirección', address));
+      var mf = el('div', 'hub-field'); var ml = el('label'); ml.style.display = 'flex'; ml.style.gap = '8px'; ml.style.alignItems = 'center'; ml.style.fontWeight = '400';
+      ml.appendChild(minor); ml.appendChild(document.createTextNode('El consumidor es menor de edad')); mf.appendChild(ml); form.appendChild(mf);
+      var gf = field('Nombre del padre, madre o representante', guardian); gf.style.display = 'none'; form.appendChild(gf);
+      minor.addEventListener('change', function () { gf.style.display = minor.checked ? '' : 'none'; });
+      form.appendChild(field('Servicio contratado', serviceDesc));
+      var r3 = el('div', 'hub-row'); r3.appendChild(field('Monto reclamado (opcional)', amount)); r3.appendChild(field('Moneda', currency)); form.appendChild(r3);
+      form.appendChild(field('Detalle de lo ocurrido', detail));
+      form.appendChild(field('Lo que pides', reqText));
+      form.appendChild(hp);
+      form.appendChild(el('p', 'hub-tag', 'Tus datos se usan solo para atender tu solicitud (Ley 29733).'));
+      var submit = el('button', 'hub-btn', 'Enviar'); submit.type = 'submit'; form.appendChild(submit);
+      var msg = el('div'); form.appendChild(msg);
+
+      function showErrors(e) {
+        msg.innerHTML = ''; var errs = e && e.body && e.body.errors;
+        if (errs) { for (var k in errs) { (errs[k] || []).forEach(function (m) { msg.appendChild(el('div', 'hub-err', m)); }); } }
+        else msg.appendChild(el('div', 'hub-err', (e && e.message) || 'No se pudo enviar la solicitud.'));
+      }
+
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault(); msg.innerHTML = '';
+        var body = {
+          complaint_type: typeSel.value, consumer_name: name.value.trim(), consumer_document_type: docSel.value,
+          consumer_document_number: docNum.value.trim(), consumer_email: email.value.trim(), consumer_phone: phone.value.trim() || null,
+          consumer_address: address.value.trim(), is_minor: minor.checked, guardian_name: minor.checked ? guardian.value.trim() : null,
+          service_description: serviceDesc.value.trim(), detail: detail.value.trim(), consumer_request: reqText.value.trim(), website: hp.value
+        };
+        var amt = parseFloat(amount.value);
+        if (!isNaN(amt) && amt > 0) { body.amount_minor = Math.round(amt * 100); body.currency = currency.value; }
+        submit.disabled = true; submit.textContent = 'Enviando…';
+        post('/complaints', body, { 'Idempotency-Key': uuid() }).then(function (d) {
+          wrap.innerHTML = '';
+          var card = el('div', 'hub-card feat');
+          card.appendChild(el('h3', 'hub-name', 'Constancia ' + d.code));
+          card.appendChild(el('p', null, d.message || 'Hemos recibido tu solicitud.'));
+          if (d.due_at) card.appendChild(el('small', 'hub-tag', 'Plazo de respuesta: ' + fmtDate(d.due_at)));
+        }).catch(function (e) { submit.disabled = false; submit.textContent = 'Enviar'; showErrors(e); });
+      });
+      wrap.appendChild(form);
+
+      var sep = el('div'); sep.style.margin = '18px 0 8px'; sep.style.borderTop = '1px solid rgba(0,0,0,.12)'; wrap.appendChild(sep);
+      var q = el('div'); q.appendChild(el('p', 'hub-tag', '¿Ya tienes una constancia? Consulta su estado:'));
+      var qrow = el('div', 'hub-row'); var qin = input('code'); qin.placeholder = 'Código de la constancia';
+      var qf = el('div', 'hub-field'); qf.style.flex = '1'; qf.style.marginBottom = '0'; qf.appendChild(qin);
+      var qbtn = el('button', 'hub-btn ghost', 'Consultar'); qbtn.type = 'button';
+      qrow.appendChild(qf); qrow.appendChild(qbtn); q.appendChild(qrow);
+      var qout = el('div'); qout.style.marginTop = '8px'; q.appendChild(qout); wrap.appendChild(q);
+      qbtn.addEventListener('click', function () {
+        var code = qin.value.trim(); qout.innerHTML = ''; if (!code) return; qbtn.disabled = true;
+        getFresh('/complaints/' + encodeURIComponent(code)).then(function (d) {
+          qbtn.disabled = false;
+          var map = { received: ['unk', 'Recibida'], in_progress: ['unk', 'En proceso'], answered: ['ok', 'Respondida'], closed: ['ok', 'Cerrada'] };
+          var s = map[d.status] || ['unk', d.status];
+          qout.appendChild(el('span', 'hub-badge ' + s[0], s[1]));
+          if (d.due_at) qout.appendChild(el('small', 'hub-tag', ' · Plazo: ' + fmtDate(d.due_at)));
+        }).catch(function (e) {
+          qbtn.disabled = false;
+          qout.appendChild(el('div', 'hub-err', e && e.status === 404 ? 'No encontramos esa constancia.' : 'No se pudo consultar el estado.'));
+        });
+      });
     }
   };
 

@@ -7,29 +7,24 @@ namespace App\Modules\Support\Http\Controllers\Portal;
 use App\Modules\Customers\Models\Customer;
 use App\Modules\Customers\Support\PortalCustomer;
 use App\Modules\Services\Models\Service;
-use App\Modules\Settings\Services\BusinessCalendar;
 use App\Modules\Settings\Services\SettingsResolver;
 use App\Modules\Support\Http\Resources\Portal\PortalComplaintResource;
 use App\Modules\Support\Models\Complaint;
-use App\Modules\Support\Models\Ticket;
-use App\Modules\Notifications\Services\NotificationService;
-use App\Shared\Audit\AuditLogger;
+use App\Modules\Support\Services\ComplaintRegistrar;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
 use App\Shared\Pagination\CursorPagination;
-use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 final class PortalComplaintController
 {
     private const DOCUMENT_TYPES = ['dni', 'ce', 'passport', 'ruc'];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(private readonly ComplaintRegistrar $registrar) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -81,80 +76,33 @@ final class PortalComplaintController
 
         $responseDays = $this->responseDays($customer->id);
 
+        $attributes = [
+            'wp_site_id' => null,
+            'complaint_type' => $data['complaint_type'],
+            'consumer_name' => $customer->legal_name,
+            'consumer_document_type' => strtolower((string) $customer->tax_id_type),
+            'consumer_document_number' => $customer->tax_id,
+            'consumer_address' => $customer->address,
+            'consumer_email' => $customer->email,
+            'consumer_phone' => $customer->phone,
+            'customer_id' => $customer->id,
+            'service_id' => $service?->id,
+            'service_description' => $serviceDescription,
+            'amount_minor' => $data['amount_minor'] ?? null,
+            'currency' => $data['currency'] ?? null,
+            'detail' => $data['detail'],
+            'consumer_request' => $data['consumer_request'],
+            'is_test' => false,
+        ];
+
         try {
-            $complaint = DB::transaction(function () use ($customer, $data, $org, $brand, $service, $serviceDescription, $responseDays): Complaint {
-                DB::table('brands')->where('id', $brand->id)->where('organization_id', $org)->lockForUpdate()->firstOrFail();
-                $number = (int) Complaint::query()->where('brand_id', $brand->id)->max('number') + 1;
-                $number = max($number, (int) DB::table('complaint_deletions')->where('brand_id', $brand->id)->max('number') + 1);
-                $received = now();
-                $due = $this->dueDate($received, $responseDays);
-
-                DB::table('code_sequences')->insertOrIgnore(['organization_id' => $org, 'entity' => 'ticket', 'prefix' => 'TIC', 'padding' => 6, 'next_value' => 1]);
-                $ticket = Ticket::query()->create([
-                    'number' => DB::selectOne('select hub_next_code(?, ?) as code', [$org, 'ticket'])->code,
-                    'brand_id' => $brand->id,
-                    'customer_id' => $customer->id,
-                    'type' => 'complaint',
-                    'status' => 'open',
-                    'priority' => 'high',
-                    'channel' => 'web_form',
-                    'subject' => 'Libro de Reclamaciones: '.$data['complaint_type'].' #'.$number,
-                    'resolution_due_at' => $due,
-                ]);
-
-                $record = Complaint::query()->create([
-                    'brand_id' => $brand->id,
-                    'number' => $number,
-                    'code' => strtoupper((string) $brand->code).'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT),
-                    'complaint_type' => $data['complaint_type'],
-                    'consumer_name' => $customer->legal_name,
-                    'consumer_document_type' => strtolower((string) $customer->tax_id_type),
-                    'consumer_document_number' => $customer->tax_id,
-                    'consumer_address' => $customer->address,
-                    'consumer_email' => $customer->email,
-                    'consumer_phone' => $customer->phone,
-                    'customer_id' => $customer->id,
-                    'service_id' => $service?->id,
-                    'service_description' => $serviceDescription,
-                    'amount_minor' => $data['amount_minor'] ?? null,
-                    'currency' => $data['currency'] ?? null,
-                    'detail' => $data['detail'],
-                    'consumer_request' => $data['consumer_request'],
-                    'status' => 'received',
-                    'received_at' => $received,
-                    'response_days' => $responseDays,
-                    'due_at' => $due,
-                    'ticket_id' => $ticket->id,
-                    'is_test' => false,
-                ]);
-
-                $this->audit->record('complaint.created', 'complaint', $record->id, null, $record->refresh()->attributesToArray());
-
-                return $record->load('responses');
-            });
+            $complaint = $this->registrar->register($brand, $attributes, $responseDays);
         } catch (QueryException $exception) {
             $state = (string) ($exception->errorInfo[0] ?? $exception->getCode());
             if ($state === '23503') {
                 throw ProblemException::validation(['reference' => ['La referencia indicada no existe.']]);
             }
             throw $exception;
-        }
-
-        try {
-            app(NotificationService::class)->send([
-                'event' => 'complaint.received',
-                'template_code' => 'complaint.received',
-                'recipient_address' => $complaint->consumer_email,
-                'customer_id' => $complaint->customer_id,
-                'brand_id' => $complaint->brand_id,
-                'entity_type' => 'complaint',
-                'entity_id' => $complaint->id,
-                'dedupe_key' => 'complaint:'.$complaint->id,
-                'variables' => ['numero' => $complaint->number, 'codigo' => $complaint->code ?? '', 'nombre' => $complaint->consumer_name],
-            ]);
-        } catch (\Throwable $e) {
-            // Best-effort: ni el fallo de notificación ni su registro deben tumbar la hoja (ya guardada).
-            try { Log::warning('notify falló', ['event' => 'complaint.received', 'error' => $e->getMessage()]); } catch (\Throwable) { /* logging no disponible */ }
         }
 
         return (new PortalComplaintResource($complaint))->response()->setStatusCode(201);
@@ -171,14 +119,5 @@ final class PortalComplaintController
         $configured = app(SettingsResolver::class)->get('complaints.response_days', ['customer' => $customerId]);
 
         return is_numeric($configured) && (int) $configured > 0 && (int) $configured <= 365 ? (int) $configured : 15;
-    }
-
-    private function dueDate(CarbonInterface $from, int $days): CarbonInterface
-    {
-        try {
-            return app(BusinessCalendar::class)->addBusinessDays($from, $days);
-        } catch (\RuntimeException) {
-            return $from->copy()->addDays($days);
-        }
     }
 }

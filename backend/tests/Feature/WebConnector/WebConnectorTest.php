@@ -419,6 +419,53 @@ final class WebConnectorTest extends IdentityTestCase
         return $this->postJson($uri, $body, array_filter($headers + ['Authorization' => $token ? "Bearer {$token}" : null, 'X-Hub-Plugin-Version' => '1.3.0'], fn ($v) => $v !== null && $v !== ''));
     }
 
+    public function test_public_libro_de_reclamaciones_registers_a_sheet_and_status_lookup(): void
+    {
+        $brand = $this->brand('marca-lr');
+        ['token' => $token] = $this->activeSite($brand);
+
+        $payload = [
+            'complaint_type' => 'claim',
+            'consumer_name' => 'Juan Pérez',
+            'consumer_document_type' => 'dni',
+            'consumer_document_number' => '12345678',
+            'consumer_address' => 'Av. Siempre Viva 123',
+            'consumer_email' => 'JUAN@example.test',
+            'service_description' => 'Hosting contratado',
+            'detail' => 'El sitio estuvo caído tres días.',
+            'consumer_request' => 'Compensación por el tiempo sin servicio.',
+        ];
+
+        // Registro público: devuelve la constancia sin reflejar datos personales.
+        $res = $this->pluginPost('/api/v1/public/wp/complaints', $token, $payload)->assertCreated();
+        $code = (string) $res->json('data.code');
+        $this->assertNotSame('', $code);
+        $this->assertSame('received', $res->json('data.status'));
+        $this->assertStringNotContainsString('Juan Pérez', $res->getContent());
+
+        // Se creó la hoja ligada a la marca y al sitio, con el ticket interno en canal web_form.
+        $this->assertDatabaseHas('complaints', ['code' => $code, 'brand_id' => $brand, 'customer_id' => null, 'status' => 'received', 'consumer_email' => 'juan@example.test']);
+        $ticketId = DB::table('complaints')->where('code', $code)->value('ticket_id');
+        $this->assertDatabaseHas('tickets', ['id' => $ticketId, 'type' => 'complaint', 'channel' => 'web_form']);
+
+        // Consulta pública del estado por el código: solo estado y fechas, sin datos personales.
+        $status = $this->plugin('/api/v1/public/wp/complaints/'.$code, $token)->assertOk()
+            ->assertJsonPath('data.code', $code)->assertJsonPath('data.status', 'received');
+        $this->assertStringNotContainsString('Juan Pérez', $status->getContent());
+        $this->assertArrayNotHasKey('consumer_name', $status->json('data'));
+
+        // Menor de edad sin apoderado → 422.
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/complaints', $token, $payload + ['is_minor' => true]), 422, 'validation_failed');
+
+        // Campo trampa relleno → 422 y no abre otra hoja.
+        $before = DB::table('complaints')->where('brand_id', $brand)->count();
+        $this->assertProblem($this->pluginPost('/api/v1/public/wp/complaints', $token, $payload + ['website' => 'http://spam.test']), 422, 'validation_failed');
+        $this->assertSame($before, DB::table('complaints')->where('brand_id', $brand)->count());
+
+        // Código inexistente → 404.
+        $this->assertProblem($this->plugin('/api/v1/public/wp/complaints/MARCA-LR-999999', $token), 404, 'not_found');
+    }
+
     public function test_plugin_api_compare_domain_prices_and_legal_documents_by_brand(): void
     {
         $brandA = $this->brand('marca-a');

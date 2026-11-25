@@ -6,6 +6,7 @@ use App\Modules\WebConnector\Http\Controllers\LegalDocumentController;
 use App\Modules\WebConnector\Http\Controllers\WebFormController;
 use App\Modules\WebConnector\Http\Controllers\WebFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpCacheInvalidationController;
+use App\Modules\WebConnector\Http\Controllers\WpComplaintController;
 use App\Modules\WebConnector\Http\Controllers\WpDomainAvailabilityController;
 use App\Modules\WebConnector\Http\Controllers\WpFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpPublicController;
@@ -86,6 +87,9 @@ Route::prefix('public/wp')->name('public.wp.')->middleware(['wp.site', 'throttle
     Route::get('forms/{code}', [WpPublicController::class, 'form'])->where('code', '[a-z0-9]+(-[a-z0-9]+)*')->name('forms.show');
     // Envío en modo reenvío del plugin (docs/13 §9); el límite por IP del visitante va en el controlador.
     Route::post('forms/{code}/submissions', [WpFormSubmissionController::class, 'store'])->where('code', '[a-z0-9]+(-[a-z0-9]+)*')->name('forms.submissions.store');
+    // Libro de Reclamaciones público: registrar una hoja y consultar su estado por el código de la constancia.
+    Route::post('complaints', [WpComplaintController::class, 'store'])->name('complaints.store');
+    Route::get('complaints/{code}', [WpComplaintController::class, 'status'])->where('code', '[A-Za-z0-9][A-Za-z0-9_-]{0,80}')->name('complaints.status');
     // Preflight CORS del widget embebible (docs/15 §4): refleja el origen solicitado.
     // La pertenencia a allowed_origins se exige en la petición real (403 origin_not_allowed).
     Route::options('{any}', function (\Illuminate\Http\Request $request) {

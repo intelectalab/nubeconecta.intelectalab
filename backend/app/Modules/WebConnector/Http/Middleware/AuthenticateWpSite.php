@@ -33,6 +33,7 @@ final class AuthenticateWpSite
         '#^/api/v1/public/wp/legal-documents/[a-z0-9]+([_-][a-z0-9]+)*$#',
         '#^/api/v1/public/wp/forms/[a-z0-9]+(-[a-z0-9]+)*$#',
         '#^/api/v1/public/wp/status$#',
+        '#^/api/v1/public/wp/complaints/[A-Za-z0-9][A-Za-z0-9_-]{0,80}$#',
     ];
 
     public function __construct(private readonly CurrentOrganization $organization) {}
@@ -152,7 +153,8 @@ final class AuthenticateWpSite
     private function isEmbedRoute(string $path, string $method): bool
     {
         if ($method === 'POST') {
-            return preg_match('#^/api/v1/public/wp/(?:web-forms|forms)/[a-z0-9-]+/submissions$#', $path) === 1;
+            return preg_match('#^/api/v1/public/wp/(?:web-forms|forms)/[a-z0-9-]+/submissions$#', $path) === 1
+                || $path === '/api/v1/public/wp/complaints';
         }
         if ($method !== 'GET') {
             return false;
