@@ -161,7 +161,7 @@ function AuthFrame({ children }: { children: ReactNode }) {
             <LogoMark />
           </span>
           <div>
-            <b>Hub</b>
+            <b>NubeConecta</b>
             <small>Panel administrativo</small>
           </div>
         </div>

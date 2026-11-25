@@ -195,7 +195,6 @@ export default function InicioView(_props: ViewProps) {
         </section>
       </div>
       <div style={{ height: 16 }} />
-      <Note icon="info" style={{ marginBottom: 16 }}>Renovaciones próximas usa datos de ejemplo; se conectará cuando exista su panel de vencimientos.</Note>
       <div className="grid g-2e">
         <section className="card" aria-labelledby="hCap">
           <div className="card-h">
