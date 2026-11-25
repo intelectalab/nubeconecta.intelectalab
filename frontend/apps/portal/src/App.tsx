@@ -1063,7 +1063,7 @@ export default function App() {
           )}
 
           {/* VISTA 6: DOMINIOS */}
-          {route === 'dominios' && (
+          {!live && route === 'dominios' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
                 <div>
@@ -1412,7 +1412,7 @@ export default function App() {
           )}
 
           {/* VISTA 10: CONTRATOS Y DOCUMENTOS */}
-          {route === 'contratos' && (
+          {!live && route === 'contratos' && (
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="phead">
                 <div>
