@@ -61,6 +61,15 @@ return new class extends Migration
             $db->unprepared('ALTER TABLE organizations ADD CONSTRAINT organizations_saas_plan_id_fkey FOREIGN KEY (saas_plan_id) REFERENCES saas_plans(id);');
         }
 
+        // El esquema canónico (schema.sql) otorga a hub_app al cargarse (GRANT ... ON
+        // ALL TABLES), pero no hay ALTER DEFAULT PRIVILEGES: en una BD existente esta
+        // tabla nueva necesita el GRANT explícito o el usuario restringido de la app
+        // no podría usarla. Idempotente; solo si el rol hub_app existe (en desarrollo
+        // se usa hub_owner y el rol no está).
+        if ($db->selectOne("SELECT 1 FROM pg_roles WHERE rolname = 'hub_app'") !== null) {
+            $db->unprepared('GRANT SELECT, INSERT, UPDATE, DELETE ON saas_plans TO hub_app;');
+        }
+
         // La organización existente (la primera) es la operadora.
         $db->statement("UPDATE organizations SET is_operator = true WHERE is_operator = false AND id = (SELECT id FROM organizations ORDER BY created_at, id LIMIT 1);");
     }
