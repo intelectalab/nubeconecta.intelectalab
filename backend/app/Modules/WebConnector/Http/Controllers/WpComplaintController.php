@@ -8,13 +8,13 @@ use App\Modules\Settings\Services\SettingsResolver;
 use App\Modules\Support\Models\Complaint;
 use App\Modules\Support\Services\ComplaintRegistrar;
 use App\Modules\WebConnector\Contracts\CaptchaVerifier;
+use App\Modules\WebConnector\Http\Concerns\ThrottlesPublicVisitors;
 use App\Modules\WebConnector\Models\WpSite;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Settings\SettingsReader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 /**
@@ -29,6 +29,8 @@ use Illuminate\Validation\Rule;
  */
 final class WpComplaintController
 {
+    use ThrottlesPublicVisitors;
+
     public function __construct(
         private readonly ComplaintRegistrar $registrar,
         private readonly SettingsReader $settings,
@@ -43,15 +45,9 @@ final class WpComplaintController
         $brand = $site->brand ?? throw ProblemException::notFound();
 
         $ip = $this->visitorIp($request);
-        $ipHash = hash_hmac('sha256', $ip, (string) config('app.key'));
-        $limiterKey = 'wcn-complaint:'.$site->organization_id.':'.$ipHash;
-        $siteKey = 'wcn-complaint-site:'.$site->organization_id;
+        $ipHash = $this->visitorIpHash($ip);
         $max = max(1, $this->settings->int('web_connector.forms.submissions_per_ip_per_hour', 10));
-        // X-Hub-Visitor-Ip es falsificable; un tope por sitio (10×) acota el abuso aunque se rote la IP.
-        if (RateLimiter::tooManyAttempts($limiterKey, $max) || RateLimiter::tooManyAttempts($siteKey, $max * 10)) {
-            $retry = max(RateLimiter::availableIn($limiterKey), RateLimiter::availableIn($siteKey));
-            throw new ProblemException(429, 'rate_limited', 'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.', ['retry_after' => $retry], ['Retry-After' => (string) $retry]);
-        }
+        $this->assertVisitorWithinLimit('wcn-complaint', $site->organization_id, $ipHash, $max, 'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.');
 
         $data = $request->validate([
             'complaint_type' => ['required', Rule::in(['claim', 'grievance'])],
@@ -97,8 +93,7 @@ final class WpComplaintController
             return response()->json(['data' => $cached], 201);
         }
 
-        RateLimiter::hit($limiterKey, 3600);
-        RateLimiter::hit($siteKey, 3600);
+        $this->recordVisitorHit('wcn-complaint', $site->organization_id, $ipHash, 3600);
 
         $attributes = [
             'wp_site_id' => $site->id,
@@ -166,13 +161,5 @@ final class WpComplaintController
         $configured = $this->resolver->get('complaints.response_days', ['brand' => $site->brand_id]);
 
         return is_numeric($configured) && (int) $configured > 0 && (int) $configured <= 365 ? (int) $configured : 15;
-    }
-
-    /** IP del visitante que reenvía el plugin; si no viene o no es válida, la del servidor. */
-    private function visitorIp(Request $request): string
-    {
-        $header = trim((string) $request->header('X-Hub-Visitor-Ip', ''));
-
-        return filter_var($header, FILTER_VALIDATE_IP) !== false ? $header : (string) $request->ip();
     }
 }

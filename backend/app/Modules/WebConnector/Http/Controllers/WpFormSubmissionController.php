@@ -6,13 +6,13 @@ namespace App\Modules\WebConnector\Http\Controllers;
 
 use App\Modules\WebConnector\Contracts\CaptchaVerifier;
 use App\Modules\WebConnector\Events\WebFormSubmitted;
+use App\Modules\WebConnector\Http\Concerns\ThrottlesPublicVisitors;
 use App\Modules\WebConnector\Models\WpSite;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Settings\SettingsReader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 /**
@@ -28,6 +28,8 @@ use Illuminate\Support\Str;
  */
 final class WpFormSubmissionController
 {
+    use ThrottlesPublicVisitors;
+
     public function __construct(private readonly SettingsReader $settings, private readonly CaptchaVerifier $captcha) {}
 
     public function store(Request $request, string $code): JsonResponse
@@ -38,18 +40,10 @@ final class WpFormSubmissionController
             ->where('code', $code)->where('status', 'active')->whereNull('deleted_at')->first() ?? throw ProblemException::notFound();
 
         $ip = $this->visitorIp($request);
-        $ipHash = hash_hmac('sha256', $ip, (string) config('app.key'));
-        $limiterKey = 'wcn-form:'.$site->organization_id.':'.$ipHash;
+        $ipHash = $this->visitorIpHash($ip);
         $max = max(1, $this->settings->int('web_connector.forms.submissions_per_ip_per_hour', 10));
-        // X-Hub-Visitor-Ip lo reenvía el plugin y es falsificable: un tope por sitio (10×)
-        // acota el abuso aunque se rote la IP del visitante para burlar el límite por IP.
-        $siteKey = 'wcn-form-site:'.$site->organization_id;
-        if (RateLimiter::tooManyAttempts($limiterKey, $max) || RateLimiter::tooManyAttempts($siteKey, $max * 10)) {
-            $retry = max(RateLimiter::availableIn($limiterKey), RateLimiter::availableIn($siteKey));
-            throw new ProblemException(429, 'rate_limited', 'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.', ['retry_after' => $retry], ['Retry-After' => (string) $retry]);
-        }
-        RateLimiter::hit($limiterKey, 3600);
-        RateLimiter::hit($siteKey, 3600);
+        $this->assertVisitorWithinLimit('wcn-form', $site->organization_id, $ipHash, $max, 'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.');
+        $this->recordVisitorHit('wcn-form', $site->organization_id, $ipHash, 3600);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:120'],
@@ -125,11 +119,4 @@ final class WpFormSubmissionController
         ]], 202);
     }
 
-    /** IP del visitante que reenvía el plugin; si no viene o no es válida, la del servidor de WordPress. */
-    private function visitorIp(Request $request): string
-    {
-        $header = trim((string) $request->header('X-Hub-Visitor-Ip', ''));
-
-        return filter_var($header, FILTER_VALIDATE_IP) !== false ? $header : (string) $request->ip();
-    }
 }

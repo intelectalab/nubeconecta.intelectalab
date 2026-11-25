@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\WebConnector\Http\Controllers;
 
 use App\Modules\WebConnector\Contracts\DomainAvailabilityChecker;
+use App\Modules\WebConnector\Http\Concerns\ThrottlesPublicVisitors;
 use App\Modules\WebConnector\Models\WpSite;
 use App\Modules\WebConnector\Services\Domains\DomainPriceCatalog;
 use App\Shared\Http\Problem\ProblemException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Disponibilidad de un nombre en varias extensiones (wpDomainAvailability). Solo
@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 final class WpDomainAvailabilityController
 {
+    use ThrottlesPublicVisitors;
+
     private const MAX_TLDS = 8;
 
     public function __construct(private readonly DomainAvailabilityChecker $checker, private readonly DomainPriceCatalog $catalog) {}
@@ -43,19 +45,11 @@ final class WpDomainAvailabilityController
             throw ProblemException::validation(['tlds' => ['Máximo '.self::MAX_TLDS.' extensiones por consulta.']]);
         }
 
-        $ip = trim((string) $request->header('X-Hub-Visitor-Ip', ''));
-        $ip = filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : (string) $request->ip();
+        $ip = $this->visitorIp($request);
+        $ipHash = $this->visitorIpHash($ip);
         $max = max(1, (int) config('hub.domain_availability.requests_per_ip_per_10min', 30));
-        $key = 'wcn-domain:'.$site->organization_id.':'.hash_hmac('sha256', $ip, (string) config('app.key'));
-        // La IP del visitante la reenvía el plugin (X-Hub-Visitor-Ip) y es falsificable, así
-        // que además del límite por IP hay un tope por sitio (10×) que rotar la IP no evade.
-        $siteKey = 'wcn-domain-site:'.$site->organization_id;
-        if (RateLimiter::tooManyAttempts($key, $max) || RateLimiter::tooManyAttempts($siteKey, $max * 10)) {
-            $retry = max(RateLimiter::availableIn($key), RateLimiter::availableIn($siteKey));
-            throw new ProblemException(429, 'rate_limited', 'Demasiadas consultas desde esta conexión. Intenta de nuevo en unos minutos.', ['retry_after' => $retry], ['Retry-After' => (string) $retry]);
-        }
-        RateLimiter::hit($key, 600);
-        RateLimiter::hit($siteKey, 600);
+        $this->assertVisitorWithinLimit('wcn-domain', $site->organization_id, $ipHash, $max, 'Demasiadas consultas desde esta conexión. Intenta de nuevo en unos minutos.');
+        $this->recordVisitorHit('wcn-domain', $site->organization_id, $ipHash, 600);
 
         $rows = array_slice($this->catalog->prices($site->organization_id, $data['currency'] ?? 'PEN', $requested), 0, self::MAX_TLDS);
         $out = [];
