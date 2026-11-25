@@ -112,5 +112,8 @@ export function createContractsApi(http: HttpClient) {
     portalList: (params: ListParams = {}) =>
       http.get<CursorPage<PortalContract>>(`/api/v1/portal/contracts${toQuery({ sort: params.sort, page: { size: params.size, cursor: params.cursor ?? undefined } })}`),
     portalGet: (id: string) => http.get<Envelope<PortalContract>>(`/api/v1/portal/contracts/${enc(id)}`).then(unwrap),
+    /** Representación impresa en HTML del contrato (imprimible a PDF); ruta para el iframe de previsualización. */
+    portalDocumentPath: (id: string, download = false) => `/api/v1/portal/contracts/${enc(id)}/document${download ? '?download=1' : ''}`,
+    portalDocument: (id: string) => http.getBlob(`/api/v1/portal/contracts/${enc(id)}/document?download=1`),
   };
 }

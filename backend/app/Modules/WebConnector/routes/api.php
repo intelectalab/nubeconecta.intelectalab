@@ -10,6 +10,7 @@ use App\Modules\WebConnector\Http\Controllers\WpComplaintController;
 use App\Modules\WebConnector\Http\Controllers\WpDomainAvailabilityController;
 use App\Modules\WebConnector\Http\Controllers\WpFormSubmissionController;
 use App\Modules\WebConnector\Http\Controllers\WpPublicController;
+use App\Modules\WebConnector\Http\Controllers\Portal\PortalLegalController;
 use App\Modules\WebConnector\Http\Controllers\WpSiteController;
 use App\Modules\WebConnector\Http\Controllers\WpSiteTokenController;
 use Illuminate\Support\Facades\Route;
@@ -104,4 +105,10 @@ Route::prefix('public/wp')->name('public.wp.')->middleware(['wp.site', 'throttle
 
         return $response;
     })->where('any', '.*')->name('preflight');
+});
+
+// Portal del cliente: documentos legales vigentes de su marca y su aceptación.
+Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
+    Route::get('legal-documents', [PortalLegalController::class, 'index'])->middleware('permission:portal.legal_document.view')->name('legal-documents.index');
+    Route::post('legal-acceptances', [PortalLegalController::class, 'accept'])->middleware(['permission:portal.legal_acceptance.create', 'idempotency:optional'])->name('legal-acceptances.store');
 });

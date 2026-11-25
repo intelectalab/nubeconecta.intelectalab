@@ -14,6 +14,7 @@ final class ContractsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadViewsFrom(__DIR__.'/resources/views', 'contracts');
         if (! $this->app->routesAreCached()) { Route::middleware('api')->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/routes/api.php'); }
     }
 }

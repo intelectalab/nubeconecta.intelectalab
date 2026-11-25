@@ -10,6 +10,7 @@ use App\Modules\Customers\Support\PortalCustomer;
 use App\Shared\Pagination\CursorPagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /** /api/v1/portal/contracts (portal.contract.view): solo los contratos del cliente de la sesión; uno ajeno responde 404. */
 final class PortalContractController
@@ -36,5 +37,24 @@ final class PortalContractController
             ->findOrFail($id);
 
         return new PortalContractResource($contract);
+    }
+
+    /** Representación impresa en HTML del contrato (imprimible a PDF desde el navegador); `download=1` la entrega como adjunto. */
+    public function document(Request $request, string $id): Response
+    {
+        $contract = Contract::query()
+            ->with(['brand:id,name', 'customer:id,legal_name,trade_name,tax_id'])
+            ->where('customer_id', PortalCustomer::id($request))
+            ->whereIn('status', self::VISIBLE_STATUSES)
+            ->findOrFail($id);
+
+        $html = view('contracts::contract', ['c' => $contract])->render();
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
+            'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline').'; filename="contrato-'.$contract->number.'.html"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'",
+        ]);
     }
 }

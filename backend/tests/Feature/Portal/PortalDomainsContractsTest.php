@@ -74,6 +74,32 @@ final class PortalDomainsContractsTest extends IdentityTestCase
         $this->assertProblem($this->getJson("/api/v1/portal/contracts/{$draft}"), 404, 'not_found');
     }
 
+    public function test_portal_contract_document_and_legal_acceptance(): void
+    {
+        $a = $this->createCustomerWithPortalUser('Cliente D SAC', '20000000044', 'd@cliente.test');
+        $other = $this->createCustomerWithPortalUser('Cliente E SAC', '20000000052', 'e@cliente.test');
+        $con = $this->seedContract($a['id'], 'CTR-D-001');
+        $conOther = $this->seedContract($other['id'], 'CTR-E-001');
+        $vid = $this->seedPublishedLegal($this->brand, 'Términos y Condiciones', 'terminos');
+
+        $this->actAs($a['user']);
+
+        // Documento (HTML imprimible) del contrato propio; el ajeno responde 404.
+        $this->get("/api/v1/portal/contracts/{$con}/document")->assertOk()->assertSee('CTR-D-001');
+        $this->assertProblem($this->get("/api/v1/portal/contracts/{$conOther}/document"), 404, 'not_found');
+
+        // Documentos legales: aparece sin aceptar → aceptar → queda aceptado (constancia en legal_acceptances).
+        $legal = $this->getJson('/api/v1/portal/legal-documents')->assertOk();
+        $this->assertSame('Términos y Condiciones', $legal->json('data.0.title'));
+        $this->assertFalse($legal->json('data.0.accepted'));
+        $this->postJson('/api/v1/portal/legal-acceptances', ['version_id' => $vid])->assertOk()->assertJsonPath('data.accepted', true);
+        $this->getJson('/api/v1/portal/legal-documents')->assertOk()->assertJsonPath('data.0.accepted', true);
+        $this->assertDatabaseHas('legal_acceptances', ['legal_document_version_id' => $vid, 'user_id' => $a['user']->id, 'context' => 'portal']);
+
+        // Una versión inexistente o no publicada de la marca → 422.
+        $this->assertProblem($this->postJson('/api/v1/portal/legal-acceptances', ['version_id' => (string) Str::uuid()]), 422, 'validation_failed');
+    }
+
     private function seedDomain(string $customerId, string $name): string
     {
         $id = (string) Str::uuid();
@@ -100,6 +126,28 @@ final class PortalDomainsContractsTest extends IdentityTestCase
         ]);
 
         return $id;
+    }
+
+    /** Siembra un documento legal con una versión publicada para la marca; devuelve el id de la versión. */
+    private function seedPublishedLegal(string $brand, string $title, string $slug): string
+    {
+        $docId = (string) Str::uuid();
+        $vid = (string) Str::uuid();
+        DB::table('legal_documents')->insert([
+            'id' => $docId, 'organization_id' => $this->orgId, 'brand_id' => $brand,
+            'kind' => 'terms', 'locale' => 'es', 'title' => $title, 'slug' => $slug,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('legal_document_versions')->insert([
+            'id' => $vid, 'organization_id' => $this->orgId, 'legal_document_id' => $docId,
+            'version_number' => 1, 'version_label' => '2026-11', 'body' => '<p>Términos del servicio.</p>',
+            'status' => 'published', 'effective_at' => now(), 'published_at' => now(), 'published_by' => $this->admin->id,
+            'legal_reviewed_by' => 'Asesoría Legal', 'legal_reviewed_at' => now(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('legal_documents')->where('id', $docId)->update(['published_version_id' => $vid]);
+
+        return $vid;
     }
 
     /** @return array{id: string, user: User} */

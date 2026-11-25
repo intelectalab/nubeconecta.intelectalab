@@ -25,4 +25,5 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
 Route::prefix('portal')->name('portal.')->middleware(['hub.auth', 'user.type:customer'])->group(function (): void {
     Route::get('contracts', [PortalContractController::class, 'index'])->middleware('permission:portal.contract.view')->name('contracts.index');
     Route::get('contracts/{id}', [PortalContractController::class, 'show'])->whereUuid('id')->middleware('permission:portal.contract.view')->name('contracts.show');
+    Route::get('contracts/{id}/document', [PortalContractController::class, 'document'])->whereUuid('id')->middleware('permission:portal.contract.view')->name('contracts.document');
 });

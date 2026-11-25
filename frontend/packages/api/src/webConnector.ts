@@ -211,6 +211,17 @@ export interface LegalVersionInput {
   change_summary?: string | null;
 }
 
+/** Documento legal vigente de la marca del cliente, visto desde el portal. */
+export interface PortalLegalDoc {
+  slug: string;
+  kind: string;
+  title: string;
+  version_id: string;
+  version_label: string;
+  effective_at: string | null;
+  accepted: boolean;
+}
+
 export function createWebConnectorApi(http: HttpClient) {
   const base = '/api/v1/admin/web-connector/form-submissions';
   const sitesBase = '/api/v1/admin/web-connector/sites';
@@ -262,6 +273,11 @@ export function createWebConnectorApi(http: HttpClient) {
       updateVersion: (id: string, vid: string, version: number, input: Partial<LegalVersionInput> & { legal_reviewed_by?: string | null }) => http.patch<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}`, { ...input, version }).then(unwrap),
       removeVersion: (id: string, vid: string) => http.delete<void>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}`),
       publishVersion: (id: string, vid: string, version: number, input: { legal_reviewed_by: string; effective_at: string }) => http.post<Envelope<LegalDocument>>(`/api/v1/admin/web-connector/legal-documents/${enc(id)}/versions/${enc(vid)}/publish`, { ...input, version }, { idempotencyKey: newIdempotencyKey() }).then(unwrap),
+    },
+    /** Portal del cliente: documentos legales vigentes de su marca y su aceptación. */
+    portalLegal: {
+      list: () => http.get<Envelope<PortalLegalDoc[]>>('/api/v1/portal/legal-documents').then(unwrap),
+      accept: (versionId: string) => http.post<Envelope<{ accepted: boolean }>>('/api/v1/portal/legal-acceptances', { version_id: versionId }).then(unwrap),
     },
   };
 }

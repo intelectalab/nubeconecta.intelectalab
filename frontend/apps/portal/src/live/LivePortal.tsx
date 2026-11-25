@@ -550,10 +550,20 @@ const CONTRACT_KIND: Record<PortalContract['kind'], string> = { contract: 'Contr
 function ContractsPage() {
   const res = useLoad(() => hub.contracts.portalList({ size: 100 }), []);
   const rows: PortalContract[] = res.data?.data ?? [];
+  const [docId, setDocId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const doc = async (id: string) => {
+    try {
+      download(await hub.contracts.portalDocument(id), 'contrato.html');
+    } catch (e) {
+      setMsg(errorText(e));
+    }
+  };
   return (
     <div style={{ display: 'grid', gap: 20 }}>
       <PageHead title="Mis contratos y acuerdos" lead="Tus contratos vigentes y documentos firmados." />
       {res.error ? <Failed error={res.error} onRetry={res.reload} /> : null}
+      {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
       <Card title="Contratos" icon="file" sub={res.data ? `${rows.length} contrato(s)` : undefined}>
         {res.loading ? (
           <Loading inCard />
@@ -563,7 +573,7 @@ function ContractsPage() {
             Aún no tienes contratos activos.
           </Empty>
         ) : (
-          <Table cols={[{ label: 'Tipo' }, { label: 'Marca' }, { label: 'Estado' }, { label: 'Desde' }, { label: 'Hasta' }, { label: 'Versión', right: true }]}>
+          <Table cols={[{ label: 'Tipo' }, { label: 'Marca' }, { label: 'Estado' }, { label: 'Desde' }, { label: 'Hasta' }, { label: 'Versión', right: true }, { label: '', right: true }]}>
             {rows.map((c) => (
               <tr key={c.id}>
                 <td>{CONTRACT_KIND[c.kind]}</td>
@@ -574,12 +584,69 @@ function ContractsPage() {
                 <td className="num">{fDate(c.starts_on)}</td>
                 <td className="num">{fDate(c.ends_on)}</td>
                 <td className="r num">v{c.current_version}</td>
+                <td className="r">
+                  <button type="button" className="btn sm" onClick={() => setDocId(c.id)}>
+                    <Icon name="eye" className="sm" /> Documento
+                  </button>
+                </td>
               </tr>
             ))}
           </Table>
         )}
       </Card>
+      <LegalDocsCard />
+      {docId ? (
+        <DocPreview src={hub.contracts.portalDocumentPath(docId)} name="contrato" onDownload={() => void doc(docId)} onClose={() => setDocId(null)} />
+      ) : null}
     </div>
+  );
+}
+
+function LegalDocsCard() {
+  const res = useLoad(() => hub.webConnector.portalLegal.list(), []);
+  const docs = res.data ?? [];
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const accept = async (versionId: string) => {
+    setBusy(versionId);
+    try {
+      await hub.webConnector.portalLegal.accept(versionId);
+      res.reload();
+    } catch (e) {
+      setMsg(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  if (!res.loading && !res.error && !docs.length) return null;
+  return (
+    <Card title="Documentos legales" icon="file" sub={docs.length ? `${docs.length} documento(s)` : undefined}>
+      {msg ? <Alert tone="warn" role="alert" title={msg} /> : null}
+      {res.error ? (
+        <Failed error={res.error} onRetry={res.reload} />
+      ) : res.loading ? (
+        <Loading inCard />
+      ) : (
+        <Table cols={[{ label: 'Documento' }, { label: 'Versión' }, { label: 'Vigente desde' }, { label: '', right: true }]}>
+          {docs.map((d) => (
+            <tr key={d.version_id}>
+              <td>{d.title}</td>
+              <td>{d.version_label}</td>
+              <td className="num">{d.effective_at ? fDate(d.effective_at) : '—'}</td>
+              <td className="r">
+                {d.accepted ? (
+                  <Chip tone="ok">Aceptado</Chip>
+                ) : (
+                  <button type="button" className="btn sm primary" disabled={busy === d.version_id} onClick={() => void accept(d.version_id)}>
+                    {busy === d.version_id ? 'Aceptando…' : 'Aceptar'}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Card>
   );
 }
 
