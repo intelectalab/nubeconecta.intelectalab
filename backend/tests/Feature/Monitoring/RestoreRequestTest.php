@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Monitoring;
 
 use App\Shared\Audit\AuditLogger;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Billing\SalesFlowTestCase;
 
 /** Solicitudes de restauración (monitoring.restore_request.*): alta con ticket y máquina de estados. */
@@ -58,6 +60,42 @@ final class RestoreRequestTest extends SalesFlowTestCase
         $this->assertProblem($this->postJson(self::BASE, [
             'service_id' => $service, 'target_kind' => 'database', 'target_name' => 'db1', 'restore_point_at' => now()->subDay()->toIso8601String(), 'overwrite_confirmed' => false,
         ], $this->key()), 422, 'validation_failed');
+
+        $this->assertNull(app(AuditLogger::class)->verify());
+    }
+
+    public function test_assisted_execution_opens_a_task_and_completes_with_evidence(): void
+    {
+        config(['hub.files.disk' => 'local']);
+        Storage::fake('local');
+        $service = $this->serviceId();
+
+        $req = $this->create($service);
+        $approved = $this->postJson(self::BASE."/{$req['id']}/approve", ['version' => $req['version']])->assertOk()->json('data');
+
+        // Iniciar asistida → en proceso + se abre una tarea.
+        $started = $this->postJson(self::BASE."/{$req['id']}/start", ['version' => $approved['version'], 'execution_mode' => 'assisted'])
+            ->assertOk()->assertJsonPath('data.status', 'in_progress')->assertJsonPath('data.execution_mode', 'assisted')->json('data');
+        $taskId = (string) DB::table('restore_requests')->where('id', $req['id'])->value('task_id');
+        $this->assertNotEmpty($taskId);
+        $this->assertDatabaseHas('tasks', ['id' => $taskId, 'customer_id' => $this->rucCustomer, 'service_id' => $service]);
+
+        // Completar sin evidencia → 422.
+        $this->assertProblem($this->postJson(self::BASE."/{$req['id']}/complete", ['version' => $started['version'], 'result_notes' => 'x']), 422, 'validation_failed');
+
+        // Completar con evidencia → completada.
+        $this->post(self::BASE."/{$req['id']}/complete", [
+            'version' => $started['version'], 'result_notes' => 'Restaurado correctamente',
+            'file' => UploadedFile::fake()->create('evidencia.pdf', 20, 'application/pdf'),
+        ], $this->key())->assertOk()->assertJsonPath('data.status', 'completed');
+        $this->assertNotNull(DB::table('restore_requests')->where('id', $req['id'])->value('evidence_file_id'));
+
+        // Camino de fallo en otra solicitud.
+        $r2 = $this->create($service);
+        $a2 = $this->postJson(self::BASE."/{$r2['id']}/approve", ['version' => $r2['version']])->assertOk()->json('data');
+        $s2 = $this->postJson(self::BASE."/{$r2['id']}/start", ['version' => $a2['version']])->assertOk()->json('data');
+        $this->postJson(self::BASE."/{$r2['id']}/fail", ['version' => $s2['version'], 'result_notes' => 'La herramienta no tenía el punto solicitado'])
+            ->assertOk()->assertJsonPath('data.status', 'failed');
 
         $this->assertNull(app(AuditLogger::class)->verify());
     }

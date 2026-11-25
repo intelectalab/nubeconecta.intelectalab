@@ -86,6 +86,38 @@ final class RestoreRequestController
         return new RestoreRequestResource($this->service->cancel($req)->load(['service:id,label,code', 'ticket:id,number,status', 'customer:id,legal_name,trade_name']));
     }
 
+    public function start(Request $request, string $id): RestoreRequestResource
+    {
+        $data = $request->validate(['version' => ['required', 'integer'], 'execution_mode' => ['sometimes', Rule::in(RestoreRequest::EXECUTION_MODES)]]);
+        $req = RestoreRequest::query()->findOrFail($id);
+        VersionGuard::check($req, $data['version']);
+
+        return new RestoreRequestResource($this->service->start($req, $data['execution_mode'] ?? 'assisted')->load(['service:id,label,code', 'ticket:id,number,status', 'customer:id,legal_name,trade_name']));
+    }
+
+    public function complete(Request $request, string $id, \App\Modules\Files\Services\FileService $files): RestoreRequestResource
+    {
+        $data = $request->validate([
+            'version' => ['required', 'integer'],
+            'file' => ['required', 'file', 'max:10240'],
+            'result_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $req = RestoreRequest::query()->findOrFail($id);
+        VersionGuard::check($req, $data['version']);
+        $file = $files->upload($request->file('file'), ['visibility' => 'internal']);
+
+        return new RestoreRequestResource($this->service->complete($req, $file->id, $data['result_notes'] ?? null)->load(['service:id,label,code', 'ticket:id,number,status', 'customer:id,legal_name,trade_name']));
+    }
+
+    public function fail(Request $request, string $id): RestoreRequestResource
+    {
+        $data = $request->validate(['version' => ['required', 'integer'], 'result_notes' => ['required', 'string', 'max:2000']]);
+        $req = RestoreRequest::query()->findOrFail($id);
+        VersionGuard::check($req, $data['version']);
+
+        return new RestoreRequestResource($this->service->fail($req, $data['result_notes'])->load(['service:id,label,code', 'ticket:id,number,status', 'customer:id,legal_name,trade_name']));
+    }
+
     private function guarded(Request $request, string $id): RestoreRequest
     {
         $data = $request->validate(['version' => ['required', 'integer']]);

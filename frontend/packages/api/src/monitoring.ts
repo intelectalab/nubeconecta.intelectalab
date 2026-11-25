@@ -228,6 +228,15 @@ export function createMonitoringApi(http: HttpClient) {
     approveRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/approve`, { version }).then(unwrap),
     rejectRestoreRequest: (id: string, version: number, reason: string) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/reject`, { version, reason }).then(unwrap),
     cancelRestoreRequest: (id: string, version: number) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/cancel`, { version }).then(unwrap),
+    startRestoreRequest: (id: string, version: number, executionMode: 'assisted' | 'api' = 'assisted') => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/start`, { version, execution_mode: executionMode }).then(unwrap),
+    completeRestoreRequest: (id: string, version: number, file: File, resultNotes?: string) => {
+      const fd = new FormData();
+      fd.append('version', String(version));
+      fd.append('file', file);
+      if (resultNotes) fd.append('result_notes', resultNotes);
+      return http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/complete`, fd).then(unwrap);
+    },
+    failRestoreRequest: (id: string, version: number, resultNotes: string) => http.post<Envelope<RestoreRequest>>(`/api/v1/admin/restore-requests/${enc(id)}/fail`, { version, result_notes: resultNotes }).then(unwrap),
 
     // Portal del cliente.
     portalListRestoreRequests: (params: ListParams = {}) =>

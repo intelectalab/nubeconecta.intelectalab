@@ -58,17 +58,20 @@ function RestoresTab() {
   const [status, setStatus] = useState('');
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [completeFor, setCompleteFor] = useState<RestoreRequest | null>(null);
   const res = useLoad(() => mon.listRestoreRequests({ size: 25, cursor, filter: { status: status || undefined } }), [status, cursor]);
   const rows = res.data?.data ?? [];
   const meta = res.data?.meta;
 
-  const act = async (fn: () => Promise<unknown>, ok: string) => {
+  const act = async (fn: () => Promise<unknown>, ok: string, tone: 'ok' | 'warn' = 'ok') => {
     setBusy(true);
-    try { await fn(); toast(ok); res.reload(); } catch (e) { toast('No se pudo', errorText(e), 'err'); } finally { setBusy(false); }
+    try { await fn(); toast(ok, '', tone); res.reload(); } catch (e) { toast('No se pudo', errorText(e), 'err'); } finally { setBusy(false); }
   };
   const approve = (r: RestoreRequest) => { if (window.confirm(`¿Aprobar la restauración ${r.code}?`)) void act(() => mon.approveRestoreRequest(r.id, r.version), 'Restauración aprobada'); };
   const reject = (r: RestoreRequest) => { const reason = window.prompt('Motivo del rechazo (lo verá el cliente):'); if (reason && reason.trim()) void act(() => mon.rejectRestoreRequest(r.id, r.version, reason.trim()), 'Restauración rechazada'); };
   const cancel = (r: RestoreRequest) => { if (window.confirm(`¿Cancelar la restauración ${r.code}?`)) void act(() => mon.cancelRestoreRequest(r.id, r.version), 'Restauración cancelada'); };
+  const start = (r: RestoreRequest) => { if (window.confirm(`¿Iniciar la restauración ${r.code} en modo asistido? Se abrirá una tarea para el equipo.`)) void act(() => mon.startRestoreRequest(r.id, r.version, 'assisted'), 'Restauración iniciada'); };
+  const fail = (r: RestoreRequest) => { const n = window.prompt('Motivo del fallo (queda registrado):'); if (n && n.trim()) void act(() => mon.failRestoreRequest(r.id, r.version, n.trim()), 'Marcada como fallida', 'warn'); };
 
   const cols: Column<RestoreRequest>[] = [
     { key: 'code', header: 'Código', className: 'nw', render: (r) => <><b className="mono">{r.code}</b>{r.ticket ? <div className="sub mono">{r.ticket.number}</div> : null}</> },
@@ -79,8 +82,10 @@ function RestoresTab() {
     { key: 'v', header: 'Origen', render: (r) => (r.requested_via === 'portal' ? 'Portal' : 'Soporte') },
     { key: 's', header: 'Estado', render: (r) => <><Chip kind={RSTATUS[r.status].kind}>{RSTATUS[r.status].label}</Chip>{r.rejection_reason ? <div className="sub">{r.rejection_reason}</div> : null}</> },
     { key: 'x', header: '', align: 'r', render: (r) => (
-      <span style={{ display: 'inline-flex', gap: 5, justifyContent: 'flex-end' }}>
+      <span style={{ display: 'inline-flex', gap: 5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
         {r.status === 'requested' && canApprove ? <><button className="btn sm primary" disabled={busy} onClick={() => approve(r)}>Aprobar</button><button className="btn sm" disabled={busy} onClick={() => reject(r)}>Rechazar</button></> : null}
+        {r.status === 'approved' && canUpdate ? <button className="btn sm primary" disabled={busy} onClick={() => start(r)}>Iniciar</button> : null}
+        {r.status === 'in_progress' && canUpdate ? <><button className="btn sm primary" disabled={busy} onClick={() => setCompleteFor(r)}>Completar</button><button className="btn sm danger" disabled={busy} onClick={() => fail(r)}>Fallida</button></> : null}
         {(r.status === 'requested' || r.status === 'approved') && canUpdate ? <button className="btn sm danger" disabled={busy} onClick={() => cancel(r)}>Cancelar</button> : null}
       </span>
     ) },
@@ -101,7 +106,41 @@ function RestoresTab() {
                 <button className="btn sm" disabled={res.loading || !meta?.next_cursor} onClick={() => setCursor(meta?.next_cursor ?? null)}>Siguiente</button>
               </div>
             </>}
+      {completeFor ? <CompleteRestoreModal req={completeFor} onClose={() => setCompleteFor(null)} onSaved={() => { setCompleteFor(null); res.reload(); }} /> : null}
     </div>
+  );
+}
+
+function CompleteRestoreModal({ req, onClose, onSaved }: { req: RestoreRequest; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useApp();
+  const [file, setFile] = useState<File | null>(null);
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!file) { toast('Falta la evidencia', 'Adjunta un archivo (captura, log o reporte) que acredite la restauración.', 'err'); return; }
+    setBusy(true);
+    try {
+      await mon.completeRestoreRequest(req.id, req.version, file, notes.trim() || undefined);
+      toast('Restauración completada', req.code);
+      onSaved();
+    } catch (err) {
+      toast('No se pudo completar', errorText(err), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open bare onClose={onClose} title="Completar restauración" sub={req.code}>
+      <form className="modal-b" onSubmit={(e) => void submit(e)}>
+        <Note icon="info">Al completar se guarda la evidencia y la solicitud queda cerrada. Adjunta una captura, log o reporte (PDF/JPG/PNG/WEBP, máx. 10 MB).</Note>
+        <label className="field full">Evidencia*<input className="input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label>
+        <label className="field full">Notas del resultado<textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Qué se restauró y cualquier observación" /></label>
+        <div className="modal-f"><button type="button" className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={busy}>Completar</button></div>
+      </form>
+    </Modal>
   );
 }
 

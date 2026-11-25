@@ -42,6 +42,9 @@ Route::prefix('admin')->name('admin.')->middleware(['hub.auth', 'user.type:staff
     Route::post('restore-requests/{id}/approve', [RestoreRequestController::class, 'approve'])->whereUuid('id')->middleware('permission:monitoring.restore_request.approve')->name('restore-requests.approve');
     Route::post('restore-requests/{id}/reject', [RestoreRequestController::class, 'reject'])->whereUuid('id')->middleware('permission:monitoring.restore_request.approve')->name('restore-requests.reject');
     Route::post('restore-requests/{id}/cancel', [RestoreRequestController::class, 'cancel'])->whereUuid('id')->middleware('permission:monitoring.restore_request.update')->name('restore-requests.cancel');
+    Route::post('restore-requests/{id}/start', [RestoreRequestController::class, 'start'])->whereUuid('id')->middleware('permission:monitoring.restore_request.update')->name('restore-requests.start');
+    Route::post('restore-requests/{id}/complete', [RestoreRequestController::class, 'complete'])->whereUuid('id')->middleware('permission:monitoring.restore_request.update')->name('restore-requests.complete');
+    Route::post('restore-requests/{id}/fail', [RestoreRequestController::class, 'fail'])->whereUuid('id')->middleware('permission:monitoring.restore_request.update')->name('restore-requests.fail');
 });
 
 // Portal del cliente: pide restaurar uno de sus servicios y sigue el estado.

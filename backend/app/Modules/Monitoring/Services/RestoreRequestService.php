@@ -7,6 +7,7 @@ namespace App\Modules\Monitoring\Services;
 use App\Modules\Monitoring\Models\RestoreRequest;
 use App\Modules\Services\Models\Service;
 use App\Modules\Support\Models\Ticket;
+use App\Modules\Work\Services\TaskService;
 use App\Shared\Audit\AuditLogger;
 use App\Shared\Http\Problem\ProblemException;
 use App\Shared\Organization\CurrentOrganization;
@@ -15,13 +16,14 @@ use Illuminate\Support\Facades\DB;
 /**
  * Alta y transiciones de las solicitudes de restauración. Cada solicitud nace con
  * un ticket de soporte asociado (RN: el cliente siempre tiene trazabilidad). La
- * ejecución (in_progress/completed/failed) se maneja en una fase posterior.
+ * ejecución asistida abre una tarea (Work) y al completar exige evidencia (Files).
  */
 final class RestoreRequestService
 {
     public function __construct(
         private readonly CurrentOrganization $organization,
         private readonly AuditLogger $audit,
+        private readonly TaskService $tasks,
     ) {}
 
     /**
@@ -106,6 +108,57 @@ final class RestoreRequestService
             $before = $req->attributesToArray();
             $req->forceFill(['status' => 'cancelled'])->save();
             $this->audit->record('restore_request.cancelled', 'restore_request', $req->id, $before, $req->refresh()->attributesToArray(), [], $req->customer_id);
+
+            return $req;
+        });
+    }
+
+    /** Inicia la ejecución: asistida abre una tarea (Work); por API no (se integra después). */
+    public function start(RestoreRequest $req, string $mode): RestoreRequest
+    {
+        $this->assertStatus($req, ['approved']);
+
+        return DB::transaction(function () use ($req, $mode): RestoreRequest {
+            $before = $req->attributesToArray();
+            $taskId = null;
+            if ($mode === 'assisted') {
+                $task = $this->tasks->create([
+                    'title' => "Restauración {$req->code} · {$req->target_name}",
+                    'description' => "Restaurar «{$req->target_name}» del servicio al punto {$req->restore_point_at}.",
+                    'priority' => 'high',
+                    'customer_id' => $req->customer_id,
+                    'service_id' => $req->service_id,
+                ]);
+                $taskId = $task->id;
+            }
+            $req->forceFill(['status' => 'in_progress', 'execution_mode' => $mode, 'started_at' => now(), 'task_id' => $taskId])->save();
+            $this->audit->record('restore_request.started', 'restore_request', $req->id, $before, $req->refresh()->attributesToArray(), ['mode' => $mode], $req->customer_id);
+
+            return $req;
+        });
+    }
+
+    public function complete(RestoreRequest $req, string $evidenceFileId, ?string $notes): RestoreRequest
+    {
+        $this->assertStatus($req, ['in_progress']);
+
+        return DB::transaction(function () use ($req, $evidenceFileId, $notes): RestoreRequest {
+            $before = $req->attributesToArray();
+            $req->forceFill(['status' => 'completed', 'evidence_file_id' => $evidenceFileId, 'completed_at' => now(), 'result_notes' => $notes])->save();
+            $this->audit->record('restore_request.completed', 'restore_request', $req->id, $before, $req->refresh()->attributesToArray(), [], $req->customer_id);
+
+            return $req;
+        });
+    }
+
+    public function fail(RestoreRequest $req, string $notes): RestoreRequest
+    {
+        $this->assertStatus($req, ['in_progress']);
+
+        return DB::transaction(function () use ($req, $notes): RestoreRequest {
+            $before = $req->attributesToArray();
+            $req->forceFill(['status' => 'failed', 'result_notes' => $notes])->save();
+            $this->audit->record('restore_request.failed', 'restore_request', $req->id, $before, $req->refresh()->attributesToArray(), [], $req->customer_id);
 
             return $req;
         });
